@@ -35,7 +35,7 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
   return (
     <>
       {/* Desktop: vertical sidebar */}
-      <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-zinc-200 md:bg-zinc-50">
+      <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-zinc-200 md:bg-zinc-50">
         <div className="px-4 py-5 text-lg font-semibold text-zinc-900">
           {APP_NAME}
         </div>
