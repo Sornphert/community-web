@@ -93,6 +93,20 @@ export function Sidebar({
         </div>
       </aside>
 
+      {/* Mobile: sticky top brand bar */}
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 md:hidden">
+        <Image
+          src="/brand.jpg"
+          alt={APP_NAME}
+          width={32}
+          height={32}
+          className="rounded shrink-0"
+        />
+        <h1 className="font-semibold text-zinc-900 text-sm leading-tight truncate">
+          {APP_NAME}
+        </h1>
+      </header>
+
       {/* Mobile: bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-zinc-200 bg-zinc-50 md:hidden">
         {navItems.map(({ href, label, icon: Icon }) => (
