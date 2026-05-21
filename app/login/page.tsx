@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState, useTransition } from 'react'
+import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signUp } from './actions'
 
@@ -32,6 +33,19 @@ function LoginForm() {
   return (
     <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <Image
+            src="/brand.jpg"
+            alt="Johnson 天命数字投资"
+            width={120}
+            height={120}
+            className="rounded shrink-0"
+          />
+          <h2 className="font-semibold text-zinc-900 text-xl leading-tight text-center">
+            Johnson 天命数字投资
+          </h2>
+        </div>
+
         <h1 className="mb-6 text-xl font-semibold text-zinc-900">
           {mode === 'signin' ? 'Sign in' : 'Sign up'}
         </h1>
