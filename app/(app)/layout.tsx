@@ -18,9 +18,17 @@ export default async function AppLayout({
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const isAdmin = profile?.is_admin === true
+
   return (
     <div className="flex flex-1 flex-col md:flex-row">
-      <Sidebar userEmail={user.email ?? ''} />
+      <Sidebar userEmail={user.email ?? ''} isAdmin={isAdmin} />
       <main className="flex flex-1 flex-col bg-zinc-50 p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>

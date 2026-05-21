@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
+import { createClient } from '@/lib/supabase/server'
 import { getMemberProfile } from '@/lib/posts'
 
 export default async function MemberProfilePage({
@@ -10,6 +11,20 @@ export default async function MemberProfilePage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.is_admin) redirect('/community')
+
   const { id } = await params
   const member = await getMemberProfile(id)
 

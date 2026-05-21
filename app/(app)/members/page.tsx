@@ -1,8 +1,24 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { createClient } from '@/lib/supabase/server'
 import { getAllMembers } from '@/lib/posts'
 
 export default async function MembersPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.is_admin) redirect('/community')
+
   const members = await getAllMembers()
 
   return (

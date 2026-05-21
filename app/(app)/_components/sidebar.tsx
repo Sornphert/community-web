@@ -21,14 +21,22 @@ type NavItem = {
   icon: LucideIcon
 }
 
-const navItems: NavItem[] = [
-  { href: '/community', label: 'Community', icon: MessageSquare },
-  { href: '/classroom', label: 'Classroom', icon: GraduationCap },
-  { href: '/members', label: 'Members', icon: Users },
-  { href: '/profile', label: 'Profile', icon: UserCircle },
-]
+export function Sidebar({
+  userEmail,
+  isAdmin,
+}: {
+  userEmail: string
+  isAdmin: boolean
+}) {
+  const navItems: NavItem[] = [
+    { href: '/community', label: 'Community', icon: MessageSquare },
+    { href: '/classroom', label: 'Classroom', icon: GraduationCap },
+    ...(isAdmin
+      ? [{ href: '/members', label: 'Members', icon: Users }]
+      : []),
+    { href: '/profile', label: 'Profile', icon: UserCircle },
+  ]
 
-export function Sidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname()
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/')
