@@ -10,9 +10,10 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
+import Image from 'next/image'
 
 // Single source of truth for the app name — rename here only.
-const APP_NAME = 'App Name'
+const APP_NAME = 'Johnson 天命数字投资'
 
 type NavItem = {
   href: string
@@ -36,8 +37,17 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
     <>
       {/* Desktop: vertical sidebar */}
       <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-zinc-200 md:bg-zinc-50">
-        <div className="px-4 py-5 text-lg font-semibold text-zinc-900">
-          {APP_NAME}
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-zinc-200">
+          <Image 
+            src="/brand.jpg" 
+            alt={APP_NAME}
+            width={40} 
+            height={40} 
+            className="rounded shrink-0"
+          />
+          <h1 className="font-semibold text-zinc-900 text-sm leading-tight">
+            {APP_NAME}
+          </h1>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-2">

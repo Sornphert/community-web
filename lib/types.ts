@@ -47,3 +47,34 @@ export type PostWithFullRelations = Post & {
 export type ProfileWithPosts = Profile & {
   posts: Pick<Post, 'id' | 'title' | 'body' | 'created_at' | 'author_id'>[]
 }
+
+export type Topic = {
+  id: string
+  name: string
+  description: string | null
+  cover_image_url: string | null
+  cover_storage_path: string | null
+  position: number
+  created_at: string | null
+}
+
+export type ContentItem = {
+  id: string
+  topic_id: string
+  type: 'video' | 'document'
+  title: string
+  description: string | null
+  video_url: string | null
+  document_url: string | null
+  document_storage_path: string | null
+  thumbnail_url: string | null
+  thumbnail_storage_path: string | null
+  position: number
+  created_at: string | null
+}
+
+export type ContentProgress = {
+  user_id: string
+  content_item_id: string
+  completed_at: string
+}
