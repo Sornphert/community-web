@@ -28,9 +28,34 @@ export async function proxy(request: NextRequest) {
     },
   )
 
-  // IMPORTANT: refresh the session before returning. Do not run code between
-  // createServerClient and getUser(), and return supabaseResponse unmodified.
-  await supabase.auth.getUser()
+  // IMPORTANT: refresh the session before any gating logic. Do not run code
+  // between createServerClient and getUser().
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Build a redirect response that carries over any cookies the session refresh
+  // wrote to supabaseResponse — dropping them would desync the browser/server
+  // session and cause premature logouts.
+  const redirectPreservingCookies = (pathname: string) => {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((cookie) => redirectResponse.cookies.set(cookie))
+    return redirectResponse
+  }
+
+  const { pathname } = request.nextUrl
+
+  if (!user && pathname !== '/login') {
+    return redirectPreservingCookies('/login')
+  }
+
+  if (user && pathname === '/login') {
+    return redirectPreservingCookies('/community')
+  }
 
   return supabaseResponse
 }
