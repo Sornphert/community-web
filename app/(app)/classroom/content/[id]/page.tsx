@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, ExternalLink, FileText } from 'lucide-react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getContentItem, isContentCompleted } from '@/lib/classroom'
 import { parseVimeoUrl } from '@/lib/vimeo'
@@ -70,26 +70,16 @@ export default async function ContentPage({
             </div>
           )
         ) : (
-          <div className="flex flex-col items-center rounded-lg border border-zinc-200 bg-white p-6 text-center">
-            <FileText className="h-12 w-12 text-zinc-400" />
-            <h2 className="mt-4 text-lg font-medium text-zinc-900">
-              {item.title}
-            </h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Click below to view the document.
-            </p>
-            {item.document_url && (
-              <a
-                href={item.document_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-800"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open Document
-              </a>
-            )}
-          </div>
+          item.thumbnail_url && (
+            <div className="mx-auto mb-6 w-full max-w-sm overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.thumbnail_url}
+                alt={item.title}
+                className="block w-full"
+              />
+            </div>
+          )
         )}
       </div>
 
@@ -101,6 +91,18 @@ export default async function ContentPage({
           </p>
         )}
       </div>
+
+      {item.type === 'document' && item.document_url && (
+        <a
+          href={item.document_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 sm:w-auto"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open Document
+        </a>
+      )}
 
       <div className="mt-6">
         <CompleteToggle
