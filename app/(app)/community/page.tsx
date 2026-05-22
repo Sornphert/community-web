@@ -9,13 +9,13 @@ export default async function CommunityPage() {
 
   return (
     <>
-      <div className="relative -mx-4 -mt-4 mb-6 aspect-video w-screen overflow-hidden md:-mx-6 md:mt-0 md:aspect-[3/1] md:w-auto md:rounded-lg">
+      <div className="relative -mx-4 -mt-4 mb-6 aspect-video w-screen overflow-hidden md:mx-auto md:mt-0 md:w-full md:max-w-3xl md:rounded-lg">
         <Image
           src="/hero.jpg"
           alt="Johnson 天命数字投资"
           fill
           className="object-cover object-[center_70%]"
-          sizes="100vw"
+          sizes="(min-width: 768px) 768px, 100vw"
           priority
         />
       </div>
