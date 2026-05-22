@@ -33,8 +33,8 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
+    <div className="flex flex-1 items-center justify-center bg-[#010822] px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
         <div className="flex flex-col items-center gap-4 mb-8">
           <Image
             src="/brand.jpg"
@@ -49,17 +49,16 @@ function LoginForm() {
         </div>
 
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-zinc-900">
-            {mode === 'signin' ? 'Sign in' : 'Sign up'}
+          <h1 className="text-2xl font-semibold text-zinc-900 text-center">
+            {mode === 'signin' ? 'Welcome back' : 'Create your account'}
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            {mode === 'signin'
-              ? 'Welcome back'
-              : 'Create your account to join the community'}
-          </p>
         </div>
 
         <form action={handleSubmit} className="flex flex-col gap-4">
+          <p className="text-sm font-medium text-zinc-500 -mb-2">
+            {mode === 'signin' ? 'Sign in' : 'Sign up'}
+          </p>
+
           {mode === 'signup' && (
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
               Display name
@@ -82,6 +81,7 @@ function LoginForm() {
               name="email"
               required
               autoComplete="email"
+              placeholder="you@example.com"
               className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
             />
           </label>
@@ -95,6 +95,7 @@ function LoginForm() {
               autoComplete={
                 mode === 'signin' ? 'current-password' : 'new-password'
               }
+              placeholder={mode === 'signup' ? 'Create a password' : 'Your password'}
               className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
             />
           </label>
