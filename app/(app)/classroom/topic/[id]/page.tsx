@@ -21,6 +21,10 @@ export default async function TopicPage({
     notFound()
   }
 
+  if (topic.is_locked) {
+    redirect('/classroom')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

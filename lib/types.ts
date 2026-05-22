@@ -56,6 +56,7 @@ export type Topic = {
   cover_storage_path: string | null
   position: number
   created_at: string | null
+  is_locked: boolean
 }
 
 export type ContentItem = {

@@ -12,6 +12,7 @@ function LoginForm() {
   const message = searchParams.get('message')
 
   const [mode, setMode] = useState<Mode>('signin')
+  const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -27,6 +28,7 @@ function LoginForm() {
 
   function toggleMode() {
     setMode((m) => (m === 'signin' ? 'signup' : 'signin'))
+    setDisplayName('')
     setError(null)
   }
 
@@ -46,11 +48,33 @@ function LoginForm() {
           </h2>
         </div>
 
-        <h1 className="mb-6 text-xl font-semibold text-zinc-900">
-          {mode === 'signin' ? 'Sign in' : 'Sign up'}
-        </h1>
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-zinc-900">
+            {mode === 'signin' ? 'Sign in' : 'Sign up'}
+          </h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            {mode === 'signin'
+              ? 'Welcome back'
+              : 'Create your account to join the community'}
+          </p>
+        </div>
 
         <form action={handleSubmit} className="flex flex-col gap-4">
+          {mode === 'signup' && (
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Display name
+              <input
+                type="text"
+                name="displayName"
+                required
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="How others will see you"
+                className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+              />
+            </label>
+          )}
+
           <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
             Email
             <input

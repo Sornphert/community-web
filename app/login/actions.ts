@@ -27,13 +27,23 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   const email = formData.get('email') as string | null
   const password = formData.get('password') as string | null
+  const displayName =
+    (formData.get('displayName') as string | null)?.trim() || null
 
   if (!email || !password) {
     return { error: 'Email and password are required.' }
   }
 
+  if (!displayName) {
+    return { error: 'Display name is required.' }
+  }
+
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signUp({ email, password })
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { display_name: displayName } },
+  })
 
   if (error) {
     return { error: error.message }

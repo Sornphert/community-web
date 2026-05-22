@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react'
 import type { Topic } from '@/lib/types'
 
 export function TopicCard({ topic }: { topic: Topic }) {
@@ -19,7 +20,14 @@ export function TopicCard({ topic }: { topic: Topic }) {
       )}
 
       <div className="p-3">
-        <p className="line-clamp-2 font-medium text-zinc-900">{topic.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="line-clamp-2 min-w-0 flex-1 font-medium text-zinc-900">
+            {topic.name}
+          </p>
+          {topic.is_locked && (
+            <Lock className="h-4 w-4 shrink-0 text-zinc-400" />
+          )}
+        </div>
       </div>
     </div>
   )
