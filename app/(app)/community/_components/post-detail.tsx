@@ -1,27 +1,21 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
-import { getPost } from '@/lib/posts'
-import { CommentForm } from './_components/comment-form'
+import type { PostWithFullRelations } from '@/lib/types'
+import { CommentForm } from './comment-form'
 
-export default async function PostDetailPage({
-  params,
+export function PostDetail({
+  post,
+  channelSlug,
 }: {
-  params: Promise<{ id: string }>
+  post: PostWithFullRelations
+  channelSlug: string
 }) {
-  const { id } = await params
-  const post = await getPost(id)
-
-  if (!post) {
-    notFound()
-  }
-
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href="/community"
+        href={`/community/${channelSlug}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
       >
         <ArrowLeft className="h-4 w-4" />

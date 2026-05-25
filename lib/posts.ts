@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type {
+  Channel,
   Comment,
   PostImage,
   Profile,
@@ -17,6 +18,7 @@ type FeedRow = {
   title: string
   body: string
   created_at: string
+  channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
   comments: { count: number }[] | null
@@ -28,22 +30,67 @@ type PostRow = {
   title: string
   body: string
   created_at: string
+  channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
   comments: (Comment & { author: Profile | null })[] | null
+  channel: { slug: string } | null
 }
 
-export async function getFeedPosts(): Promise<PostWithRelations[]> {
+// A post awaiting channel assignment in the one-time /admin/migrate-posts UI.
+export type UnassignedPost = {
+  id: string
+  title: string
+  body: string
+  created_at: string
+  author: Profile | null
+}
+
+export async function getChannels(): Promise<Channel[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .order('position', { ascending: true })
+
+  if (error) {
+    throw new Error(`Failed to load channels: ${error.message}`)
+  }
+
+  return (data ?? []) as Channel[]
+}
+
+export async function getChannelBySlug(slug: string): Promise<Channel | null> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load channel: ${error.message}`)
+  }
+
+  return (data as Channel | null) ?? null
+}
+
+export async function getPostsForChannel(
+  channelId: string,
+): Promise<PostWithRelations[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('posts')
     .select('*, author:profiles(*), images:post_images(*), comments(count)')
+    .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
     .order('position', { referencedTable: 'post_images', ascending: true })
 
   if (error) {
-    throw new Error(`Failed to load feed posts: ${error.message}`)
+    throw new Error(`Failed to load channel posts: ${error.message}`)
   }
 
   const rows = (data ?? []) as unknown as FeedRow[]
@@ -56,10 +103,27 @@ export async function getFeedPosts(): Promise<PostWithRelations[]> {
       title: row.title,
       body: row.body,
       created_at: row.created_at,
+      channel_id: row.channel_id,
       author: row.author,
       images: row.images ?? [],
       comment_count: row.comments?.[0]?.count ?? 0,
     }))
+}
+
+export async function getUnassignedPosts(): Promise<UnassignedPost[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, title, body, created_at, author:profiles(*)')
+    .is('channel_id', null)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`Failed to load unassigned posts: ${error.message}`)
+  }
+
+  return (data ?? []) as unknown as UnassignedPost[]
 }
 
 export async function getPost(
@@ -70,7 +134,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles(*), images:post_images(*), comments(*, author:profiles(*))',
+      '*, author:profiles(*), images:post_images(*), comments(*, author:profiles(*)), channel:channels(slug)',
     )
     .eq('id', id)
     .order('position', { referencedTable: 'post_images', ascending: true })
@@ -97,6 +161,8 @@ export async function getPost(
     title: row.title,
     body: row.body,
     created_at: row.created_at,
+    channel_id: row.channel_id,
+    channel: row.channel,
     author: row.author,
     images: row.images ?? [],
     comments: (row.comments ?? [])

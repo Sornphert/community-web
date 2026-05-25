@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getChannels } from '@/lib/posts'
 import { Sidebar } from './_components/sidebar'
 
 export default async function AppLayout({
@@ -26,9 +27,15 @@ export default async function AppLayout({
 
   const isAdmin = profile?.is_admin === true
 
+  const channels = await getChannels()
+
   return (
     <div className="flex flex-1 flex-col md:flex-row">
-      <Sidebar userEmail={user.email ?? ''} isAdmin={isAdmin} />
+      <Sidebar
+        userEmail={user.email ?? ''}
+        isAdmin={isAdmin}
+        channels={channels}
+      />
       <main className="flex flex-1 flex-col bg-zinc-50 p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>

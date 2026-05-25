@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
+import type { Channel } from '@/lib/types'
 
 // Single source of truth for the app name — rename here only.
 const APP_NAME = 'Johnson 天命数字投资'
@@ -24,9 +25,11 @@ type NavItem = {
 export function Sidebar({
   userEmail,
   isAdmin,
+  channels,
 }: {
   userEmail: string
   isAdmin: boolean
+  channels: Channel[]
 }) {
   const navItems: NavItem[] = [
     { href: '/community', label: 'Community', icon: MessageSquare },
@@ -59,20 +62,58 @@ export function Sidebar({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-2">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                isActive(href)
-                  ? 'bg-zinc-100 font-medium text-zinc-900'
-                  : 'text-zinc-600 hover:bg-zinc-100'
-              }`}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              {label}
-            </Link>
-          ))}
+          {navItems.map(({ href, label, icon: Icon }) => {
+            if (href === '/community') {
+              return (
+                <div key={href} className="flex flex-col gap-1">
+                  <Link
+                    href="/community"
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                      isActive('/community')
+                        ? 'font-medium text-zinc-900'
+                        : 'text-zinc-600 hover:bg-zinc-100'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {label}
+                  </Link>
+                  <div className="ml-7 flex flex-col gap-0.5">
+                    {channels.map((channel) => {
+                      const channelHref = `/community/${channel.slug}`
+                      return (
+                        <Link
+                          key={channel.id}
+                          href={channelHref}
+                          className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                            isActive(channelHref)
+                              ? 'bg-zinc-100 font-medium text-zinc-900'
+                              : 'text-zinc-600 hover:bg-zinc-100'
+                          }`}
+                        >
+                          {channel.name}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                  isActive(href)
+                    ? 'bg-zinc-100 font-medium text-zinc-900'
+                    : 'text-zinc-600 hover:bg-zinc-100'
+                }`}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {label}
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="border-t border-zinc-200 p-3">

@@ -8,7 +8,13 @@ import { convertToJpg } from '@/lib/image'
 
 type SelectedImage = { file: File; url: string }
 
-export function NewPostForm() {
+export function NewPostForm({
+  channelId,
+  channelSlug,
+}: {
+  channelId: string
+  channelSlug: string
+}) {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -98,6 +104,7 @@ export function NewPostForm() {
         author_id: user.id,
         title: title.trim(),
         body: body.trim(),
+        channel_id: channelId,
       })
       if (postError) {
         throw postError
@@ -112,7 +119,7 @@ export function NewPostForm() {
         }
       }
 
-      router.push(`/community/${postId}`)
+      router.push(`/community/${channelSlug}/${postId}`)
     } catch (err) {
       console.error('Failed to create post:', err)
       setError(

@@ -5,12 +5,18 @@ import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithRelations } from '@/lib/types'
 
-export function PostCard({ post }: { post: PostWithRelations }) {
+export function PostCard({
+  post,
+  channelSlug,
+}: {
+  post: PostWithRelations
+  channelSlug: string
+}) {
   const firstImage = post.images[0]
 
   return (
     <Link
-      href={`/community/${post.id}`}
+      href={`/community/${channelSlug}/${post.id}`}
       className="block rounded-lg border border-zinc-200 bg-white p-4"
     >
       <div className="flex items-center gap-3">

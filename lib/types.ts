@@ -7,12 +7,23 @@ export interface Profile {
   is_admin: boolean
 }
 
+export interface Channel {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  position: number
+  post_permission: 'all' | 'admin_only'
+  created_at: string
+}
+
 export interface Post {
   id: string
   author_id: string
   title: string
   body: string
   created_at: string
+  channel_id: string | null
 }
 
 export interface PostImage {
@@ -42,6 +53,7 @@ export type PostWithFullRelations = Post & {
   author: Profile
   images: PostImage[]
   comments: (Comment & { author: Profile })[]
+  channel: { slug: string } | null
 }
 
 export type ProfileWithPosts = Profile & {
