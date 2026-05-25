@@ -4,6 +4,7 @@ import { MessageSquare } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithRelations } from '@/lib/types'
+import { LikeButton } from './like-button'
 
 export function PostCard({
   post,
@@ -55,9 +56,17 @@ export function PostCard({
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-1.5 border-t border-zinc-200 pt-3 text-sm text-zinc-500">
-        <MessageSquare className="h-4 w-4" />
-        {post.comment_count} comments
+      <div className="mt-3 flex items-center gap-4 border-t border-zinc-200 pt-3 text-sm text-zinc-500">
+        <LikeButton
+          targetType="post"
+          targetId={post.id}
+          initialLikesCount={post.likes_count}
+          initialLikedByCurrentUser={post.liked_by_current_user}
+        />
+        <div className="flex items-center gap-1.5">
+          <MessageSquare className="h-4 w-4" />
+          {post.comment_count} comments
+        </div>
       </div>
     </Link>
   )

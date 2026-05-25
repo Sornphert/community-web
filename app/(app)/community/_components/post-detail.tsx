@@ -4,6 +4,7 @@ import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
 import { CommentForm } from './comment-form'
+import { LikeButton } from './like-button'
 
 export function PostDetail({
   post,
@@ -60,6 +61,15 @@ export function PostDetail({
             ))}
           </div>
         )}
+
+        <div className="mt-4 flex items-center border-t border-zinc-200 pt-3 text-sm text-zinc-500">
+          <LikeButton
+            targetType="post"
+            targetId={post.id}
+            initialLikesCount={post.likes_count}
+            initialLikedByCurrentUser={post.liked_by_current_user}
+          />
+        </div>
       </article>
 
       <h2 className="mt-8 text-lg font-semibold text-zinc-900">
@@ -89,6 +99,14 @@ export function PostDetail({
                 <p className="whitespace-pre-wrap text-sm text-zinc-700">
                   {comment.body}
                 </p>
+                <div className="mt-1">
+                  <LikeButton
+                    targetType="comment"
+                    targetId={comment.id}
+                    initialLikesCount={comment.likes_count}
+                    initialLikedByCurrentUser={comment.liked_by_current_user}
+                  />
+                </div>
               </div>
             </div>
           ))}

@@ -102,13 +102,15 @@ public/                            # brand.jpg, hero.jpg, and other static asset
 
 All tables are in the `public` schema. **`lib/types.ts` is the authoritative schema mirror** — there is no generated `Database` type, and raw embed-query row shapes are described locally in `lib/posts.ts` / `lib/classroom.ts`. When schema and this doc disagree, trust `lib/types.ts`. After any schema change, update `lib/types.ts` and the relevant local row shape together.
 
-Tables: `profiles`, `posts`, `post_images`, `comments`, `topics`, `content_items`, `content_progress`.
+Tables: `profiles`, `channels`, `posts`, `post_images`, `comments`, `post_likes`, `comment_likes`, `topics`, `content_items`, `content_progress`.
 
 Relationships and non-obvious facts that affect query/code correctness:
 
-- **`posts.author_id` → `profiles.id`** (NOT `auth.users.id`). Because one profile exists per auth user, `profiles.id` equals the auth uid — which is why `posts` RLS can compare `auth.uid() = author_id`. The Supabase nested-join shorthand `author:profiles(*)` resolves without an explicit FK hint. **Always confirm a table's actual FK target before writing nested joins.**
-- `comments.author_id` → `profiles.id`; `comments.post_id` → `posts.id` (ON DELETE CASCADE).
+- **`posts.author_id` → `profiles.id`** (NOT `auth.users.id`). Because one profile exists per auth user, `profiles.id` equals the auth uid — which is why `posts` RLS can compare `auth.uid() = author_id`. **The `author:profiles(*)` embed now REQUIRES an explicit FK hint** (`author:profiles!author_id(*)`) — `post_likes`/`comment_likes` made the `posts`↔`profiles` and `comments`↔`profiles` relationships ambiguous (see [Known Gotchas](#known-gotchas-things-that-bit-us)). **Always confirm a table's actual FK target before writing nested joins.**
+- `comments.author_id` → `profiles.id`; `comments.post_id` → `posts.id` (ON DELETE CASCADE). Embeds also need the hint: `author:profiles!author_id(*)`.
 - `post_images.post_id` → `posts.id` (ON DELETE CASCADE); `storage_path` format `{user_id}/{post_id}/{position}.jpg`.
+- `posts.channel_id` → `channels.id` (nullable — null = unassigned, surfaced in the one-time `/admin/migrate-posts` UI). `channels.post_permission` (`'all' | 'admin_only'`) controls who may post to a channel; routes are `/community/[channel]` (slug-based).
+- **`post_likes`** — composite PK (`post_id`, `user_id`); `post_id` → `posts.id` (ON DELETE CASCADE), `user_id` → `profiles.id` (NOT `auth.users.id`, matching the `author_id` convention so `auth.uid() = user_id` still holds). **`comment_likes`** mirrors it: composite PK (`comment_id`, `user_id`); `comment_id` → `comments.id` (CASCADE), `user_id` → `profiles.id`. Presence of a row means "liked." Migration: `supabase/migrations/0004_post_comment_likes.sql`.
 - `content_items.topic_id` → `topics.id`; `type` is `'video' | 'document'`; video URLs are Vimeo (parsed by `lib/vimeo.ts`).
 - `content_progress` has a **composite PK** (`user_id`, `content_item_id`); `user_id` → `auth.users.id`, `content_item_id` → `content_items.id`. **Presence of a row means "completed."**
 - `topics.is_locked` (boolean): locked topics render non-clickable and are URL-guarded.
@@ -124,6 +126,8 @@ RLS is enabled on every table and is the **only** authorization layer for client
 | `posts` | authenticated | own only (`auth.uid() = author_id`) |
 | `post_images` | authenticated | own only — gated by ownership of the parent `posts` row |
 | `comments` | authenticated | own only (`auth.uid() = author_id`) |
+| `post_likes` | authenticated (so counts/likers are visible to all) | INSERT/DELETE own only (`auth.uid() = user_id`); no UPDATE |
+| `comment_likes` | authenticated | INSERT/DELETE own only (`auth.uid() = user_id`); no UPDATE |
 | `topics` | authenticated | **admin only** (`profiles.is_admin = true`) |
 | `content_items` | authenticated | **admin only** |
 | `content_progress` | own only (`auth.uid() = user_id`) | own only (`auth.uid() = user_id`) |
@@ -221,7 +225,6 @@ Supabase auth emails are sent through **Resend** via SMTP.
 - Change email / change password from profile
 - Admin write features for Classroom (create/edit topics + content)
 - Edit / delete existing posts
-- Likes / reactions
 - Notifications
 - Search / filter on members
 - Pagination on feeds (currently fetches all rows)
@@ -239,6 +242,7 @@ Supabase auth emails are sent through **Resend** via SMTP.
 ## Known Gotchas (Things That Bit Us)
 
 - **FK target:** `posts.author_id` → `profiles.id`, not `auth.users.id`. Verify FK targets before writing nested joins.
+- **PostgREST embed ambiguity (`PGRST201`):** a table with FKs to *both* a parent and `profiles` (e.g. `post_likes`/`comment_likes` → `posts`/`comments` **and** `profiles`) is treated as a junction table, so `posts`↔`profiles` and `comments`↔`profiles` gain a second (many-to-many) relationship path. Any `author:profiles(*)` / `user:profiles(*)` embed then fails with *"more than one relationship was found."* Fix: add the FK-column hint — `author:profiles!author_id(*)`, `user:profiles!user_id(*)`. All such embeds live in `lib/posts.ts`. **Adding a new table that references `profiles` can silently break unrelated existing embeds** — re-check every `:profiles(` embed after such a migration.
 - **Storage paths must match `{user_id}/...` exactly** or RLS *silently* rejects the upload — an off-by-one in the path is a silent permission failure, not an error.
 - **`aspect-video` + `fill`** needs the parent to have an explicit size; `w-full` alone can collapse without a height context.
 - **Mobile Safari vs. Chrome on iOS** differences are usually viewport units (`dvh` vs `vh`) or HEIC image decoding.

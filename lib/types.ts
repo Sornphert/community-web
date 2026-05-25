@@ -47,13 +47,31 @@ export type PostWithRelations = Post & {
   author: Profile
   images: PostImage[]
   comment_count: number
+  likes_count: number
+  liked_by_current_user: boolean
+}
+
+export type CommentWithRelations = Comment & {
+  author: Profile
+  likes_count: number
+  liked_by_current_user: boolean
 }
 
 export type PostWithFullRelations = Post & {
   author: Profile
   images: PostImage[]
-  comments: (Comment & { author: Profile })[]
+  comments: CommentWithRelations[]
   channel: { slug: string } | null
+  likes_count: number
+  liked_by_current_user: boolean
+}
+
+// A single user who liked a post or comment, for the likers modal.
+export type Liker = {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  created_at: string
 }
 
 export type ProfileWithPosts = Profile & {
