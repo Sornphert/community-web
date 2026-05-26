@@ -15,7 +15,13 @@ type ProfileFormData = {
 
 type Message = { type: 'success' | 'error'; text: string }
 
-export function ProfileForm({ profile }: { profile: ProfileFormData }) {
+export function ProfileForm({
+  profile,
+  email,
+}: {
+  profile: ProfileFormData
+  email: string
+}) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -152,6 +158,20 @@ export function ProfileForm({ profile }: { profile: ProfileFormData }) {
           className="hidden"
         />
       </div>
+
+      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+        Email
+        <input
+          type="email"
+          value={email}
+          disabled
+          readOnly
+          className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 outline-none"
+        />
+        <span className="text-xs font-normal text-zinc-400">
+          Email cannot be changed. Contact admin if you need to update it.
+        </span>
+      </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
         Display name *

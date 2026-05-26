@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import { ProfileForm } from './_components/profile-form'
+import { ChangePasswordButton } from './_components/change-password-button'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -30,7 +31,12 @@ export default async function ProfilePage() {
     <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-4 text-xl font-semibold text-zinc-900">Profile</h1>
 
-      <ProfileForm profile={profileData} />
+      <ProfileForm profile={profileData} email={user.email ?? ''} />
+
+      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-zinc-900">Account</h2>
+        <ChangePasswordButton email={user.email ?? ''} />
+      </div>
 
       <form action={signOut} className="mt-6">
         <button
