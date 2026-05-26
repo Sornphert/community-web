@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useTransition } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signUp } from './actions'
 
@@ -10,6 +11,7 @@ type Mode = 'signin' | 'signup'
 function LoginForm() {
   const searchParams = useSearchParams()
   const message = searchParams.get('message')
+  const deleted = searchParams.get('deleted') === '1'
 
   const [mode, setMode] = useState<Mode>('signin')
   const [displayName, setDisplayName] = useState('')
@@ -47,6 +49,12 @@ function LoginForm() {
             Johnson 天命数字投资
           </h2>
         </div>
+
+        {deleted && (
+          <p className="mb-6 rounded-md bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-700">
+            Your account has been deleted. Thank you for using Johnson 天命数字投资.
+          </p>
+        )}
 
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900 text-center">
@@ -99,6 +107,15 @@ function LoginForm() {
               className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
             />
           </label>
+
+          {mode === 'signin' && (
+            <Link
+              href="/forgot-password"
+              className="-mt-1 self-end text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              Forgot password?
+            </Link>
+          )}
 
           {message && (
             <p className="rounded-md bg-zinc-100 px-3 py-2 text-sm text-zinc-700">

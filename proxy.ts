@@ -52,7 +52,12 @@ export async function proxy(request: NextRequest) {
   // Routes reachable without a session: login plus the password-reset flow
   // (the reset page itself and the email-link confirm handler that establishes
   // the recovery session).
-  const PUBLIC_PATHS = ['/login', '/reset-password', '/auth/confirm']
+  const PUBLIC_PATHS = [
+    '/login',
+    '/reset-password',
+    '/auth/confirm',
+    '/forgot-password',
+  ]
 
   if (!user && !PUBLIC_PATHS.includes(pathname)) {
     return redirectPreservingCookies('/login')

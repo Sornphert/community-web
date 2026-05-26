@@ -228,6 +228,7 @@ export async function getAllMembers(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
+    .is('deleted_at', null)
     .order('display_name', { ascending: true })
 
   if (error) {
@@ -246,6 +247,7 @@ export async function getMemberProfile(
     .from('profiles')
     .select('*')
     .eq('id', id)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (profileError) {

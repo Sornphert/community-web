@@ -43,6 +43,7 @@ After **any** code change, run `npm run lint` **and** `npm run build`. Both must
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` — **server-only** (no `NEXT_PUBLIC_` prefix). Used by `lib/supabase/admin.ts` to delete storage objects during account deletion, after the user's `auth.users` row (and session) is gone. Never expose to the browser.
 
 ## Project Structure
 
@@ -80,10 +81,12 @@ app/
       [id]/                        # member profile (admin only)
     profile/
       page.tsx                     # self-edit profile
+      actions.ts                     # server action: deleteMyAccount (RPC + storage cleanup)
       _components/profile-form.tsx
 lib/
   supabase/client.ts               # browser client — sync createClient()
   supabase/server.ts               # server client — async createClient()
+  supabase/admin.ts                # server-only service-role client — createAdminClient()
   types.ts                         # TS types matching the DB schema (source of truth)
   posts.ts                         # server fetchers: posts, comments, members
   classroom.ts                     # server fetchers: topics, content, progress
@@ -115,6 +118,8 @@ Relationships and non-obvious facts that affect query/code correctness:
 - `content_progress` has a **composite PK** (`user_id`, `content_item_id`); `user_id` → `auth.users.id`, `content_item_id` → `content_items.id`. **Presence of a row means "completed."**
 - `topics.is_locked` (boolean): locked topics render non-clickable and are URL-guarded.
 - `profiles.is_admin` (boolean) drives all admin gating.
+- `profiles.deleted_at` (timestamptz, nullable): non-null = a **tombstoned** (soft-deleted) account. The row is kept so posts/comments/likes still join to a profile and render "[Deleted user]". Set by `delete_my_account()` (see [Account Deletion](#account-deletion)). Partial index `profiles_deleted_at_idx` (where `deleted_at is not null`) supports excluding tombstoned users from the members list. Migration: `supabase/migrations/0007_account_deletion.sql`.
+- **`profiles.id` has NO FK to `auth.users(id)`.** It was dropped in `0007` so a tombstoned profile can outlive the deleted `auth.users` row. `profiles.id` is still the PK and still equals the auth uid for live users (the `auth.uid() = id` RLS checks and `handle_new_user()` are unaffected).
 
 ## RLS Policies
 
@@ -145,6 +150,8 @@ All buckets are **public** (readable URLs); writes are gated by RLS on `storage.
 
 The Supabase project host (`eesyjkmmyiisuaghhota.supabase.co`) is allow-listed in `next.config.ts` `images.remotePatterns` for `/storage/v1/object/public/**`.
 
+On account deletion, the user's `avatars` and `post-images` files are removed via the service-role admin client — RLS-bypassing because the user's session no longer exists by then (see [Account Deletion](#account-deletion)).
+
 ## Auth Flow
 
 - `/login` is the **only** public route; everything else is gated.
@@ -157,6 +164,20 @@ The Supabase project host (`eesyjkmmyiisuaghhota.supabase.co`) is allow-listed i
 - **Sign up** calls `supabase.auth.signUp({ email, password, options: { data: { display_name } } })`.
 - DB trigger **`handle_new_user()`** on `auth.users` INSERT creates the `profiles` row, reading `display_name` from `raw_user_meta_data` (fallback `split_part(email, '@', 1)`).
 - **Email confirmation is currently DISABLED** in Supabase for testing. The signup action already handles confirmation (`if (!data.session)` → redirect to `/login` with a message), so re-enabling is config-only: Supabase → Authentication → Sign In / Providers → Email → "Confirm email".
+
+## Account Deletion
+
+Required for App Store / Play submission. The backend is **shared** between web and the (future) mobile app — both call the same Postgres function. Migration: `supabase/migrations/0007_account_deletion.sql` (run manually in the Supabase SQL editor).
+
+- **`public.delete_my_account()`** — `SECURITY DEFINER`, `set search_path = public, auth`, returns `jsonb`, granted to `authenticated`. Takes **no parameters** and uses `auth.uid()`, so a caller can only delete **themselves**. All DB steps run in one transaction (atomic).
+  - **Blocks admins** (returns `{ success: false, error: 'is_admin' }`) — they must be demoted by another admin first.
+  - **Tombstones** the profile (`display_name = '[Deleted user]'`, `avatar_url`/`bio` null, `deleted_at = now()`, `is_admin = false`) — the row is **kept**.
+  - **Keeps** posts, comments, `post_likes`, `comment_likes` (they render "[Deleted user]" via the kept profile).
+  - **Deletes** `post_images` rows for the user's posts, `content_progress`, `classroom_recording_progress`, and the `auth.users` row (revokes sessions, frees the email). Defensively nulls `classroom_folders.created_by` / `classroom_recordings.created_by` for the user (ex-admin edge case).
+  - **Returns** `{ success: true, storage_paths: { avatars: [...], 'post-images': [...] } }` — the caller must delete those files.
+- **Storage is not transactional with the DB.** The function returns paths; `deleteMyAccount()` in `app/(app)/profile/actions.ts` deletes them after commit via the **service-role** admin client (`lib/supabase/admin.ts`), because the user's session is gone by then. A storage failure leaves orphaned files only — the account is already deleted — and surfaces `storage_cleanup_failed`.
+- **Error codes** (caller maps to UI copy): `not_authenticated` → "You must be signed in."; `is_admin` → "You're an admin. Please demote yourself first via another admin before deleting your account."; `storage_cleanup_failed` → "Account couldn't be fully deleted due to a storage issue. Please contact support."
+- **The web/mobile delete UI is NOT YET BUILT** (Part 2 = web, Part 3 = mobile). Part 2 imports `deleteMyAccount()` and adds the confirmation + redirect.
 
 ## Admin Gating
 

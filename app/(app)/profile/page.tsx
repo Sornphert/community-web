@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import { ProfileForm } from './_components/profile-form'
 import { ChangePasswordButton } from './_components/change-password-button'
+import { DeleteAccountButton } from './_components/delete-account-button'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -36,6 +37,7 @@ export default async function ProfilePage() {
       <div className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-zinc-900">Account</h2>
         <ChangePasswordButton email={user.email ?? ''} />
+        <DeleteAccountButton />
       </div>
 
       <form action={signOut} className="mt-6">
