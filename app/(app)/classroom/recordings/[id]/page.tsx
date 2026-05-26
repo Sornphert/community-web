@@ -2,8 +2,14 @@ import { Fragment } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AlertCircle, ChevronRight, Loader2 } from 'lucide-react'
-import { getFolderAncestors, getFolders, getRecording } from '@/lib/recordings'
+import {
+  getFolderAncestors,
+  getFolders,
+  getRecording,
+  isRecordingCompleted,
+} from '@/lib/recordings'
 import { getPlayerUrl } from '@/lib/bunny'
+import { CompleteToggle } from './_components/complete-toggle'
 
 export default async function RecordingPage({
   params,
@@ -19,6 +25,8 @@ export default async function RecordingPage({
 
   const folders = await getFolders()
   const ancestors = getFolderAncestors(folders, recording.folder_id)
+
+  const initiallyCompleted = await isRecordingCompleted(id)
 
   const createdDate = recording.created_at
     ? new Date(recording.created_at).toLocaleDateString('en-US', {
@@ -98,6 +106,15 @@ export default async function RecordingPage({
           </p>
         )}
       </div>
+
+      {recording.video_status === 'ready' && (
+        <div className="mt-6">
+          <CompleteToggle
+            recordingId={recording.id}
+            initiallyCompleted={initiallyCompleted}
+          />
+        </div>
+      )}
     </div>
   )
 }

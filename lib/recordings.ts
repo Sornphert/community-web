@@ -62,6 +62,57 @@ export async function getRecording(
   return (data ?? null) as ClassroomRecording | null
 }
 
+// The set of recording ids the current user has marked complete. Resolves the
+// auth user internally and returns an empty Set when signed out, so callers
+// (the tree, the recording page) don't need to fetch the user themselves.
+export async function getUserRecordingProgress(): Promise<Set<string>> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return new Set<string>()
+  }
+
+  const { data, error } = await supabase
+    .from('classroom_recording_progress')
+    .select('recording_id')
+    .eq('user_id', user.id)
+
+  if (error) {
+    throw new Error(`Failed to load recording progress: ${error.message}`)
+  }
+
+  const rows = (data ?? []) as { recording_id: string }[]
+  return new Set(rows.map((row) => row.recording_id))
+}
+
+// Whether the current user has marked a single recording complete.
+export async function isRecordingCompleted(
+  recordingId: string,
+): Promise<boolean> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return false
+  }
+
+  const { data, error } = await supabase
+    .from('classroom_recording_progress')
+    .select('recording_id')
+    .eq('user_id', user.id)
+    .eq('recording_id', recordingId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load completion state: ${error.message}`)
+  }
+
+  return !!data
+}
+
 // Pure helper (no server imports): builds the nested tree from flat rows.
 // Recordings whose folder_id is null (orphans) are omitted — the UI always
 // assigns a folder. Folders and recordings are assumed pre-sorted by position.

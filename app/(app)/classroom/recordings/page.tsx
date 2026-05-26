@@ -1,12 +1,18 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { buildFolderTree, getFolders, getRecordings } from '@/lib/recordings'
+import {
+  buildFolderTree,
+  getFolders,
+  getRecordings,
+  getUserRecordingProgress,
+} from '@/lib/recordings'
 import { RecordingsTree } from './_components/recordings-tree'
 
 export default async function RecordingsPage() {
-  const [folders, recordings] = await Promise.all([
+  const [folders, recordings, completedIds] = await Promise.all([
     getFolders(),
     getRecordings(),
+    getUserRecordingProgress(),
   ])
   const tree = buildFolderTree(folders, recordings)
 
@@ -29,7 +35,7 @@ export default async function RecordingsPage() {
           <p className="text-zinc-500">Recordings will appear here soon</p>
         </div>
       ) : (
-        <RecordingsTree tree={tree} />
+        <RecordingsTree tree={tree} completedIds={completedIds} />
       )}
     </div>
   )

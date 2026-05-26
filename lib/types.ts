@@ -135,3 +135,9 @@ export type ClassroomRecording = {
   created_at: string | null
   created_by: string | null
 }
+
+export type ClassroomRecordingProgress = {
+  user_id: string
+  recording_id: string
+  completed_at: string
+}

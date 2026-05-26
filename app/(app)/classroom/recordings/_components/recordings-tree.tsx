@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, ChevronRight, PlayCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, PlayCircle } from 'lucide-react'
 import type { ClassroomRecording } from '@/lib/types'
 import type { RecordingTreeNode } from '@/lib/recordings'
 
@@ -44,7 +44,13 @@ function idsToExpandFor(
   return null
 }
 
-function RecordingRow({ recording }: { recording: ClassroomRecording }) {
+function RecordingRow({
+  recording,
+  completed,
+}: {
+  recording: ClassroomRecording
+  completed: boolean
+}) {
   return (
     <Link
       href={`/classroom/recordings/${recording.id}`}
@@ -73,6 +79,10 @@ function RecordingRow({ recording }: { recording: ClassroomRecording }) {
           </p>
         )}
       </div>
+
+      {completed && (
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+      )}
     </Link>
   )
 }
@@ -82,11 +92,13 @@ function FolderNode({
   depth,
   expanded,
   onToggle,
+  completedIds,
 }: {
   node: RecordingTreeNode
   depth: number
   expanded: Set<string>
   onToggle: (id: string) => void
+  completedIds: Set<string>
 }) {
   const isOpen = expanded.has(node.folder.id)
   const count = countRecordings(node)
@@ -131,10 +143,15 @@ function FolderNode({
                   depth={depth + 1}
                   expanded={expanded}
                   onToggle={onToggle}
+                  completedIds={completedIds}
                 />
               ))}
               {node.recordings.map((recording) => (
-                <RecordingRow key={recording.id} recording={recording} />
+                <RecordingRow
+                  key={recording.id}
+                  recording={recording}
+                  completed={completedIds.has(recording.id)}
+                />
               ))}
             </>
           )}
@@ -144,7 +161,13 @@ function FolderNode({
   )
 }
 
-export function RecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
+export function RecordingsTree({
+  tree,
+  completedIds,
+}: {
+  tree: RecordingTreeNode[]
+  completedIds: Set<string>
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   // Open the tree to a folder linked via /classroom/recordings#folder-{id}
@@ -185,6 +208,7 @@ export function RecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
           depth={0}
           expanded={expanded}
           onToggle={toggle}
+          completedIds={completedIds}
         />
       ))}
     </div>
