@@ -109,3 +109,29 @@ export type ContentProgress = {
   content_item_id: string
   completed_at: string
 }
+
+// Classroom Recordings (Stage 1). video_* columns stay null/'pending' until
+// Stage 2 wires up Bunny Stream.
+export type ClassroomFolder = {
+  id: string
+  name: string
+  parent_folder_id: string | null
+  position: number
+  created_at: string | null
+  created_by: string | null
+}
+
+export type ClassroomRecording = {
+  id: string
+  folder_id: string | null
+  title: string
+  description: string | null
+  position: number
+  video_provider: string | null
+  video_id: string | null
+  video_status: string | null // 'pending' | 'processing' | 'ready' | 'failed'
+  video_duration_seconds: number | null
+  video_thumbnail_url: string | null
+  created_at: string | null
+  created_by: string | null
+}
