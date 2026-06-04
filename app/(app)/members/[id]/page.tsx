@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { SOCIAL_ICON } from '@/app/(app)/_components/social-icons'
 import { formatRelativeTime } from '@/lib/format'
 import { createClient } from '@/lib/supabase/server'
 import { getMemberProfile } from '@/lib/posts'
+import { SOCIAL_PLATFORMS, socialUrl } from '@/lib/social'
 
 export default async function MemberProfilePage({
   params,
@@ -32,6 +34,19 @@ export default async function MemberProfilePage({
     notFound()
   }
 
+  // Build renderable social links in platform order. `platform` (the entry key)
+  // is what drives the URL — never the route `id` (the member's user id).
+  // socialUrl returns null for anything unsafe/unsettable (e.g. a website value
+  // without an http(s) scheme), so those are dropped.
+  const links = member.social_links ?? {}
+  const socialEntries = SOCIAL_PLATFORMS.flatMap(({ id: platform, label }) => {
+    const handle = links[platform]
+    if (!handle) return []
+    const href = socialUrl(platform, handle)
+    if (!href) return []
+    return [{ platform, label, href }]
+  })
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
@@ -57,6 +72,26 @@ export default async function MemberProfilePage({
           </span>
         )}
         {member.bio && <p className="mt-2 text-zinc-600">{member.bio}</p>}
+
+        {socialEntries.length > 0 && (
+          <div className="mt-3 flex items-center justify-center gap-4">
+            {socialEntries.map(({ platform, label, href }) => {
+              const Icon = SOCIAL_ICON[platform]
+              return (
+                <a
+                  key={platform}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="text-zinc-500 transition-colors hover:text-zinc-900"
+                >
+                  <Icon className="h-5 w-5" />
+                </a>
+              )
+            })}
+          </div>
+        )}
 
         <div className="my-4 w-full border-t border-zinc-200" />
 

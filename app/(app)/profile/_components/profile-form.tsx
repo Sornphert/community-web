@@ -2,15 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronDown } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { convertToJpg } from '@/lib/image'
+import { SOCIAL_PLATFORMS, normalizeSocialLinks } from '@/lib/social'
+import type { SocialLinks, SocialPlatform } from '@/lib/types'
 
 type ProfileFormData = {
   id: string
   display_name: string
   bio: string | null
   avatar_url: string | null
+  social_links: SocialLinks
 }
 
 type Message = { type: 'success' | 'error'; text: string }
@@ -27,6 +31,16 @@ export function ProfileForm({
 
   const [displayName, setDisplayName] = useState(profile.display_name)
   const [bio, setBio] = useState(profile.bio ?? '')
+  const [social, setSocial] = useState<Record<SocialPlatform, string>>(() => {
+    const links = profile.social_links ?? {}
+    return Object.fromEntries(
+      SOCIAL_PLATFORMS.map(({ id }) => [id, links[id] ?? '']),
+    ) as Record<SocialPlatform, string>
+  })
+  // Expand the social section by default only if the member already has links.
+  const [socialOpen, setSocialOpen] = useState(
+    () => Object.keys(profile.social_links ?? {}).length > 0,
+  )
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -97,10 +111,12 @@ export function ProfileForm({
       const update: {
         display_name: string
         bio: string
+        social_links: SocialLinks
         avatar_url?: string
       } = {
         display_name: displayName.trim(),
         bio: bio.trim(),
+        social_links: normalizeSocialLinks(social),
       }
       if (avatarUrl) {
         update.avatar_url = avatarUrl
@@ -194,6 +210,43 @@ export function ProfileForm({
           className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
         />
       </label>
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setSocialOpen((open) => !open)}
+          aria-expanded={socialOpen}
+          className="flex items-center justify-between text-sm font-medium text-zinc-700"
+        >
+          Social links
+          <ChevronDown
+            className={`h-4 w-4 text-zinc-500 transition-transform ${
+              socialOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+        {socialOpen && (
+          <div className="flex flex-col gap-3">
+            {SOCIAL_PLATFORMS.map(({ id, label, placeholder }) => (
+              <label
+                key={id}
+                className="flex flex-col gap-1 text-sm font-medium text-zinc-700"
+              >
+                {label}
+                <input
+                  type="text"
+                  value={social[id]}
+                  onChange={(e) =>
+                    setSocial((prev) => ({ ...prev, [id]: e.target.value }))
+                  }
+                  placeholder={placeholder}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       {message && (
         <p

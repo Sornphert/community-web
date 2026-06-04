@@ -105,7 +105,7 @@ public/                            # brand.jpg, hero.jpg, and other static asset
 
 All tables are in the `public` schema. **`lib/types.ts` is the authoritative schema mirror** — there is no generated `Database` type, and raw embed-query row shapes are described locally in `lib/posts.ts` / `lib/classroom.ts`. When schema and this doc disagree, trust `lib/types.ts`. After any schema change, update `lib/types.ts` and the relevant local row shape together.
 
-Tables: `profiles`, `channels`, `posts`, `post_images`, `comments`, `post_likes`, `comment_likes`, `topics`, `content_items`, `content_progress`.
+Tables: `profiles`, `channels`, `posts`, `post_images`, `comments`, `post_likes`, `comment_likes`, `topics`, `content_items`, `content_progress`, `events`.
 
 Relationships and non-obvious facts that affect query/code correctness:
 
@@ -120,6 +120,8 @@ Relationships and non-obvious facts that affect query/code correctness:
 - `profiles.is_admin` (boolean) drives all admin gating.
 - `profiles.deleted_at` (timestamptz, nullable): non-null = a **tombstoned** (soft-deleted) account. The row is kept so posts/comments/likes still join to a profile and render "[Deleted user]". Set by `delete_my_account()` (see [Account Deletion](#account-deletion)). Partial index `profiles_deleted_at_idx` (where `deleted_at is not null`) supports excluding tombstoned users from the members list. Migration: `supabase/migrations/0007_account_deletion.sql`.
 - **`profiles.id` has NO FK to `auth.users(id)`.** It was dropped in `0007` so a tombstoned profile can outlive the deleted `auth.users` row. `profiles.id` is still the PK and still equals the auth uid for live users (the `auth.uid() = id` RLS checks and `handle_new_user()` are unaffected).
+- **`events`** — admin-curated community calendar at `/events`. `starts_at`/`ends_at` are **NOT NULL** UTC timestamptz; stored UTC, displayed in `Asia/Kuala_Lumpur` (+08:00, no DST) via `lib/datetime.ts`. `created_by` → `auth.users.id` (NOT `profiles`) `ON DELETE SET NULL` — no profile embed, so no PostgREST ambiguity (same rationale as `classroom_recordings`). Single-tenant: **no `teacher_slug`**. Type `CommunityEvent` in `lib/types.ts` (named to avoid shadowing the DOM `Event`). Fetcher `lib/events.ts` `getEvents()`; admin writes via `app/(app)/events/actions.ts` (`requireAdmin` + RLS); `.ics` export via `lib/ics.ts`. Migration: `supabase/migrations/0008_events.sql`.
+- **`events.series_id`** (uuid, nullable; migration `0009_events_series.sql`): links the occurrences of a "repeat for N consecutive days" event (capped at 14, enforced in `createEvent`). NOT full recurrence — each day is a **materialized row**, so the calendar renders them with no special-casing and edit stays per-occurrence. `createEvent` builds occurrences by incrementing the **KL calendar date** (`addDaysToDateKey` in `lib/datetime.ts`) then converting each day to UTC via `klWallClockToUtcIso` — never a 24h-in-UTC shift. `deleteEvent({ scope: 'series', seriesId })` removes the whole series; default scope deletes one row.
 
 ## RLS Policies
 
@@ -136,6 +138,7 @@ RLS is enabled on every table and is the **only** authorization layer for client
 | `topics` | authenticated | **admin only** (`profiles.is_admin = true`) |
 | `content_items` | authenticated | **admin only** |
 | `content_progress` | own only (`auth.uid() = user_id`) | own only (`auth.uid() = user_id`) |
+| `events` | authenticated | **admin only** (`profiles.is_admin = true`) — mirrors `classroom_recordings` |
 
 ## Storage Buckets
 

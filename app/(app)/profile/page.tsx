@@ -26,6 +26,7 @@ export default async function ProfilePage() {
     display_name: user.email ?? '',
     bio: '',
     avatar_url: null,
+    social_links: {},
   }
 
   return (

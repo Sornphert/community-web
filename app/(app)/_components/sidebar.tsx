@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation'
 import {
   MessageSquare,
   GraduationCap,
+  CalendarDays,
   Users,
+  Shield,
   UserCircle,
   type LucideIcon,
 } from 'lucide-react'
@@ -34,8 +36,12 @@ export function Sidebar({
   const navItems: NavItem[] = [
     { href: '/community', label: 'Community', icon: MessageSquare },
     { href: '/classroom', label: 'Classroom', icon: GraduationCap },
+    { href: '/events', label: 'Events', icon: CalendarDays },
     ...(isAdmin
-      ? [{ href: '/members', label: 'Members', icon: Users }]
+      ? [
+          { href: '/members', label: 'Members', icon: Users },
+          { href: '/admin', label: 'Admin', icon: Shield },
+        ]
       : []),
     { href: '/profile', label: 'Profile', icon: UserCircle },
   ]

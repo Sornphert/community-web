@@ -1,3 +1,17 @@
+// Social handles keyed by platform. Stored as a jsonb column on profiles
+// (default '{}'). Values are handles (e.g. "johndoe"), except `website` which
+// stores a full URL. Absent key = not set. Build canonical URLs at render time
+// via lib/social.ts; never trust the stored value as a ready href (website is
+// scheme-guarded at render).
+export type SocialPlatform =
+  | 'instagram'
+  | 'facebook'
+  | 'tiktok'
+  | 'youtube'
+  | 'telegram'
+  | 'website'
+export type SocialLinks = Partial<Record<SocialPlatform, string>>
+
 export interface Profile {
   id: string
   display_name: string
@@ -8,6 +22,9 @@ export interface Profile {
   // Set by delete_my_account() when the account is deleted; the row is kept
   // (tombstoned) so posts/comments still render "[Deleted user]".
   deleted_at: string | null
+  // Rows created before migration 0010 may lack this key — treat null/undefined
+  // as {} when reading.
+  social_links: SocialLinks
 }
 
 export interface Channel {
@@ -143,4 +160,22 @@ export type ClassroomRecordingProgress = {
   user_id: string
   recording_id: string
   completed_at: string
+}
+
+// Admin-curated community events (calendar). Named CommunityEvent to avoid
+// shadowing the global DOM `Event` type. starts_at/ends_at are UTC timestamptz
+// (NOT NULL); display everywhere in Asia/Kuala_Lumpur. See lib/datetime.ts.
+export type CommunityEvent = {
+  id: string
+  title: string
+  description: string | null
+  starts_at: string
+  ends_at: string
+  location: string | null
+  meeting_url: string | null
+  // Non-null links occurrences of a "repeat for N consecutive days" series
+  // (one row per KL calendar day). Null = a standalone event. Migration 0009.
+  series_id: string | null
+  created_by: string | null
+  created_at: string | null
 }
