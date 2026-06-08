@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Paperclip } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithRelations } from '@/lib/types'
@@ -67,6 +67,12 @@ export function PostCard({
           <MessageSquare className="h-4 w-4" />
           {post.comment_count} comments
         </div>
+        {post.attachments.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Paperclip className="h-4 w-4" />
+            {post.attachments.length} PDF
+          </div>
+        )}
       </div>
     </Link>
   )

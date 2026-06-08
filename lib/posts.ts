@@ -3,6 +3,7 @@ import type {
   Channel,
   Comment,
   Liker,
+  PostAttachment,
   PostImage,
   Profile,
   ProfileWithPosts,
@@ -24,6 +25,7 @@ type FeedRow = {
   channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
+  attachments: PostAttachment[] | null
   comments: { count: number }[] | null
   likes: LikeRow[] | null
 }
@@ -37,6 +39,7 @@ type PostRow = {
   channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
+  attachments: PostAttachment[] | null
   comments:
     | (Comment & { author: Profile | null; likes: LikeRow[] | null })[]
     | null
@@ -100,11 +103,12 @@ export async function getPostsForChannel(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), comments(count), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), comments(count), likes:post_likes(user_id)',
     )
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
     .order('position', { referencedTable: 'post_images', ascending: true })
+    .order('position', { referencedTable: 'post_attachments', ascending: true })
 
   if (error) {
     throw new Error(`Failed to load channel posts: ${error.message}`)
@@ -125,6 +129,7 @@ export async function getPostsForChannel(
         channel_id: row.channel_id,
         author: row.author,
         images: row.images ?? [],
+        attachments: row.attachments ?? [],
         comment_count: row.comments?.[0]?.count ?? 0,
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
@@ -161,10 +166,11 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug), likes:post_likes(user_id)',
     )
     .eq('id', id)
     .order('position', { referencedTable: 'post_images', ascending: true })
+    .order('position', { referencedTable: 'post_attachments', ascending: true })
     .order('created_at', { referencedTable: 'comments', ascending: true })
     .maybeSingle()
 
@@ -194,6 +200,7 @@ export async function getPost(
     channel: row.channel,
     author: row.author,
     images: row.images ?? [],
+    attachments: row.attachments ?? [],
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
     comments: (row.comments ?? [])

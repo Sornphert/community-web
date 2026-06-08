@@ -55,6 +55,19 @@ export interface PostImage {
   created_at: string | null
 }
 
+// A PDF file attached to a post. Mirrors PostImage, plus file_name / file_size
+// for rendering the attachment card. storage_path: {user_id}/{post_id}/{pos}.pdf
+export interface PostAttachment {
+  id: string
+  post_id: string
+  url: string
+  storage_path: string
+  file_name: string
+  file_size: number
+  position: number
+  created_at: string | null
+}
+
 export interface Comment {
   id: string
   post_id: string
@@ -66,6 +79,7 @@ export interface Comment {
 export type PostWithRelations = Post & {
   author: Profile
   images: PostImage[]
+  attachments: PostAttachment[]
   comment_count: number
   likes_count: number
   liked_by_current_user: boolean
@@ -80,6 +94,7 @@ export type CommentWithRelations = Comment & {
 export type PostWithFullRelations = Post & {
   author: Profile
   images: PostImage[]
+  attachments: PostAttachment[]
   comments: CommentWithRelations[]
   channel: { slug: string } | null
   likes_count: number

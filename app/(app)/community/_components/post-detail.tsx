@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
-import { formatRelativeTime } from '@/lib/format'
+import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
 import { CommentForm } from './comment-form'
 import { LikeButton } from './like-button'
@@ -58,6 +58,35 @@ export function PostDetail({
                 alt=""
                 className="max-w-full rounded"
               />
+            ))}
+          </div>
+        )}
+
+        {post.attachments.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2">
+            {post.attachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex items-center gap-3 rounded-md border border-zinc-200 px-3 py-2"
+              >
+                <FileText className="h-5 w-5 shrink-0 text-zinc-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-zinc-900">
+                    {attachment.file_name}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {formatFileSize(attachment.file_size)}
+                  </p>
+                </div>
+                <a
+                  href={attachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 rounded-md bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-200"
+                >
+                  Open
+                </a>
+              </div>
             ))}
           </div>
         )}

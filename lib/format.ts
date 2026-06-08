@@ -29,3 +29,19 @@ export function formatRelativeTime(date: string | Date): string {
 
   return then.toLocaleDateString()
 }
+
+// Human-readable file size, e.g. "820 KB", "1.4 MB".
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return ''
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  const kb = bytes / 1024
+  if (kb < 1024) {
+    return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`
+  }
+  const mb = kb / 1024
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`
+}
