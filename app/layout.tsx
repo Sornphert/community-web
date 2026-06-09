@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { APP_NAME, APP_DESCRIPTION } from "@/lib/config";
+import { APP_NAME, APP_DESCRIPTION, FAVICON_URL } from "@/lib/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: APP_DESCRIPTION,
+  icons: { icon: FAVICON_URL },
 };
 
 export default function RootLayout({

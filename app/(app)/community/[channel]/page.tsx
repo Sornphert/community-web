@@ -57,7 +57,7 @@ export default async function ChannelPage({
     <>
       <ChannelTabs channels={channels} />
 
-      {channel.slug === 'announcements' && (
+      {channel.slug === 'announcements' && HERO_URL !== '' && (
         <div className="relative -mx-4 mb-6 aspect-video w-screen overflow-hidden md:mx-auto md:w-full md:max-w-3xl md:rounded-lg">
           <Image
             src={HERO_URL}

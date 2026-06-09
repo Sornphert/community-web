@@ -26,6 +26,11 @@ export const BRAND_LOGO_URL =
 
 export const HERO_URL = process.env.NEXT_PUBLIC_HERO_URL ?? '/hero.jpg'
 
+// Favicon source. Default is teacher #1's icon, moved app/icon.jpg ->
+// public/icon.jpg (same bytes). New teacher sets NEXT_PUBLIC_FAVICON_URL.
+export const FAVICON_URL =
+  process.env.NEXT_PUBLIC_FAVICON_URL ?? '/icon.jpg'
+
 // Domain / calendar --------------------------------------------------------
 // App domain used to build the .ics UID (event.id@domain).
 export const APP_DOMAIN =
