@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -31,14 +32,14 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
           <div className="flex flex-col items-center gap-4 mb-8">
             <Image
-              src="/brand.jpg"
-              alt="Johnson 天命数字投资"
+              src={BRAND_LOGO_URL}
+              alt={APP_NAME}
               width={120}
               height={120}
               className="rounded shrink-0"
             />
             <h2 className="font-semibold text-zinc-900 text-xl leading-tight text-center">
-              Johnson 天命数字投资
+              {APP_NAME}
             </h2>
           </div>
 

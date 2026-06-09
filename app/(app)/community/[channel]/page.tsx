@@ -12,6 +12,7 @@ import {
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
+import { APP_NAME, HERO_URL } from '@/lib/config'
 
 export default async function ChannelPage({
   params,
@@ -59,8 +60,8 @@ export default async function ChannelPage({
       {channel.slug === 'announcements' && (
         <div className="relative -mx-4 mb-6 aspect-video w-screen overflow-hidden md:mx-auto md:w-full md:max-w-3xl md:rounded-lg">
           <Image
-            src="/hero.jpg"
-            alt="Johnson 天命数字投资"
+            src={HERO_URL}
+            alt={APP_NAME}
             fill
             className="object-cover object-[center_70%]"
             sizes="(min-width: 768px) 768px, 100vw"

@@ -14,9 +14,7 @@ import {
 import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
-
-// Single source of truth for the app name — rename here only.
-const APP_NAME = 'Johnson 天命数字投资'
+import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
 type NavItem = {
   href: string
@@ -56,7 +54,7 @@ export function Sidebar({
       <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-zinc-200 md:bg-zinc-50">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-zinc-200">
           <Image 
-            src="/brand.jpg" 
+            src={BRAND_LOGO_URL} 
             alt={APP_NAME}
             width={40} 
             height={40} 
@@ -143,7 +141,7 @@ export function Sidebar({
       {/* Mobile: sticky top brand bar */}
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 md:hidden">
         <Image
-          src="/brand.jpg"
+          src={BRAND_LOGO_URL}
           alt={APP_NAME}
           width={32}
           height={32}

@@ -1,10 +1,9 @@
 import type { CommunityEvent } from '@/lib/types'
+import { APP_DOMAIN, ICS_PRODID } from '@/lib/config'
 
 // Builds an RFC 5545 VCALENDAR string for a single event so members can add it
 // to their own calendar. DTSTART/DTEND are emitted in UTC (...Z); a UID and
 // DTSTAMP are mandatory — Google Calendar silently rejects files missing them.
-
-const DOMAIN = 'app.theprophetsystem.com'
 
 // 'YYYYMMDDTHHMMSSZ' — UTC basic format.
 function toUtcStamp(iso: string | Date): string {
@@ -29,10 +28,10 @@ export function buildIcs(event: CommunityEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//The Prophet System//Events//EN',
+    `PRODID:${ICS_PRODID}`,
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
-    `UID:${event.id}@${DOMAIN}`,
+    `UID:${event.id}@${APP_DOMAIN}`,
     `DTSTAMP:${toUtcStamp(new Date())}`,
     `DTSTART:${toUtcStamp(event.starts_at)}`,
     `DTEND:${toUtcStamp(event.ends_at)}`,

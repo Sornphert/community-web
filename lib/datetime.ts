@@ -1,13 +1,18 @@
 // Timezone helpers for the Events calendar.
 //
-// Events are stored as UTC timestamptz and displayed in Asia/Kuala_Lumpur.
-// KL is a fixed +08:00 offset (no DST), which makes the wall-clock <-> UTC
-// conversions exact. These helpers must be used for *day bucketing* on the
-// calendar — never bucket by the UTC date or the browser-local date, or events
-// near the KL midnight boundary land in the wrong cell.
+// Events are stored as UTC timestamptz and displayed in the configured TIMEZONE
+// (default Asia/Kuala_Lumpur). That zone is a fixed offset (no DST), which makes
+// the wall-clock <-> UTC conversions exact. These helpers must be used for *day
+// bucketing* on the calendar — never bucket by the UTC date or the browser-local
+// date, or events near the local midnight boundary land in the wrong cell.
+//
+// Export names are kept as KL_* for compatibility with existing importers; the
+// values now come from lib/config.ts so they follow the deployment's timezone.
 
-export const KL_TZ = 'Asia/Kuala_Lumpur'
-export const KL_TZ_LABEL = 'Asia/Kuala_Lumpur (+08:00)'
+import { TIMEZONE, TIMEZONE_OFFSET, TIMEZONE_LABEL } from '@/lib/config'
+
+export const KL_TZ = TIMEZONE
+export const KL_TZ_LABEL = TIMEZONE_LABEL
 
 const MS_PER_DAY = 86_400_000
 
@@ -74,12 +79,12 @@ export function klTimeInputValue(iso: string): string {
   return `${hour}:${minute}`
 }
 
-// Converts a KL wall-clock date + time (from the composer's <input>s) to a UTC
-// ISO string for storage. KL has no DST, so the fixed +08:00 offset is exact.
-// Returns null if the inputs don't form a valid date.
+// Converts a wall-clock date + time (from the composer's <input>s) to a UTC ISO
+// string for storage. The configured zone has no DST, so the fixed
+// TIMEZONE_OFFSET is exact. Returns null if the inputs don't form a valid date.
 export function klWallClockToUtcIso(date: string, time: string): string | null {
   if (!date || !time) return null
-  const d = new Date(`${date}T${time}:00+08:00`)
+  const d = new Date(`${date}T${time}:00${TIMEZONE_OFFSET}`)
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
