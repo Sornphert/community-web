@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getTopics } from '@/lib/classroom'
+import { SHOW_RECORDINGS } from '@/lib/config'
 import { TopicCard } from './_components/topic-card'
 
 // The "Recordings" topic row is special-cased: instead of opening the generic
@@ -10,18 +11,21 @@ const RECORDINGS_TOPIC_ID = '52a53b67-e2d0-43bf-a2db-38083b8d801d'
 
 export default async function ClassroomPage() {
   const topics = await getTopics()
+  const visibleTopics = SHOW_RECORDINGS
+    ? topics
+    : topics.filter((t) => t.id !== RECORDINGS_TOPIC_ID)
 
   return (
     <div className="mx-auto w-full max-w-6xl">
       <h1 className="mb-4 text-xl font-semibold text-zinc-900">Classroom</h1>
 
-      {topics.length === 0 ? (
+      {visibleTopics.length === 0 ? (
         <div className="flex flex-1 items-center justify-center py-20">
           <p className="text-zinc-500">No topics yet</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {topics.map((topic) => {
+          {visibleTopics.map((topic) => {
             if (topic.id === RECORDINGS_TOPIC_ID) {
               return (
                 <Link key={topic.id} href="/classroom/recordings">

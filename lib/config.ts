@@ -35,6 +35,12 @@ export const FAVICON_URL =
 // (reliable on Vercel, unlike an empty NEXT_PUBLIC_HERO_URL).
 export const SHOW_HERO = process.env.NEXT_PUBLIC_SHOW_HERO !== 'false'
 
+// Classroom "Recordings" topic visibility. Defaults to true; only an explicit
+// 'false' hides the special-cased Recordings card on the classroom landing
+// page (boolean-string pattern, reliable on Vercel). The DB row is untouched.
+export const SHOW_RECORDINGS =
+  process.env.NEXT_PUBLIC_SHOW_RECORDINGS !== 'false'
+
 // Domain / calendar --------------------------------------------------------
 // App domain used to build the .ics UID (event.id@domain).
 export const APP_DOMAIN =
