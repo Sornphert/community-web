@@ -74,11 +74,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except:
+     * - api/bunny/webhook (external Bunny Stream webhook; self-auths via ?secret=)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      * - common image extensions
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/bunny/webhook|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
