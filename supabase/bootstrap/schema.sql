@@ -255,6 +255,17 @@ CREATE TABLE public.post_images (
     created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE public.post_videos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    post_id uuid NOT NULL,
+    video_provider text,
+    video_id text,
+    video_status text DEFAULT 'pending'::text,
+    video_duration_seconds integer,
+    video_thumbnail_url text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
 CREATE TABLE public.post_likes (
     post_id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -309,6 +320,8 @@ ALTER TABLE ONLY public.content_progress ADD CONSTRAINT content_progress_pkey PR
 ALTER TABLE ONLY public.events ADD CONSTRAINT events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.post_attachments ADD CONSTRAINT post_attachments_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.post_images ADD CONSTRAINT post_images_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.post_videos ADD CONSTRAINT post_videos_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.post_videos ADD CONSTRAINT post_videos_post_id_key UNIQUE (post_id);
 ALTER TABLE ONLY public.post_likes ADD CONSTRAINT post_likes_pkey PRIMARY KEY (post_id, user_id);
 ALTER TABLE ONLY public.posts ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.profiles ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
@@ -334,6 +347,8 @@ CREATE INDEX events_series_id_idx ON public.events USING btree (series_id);
 CREATE INDEX events_starts_at_idx ON public.events USING btree (starts_at);
 CREATE INDEX post_attachments_post_id_idx ON public.post_attachments USING btree (post_id);
 CREATE INDEX post_images_post_id_idx ON public.post_images USING btree (post_id);
+CREATE INDEX post_videos_post_id_idx ON public.post_videos USING btree (post_id);
+CREATE INDEX post_videos_video_id_idx ON public.post_videos USING btree (video_id);
 CREATE INDEX post_likes_post_id_idx ON public.post_likes USING btree (post_id);
 CREATE INDEX post_likes_user_id_idx ON public.post_likes USING btree (user_id);
 CREATE INDEX posts_channel_id_idx ON public.posts USING btree (channel_id);
@@ -366,6 +381,7 @@ ALTER TABLE ONLY public.content_progress ADD CONSTRAINT content_progress_user_id
 ALTER TABLE ONLY public.events ADD CONSTRAINT events_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.post_attachments ADD CONSTRAINT post_attachments_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.post_images ADD CONSTRAINT post_images_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.post_videos ADD CONSTRAINT post_videos_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.post_likes ADD CONSTRAINT post_likes_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.post_likes ADD CONSTRAINT post_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.posts ADD CONSTRAINT posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
@@ -387,6 +403,7 @@ ALTER TABLE public.content_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.post_videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -459,6 +476,14 @@ CREATE POLICY post_likes_delete_own ON public.post_likes FOR DELETE TO authentic
 CREATE POLICY post_attachments_select ON public.post_attachments FOR SELECT TO authenticated USING (true);
 CREATE POLICY post_attachments_insert_own ON public.post_attachments FOR INSERT TO authenticated WITH CHECK ((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_attachments.post_id))));
 CREATE POLICY post_attachments_delete_own ON public.post_attachments FOR DELETE TO authenticated USING ((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_attachments.post_id))));
+
+CREATE POLICY post_videos_select ON public.post_videos FOR SELECT TO authenticated USING (true);
+CREATE POLICY post_videos_insert_admin_own ON public.post_videos FOR INSERT TO authenticated WITH CHECK (((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_videos.post_id))) AND (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
+CREATE POLICY post_videos_update_admin_own ON public.post_videos FOR UPDATE TO authenticated USING (((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_videos.post_id))) AND (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true)))))) WITH CHECK (((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_videos.post_id))) AND (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
+CREATE POLICY post_videos_delete_admin_own ON public.post_videos FOR DELETE TO authenticated USING (((auth.uid() = ( SELECT posts.author_id FROM public.posts WHERE (posts.id = post_videos.post_id))) AND (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
+-- A fresh Supabase project can ship without the default table privileges PostgREST
+-- relies on, so grant them explicitly for post_videos (added in migration 0012).
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_videos TO anon, authenticated, service_role;
 
 CREATE POLICY events_select_authenticated ON public.events FOR SELECT TO authenticated USING (true);
 CREATE POLICY events_insert_admin ON public.events FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));

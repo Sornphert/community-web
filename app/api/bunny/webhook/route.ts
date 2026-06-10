@@ -29,14 +29,32 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
+  // Locate the row that owns this Bunny video. Classroom recordings are checked
+  // FIRST and unchanged, so existing classroom behavior is untouched; only when
+  // no recording matches do we fall through to community post videos. Both
+  // tables carry the same video_* columns, so the update below is shared.
   const { data: recording } = await supabase
     .from('classroom_recordings')
     .select('id')
     .eq('video_id', videoGuid)
     .maybeSingle()
 
+  let target: { table: 'classroom_recordings' | 'post_videos'; id: string } | null =
+    recording ? { table: 'classroom_recordings', id: recording.id } : null
+
+  if (!target) {
+    const { data: postVideo } = await supabase
+      .from('post_videos')
+      .select('id')
+      .eq('video_id', videoGuid)
+      .maybeSingle()
+    if (postVideo) {
+      target = { table: 'post_videos', id: postVideo.id }
+    }
+  }
+
   // Unknown video (e.g. deleted, or from another app) — ack so Bunny stops retrying.
-  if (!recording) {
+  if (!target) {
     return NextResponse.json({ ok: true })
   }
 
@@ -61,12 +79,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { error } = await supabase
-    .from('classroom_recordings')
+    .from(target.table)
     .update(update)
-    .eq('id', recording.id)
+    .eq('id', target.id)
 
   if (error) {
-    console.error(`Bunny webhook: failed to update recording ${recording.id}.`, error)
+    console.error(
+      `Bunny webhook: failed to update ${target.table} ${target.id}.`,
+      error,
+    )
     return new NextResponse('Update failed', { status: 500 })
   }
 

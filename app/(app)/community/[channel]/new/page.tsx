@@ -24,18 +24,20 @@ export default async function NewPostPage({
     redirect('/login')
   }
 
-  // Server-side guard for admin-only channels (RLS is the real enforcement, but
-  // this stops a non-admin from ever reaching the form). Mirrors the hidden
-  // "New Post" button on the channel feed.
-  if (channel.post_permission === 'admin_only') {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .maybeSingle()
-    if (!profile?.is_admin) {
-      redirect(`/community/${channel.slug}`)
-    }
+  // Fetch admin status once: it both guards admin-only channels (below) and
+  // gates the optional video upload in the composer (admin-only, regardless of
+  // the channel's post_permission). RLS is the real enforcement in both cases.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isAdmin = profile?.is_admin === true
+
+  // Server-side guard for admin-only channels (mirrors the hidden "New Post"
+  // button on the channel feed).
+  if (channel.post_permission === 'admin_only' && !isAdmin) {
+    redirect(`/community/${channel.slug}`)
   }
 
   return (
@@ -52,7 +54,11 @@ export default async function NewPostPage({
         New Post in {channel.name}
       </h1>
 
-      <NewPostForm channelId={channel.id} channelSlug={channel.slug} />
+      <NewPostForm
+        channelId={channel.id}
+        channelSlug={channel.slug}
+        isAdmin={isAdmin}
+      />
     </div>
   )
 }

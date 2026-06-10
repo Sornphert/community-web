@@ -1,29 +1,40 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FileText, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { convertToJpg } from '@/lib/image'
 import { MAX_ATTACHMENT_SIZE_BYTES, PDF_MIME } from '@/lib/attachments'
 import { formatFileSize } from '@/lib/format'
+import { PostVideoUpload } from './post-video-upload'
 
 type SelectedImage = { file: File; url: string }
 
 export function NewPostForm({
   channelId,
   channelSlug,
+  isAdmin,
 }: {
   channelId: string
   channelSlug: string
+  isAdmin: boolean
 }) {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [images, setImages] = useState<SelectedImage[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  // Optional Bunny video (admin-only). videoId is set once the upload finishes;
+  // videoUploading disables submit while the byte upload is in flight.
+  const [videoId, setVideoId] = useState<string | null>(null)
+  const [videoUploading, setVideoUploading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Set if the post saved but the video attach failed — we show a link to the
+  // created post instead of the submit button (avoids a duplicate re-post).
+  const [createdPostUrl, setCreatedPostUrl] = useState<string | null>(null)
 
   // Mirror the current selection in a ref so the unmount cleanup can revoke
   // every outstanding object URL without re-running on each change.
@@ -187,7 +198,31 @@ export function NewPostForm({
         }
       }
 
-      router.push(`/community/${channelSlug}/${postId}`)
+      const postUrl = `/community/${channelSlug}/${postId}`
+
+      // Attach the optional video LAST, and never let its failure break the post:
+      // the post is already saved at this point. On failure, log it, keep the
+      // user here with a clear message + a link to the (orphaned-video) post,
+      // rather than throwing or navigating away silently.
+      if (videoId) {
+        const { error: videoError } = await supabase.from('post_videos').insert({
+          post_id: postId,
+          video_id: videoId,
+          video_provider: 'bunny',
+          video_status: 'processing',
+        })
+        if (videoError) {
+          console.error('Post saved, but attaching the video failed:', videoError)
+          setError(
+            'Your post was published, but the video could not be attached. You can open the post below.',
+          )
+          setCreatedPostUrl(postUrl)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      router.push(postUrl)
     } catch (err) {
       console.error('Failed to create post:', err)
       setError(
@@ -293,6 +328,15 @@ export function NewPostForm({
         )}
       </div>
 
+      {isAdmin && (
+        <PostVideoUpload
+          title={title}
+          onUploadingChange={setVideoUploading}
+          onUploaded={setVideoId}
+          onCleared={() => setVideoId(null)}
+        />
+      )}
+
       {error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -300,13 +344,26 @@ export function NewPostForm({
       )}
 
       <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Posting…' : 'Post'}
-        </button>
+        {createdPostUrl ? (
+          <Link
+            href={createdPostUrl}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          >
+            View your post
+          </Link>
+        ) : (
+          <button
+            type="submit"
+            disabled={isSubmitting || videoUploading}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          >
+            {isSubmitting
+              ? 'Posting…'
+              : videoUploading
+                ? 'Uploading video…'
+                : 'Post'}
+          </button>
+        )}
       </div>
     </form>
   )

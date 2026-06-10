@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { AlertCircle, ArrowLeft, FileText, Loader2 } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { getPlayerUrl } from '@/lib/bunny'
 import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
 import { CommentForm } from './comment-form'
@@ -61,6 +62,35 @@ export function PostDetail({
             ))}
           </div>
         )}
+
+        {/* Optional Bunny video. Absent for posts with no video — renders nothing,
+            so existing posts are unchanged. Mirrors the classroom player states. */}
+        {post.video &&
+          (post.video.video_status === 'ready' && post.video.video_id ? (
+            <div className="mt-4 aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 bg-black">
+              <iframe
+                src={getPlayerUrl(post.video.video_id)}
+                loading="lazy"
+                style={{ border: 'none', width: '100%', height: '100%' }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          ) : post.video.video_status === 'processing' ? (
+            <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
+              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Video is processing. Check back in a few minutes.
+              </p>
+            </div>
+          ) : post.video.video_status === 'failed' ? (
+            <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
+              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+                <AlertCircle className="h-4 w-4" />
+                Video unavailable.
+              </p>
+            </div>
+          ) : null)}
 
         {post.attachments.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">

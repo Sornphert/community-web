@@ -5,6 +5,7 @@ import type {
   Liker,
   PostAttachment,
   PostImage,
+  PostVideo,
   Profile,
   ProfileWithPosts,
   PostWithFullRelations,
@@ -16,6 +17,16 @@ import type {
 // the public types in `lib/types.ts`.
 type LikeRow = { user_id: string }
 
+// post_videos has a UNIQUE(post_id), so PostgREST returns the embed as a single
+// object (or null). Accept an array too, defensively, and normalize via
+// firstVideo() below.
+type VideoEmbed = PostVideo | PostVideo[] | null
+
+function firstVideo(v: VideoEmbed | undefined): PostVideo | null {
+  if (!v) return null
+  return Array.isArray(v) ? (v[0] ?? null) : v
+}
+
 type FeedRow = {
   id: string
   author_id: string
@@ -26,6 +37,7 @@ type FeedRow = {
   author: Profile | null
   images: PostImage[] | null
   attachments: PostAttachment[] | null
+  video: VideoEmbed
   comments: { count: number }[] | null
   likes: LikeRow[] | null
 }
@@ -40,6 +52,7 @@ type PostRow = {
   author: Profile | null
   images: PostImage[] | null
   attachments: PostAttachment[] | null
+  video: VideoEmbed
   comments:
     | (Comment & { author: Profile | null; likes: LikeRow[] | null })[]
     | null
@@ -103,7 +116,7 @@ export async function getPostsForChannel(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), comments(count), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id)',
     )
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
@@ -130,6 +143,7 @@ export async function getPostsForChannel(
         author: row.author,
         images: row.images ?? [],
         attachments: row.attachments ?? [],
+        video: firstVideo(row.video),
         comment_count: row.comments?.[0]?.count ?? 0,
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
@@ -166,7 +180,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug), likes:post_likes(user_id)',
     )
     .eq('id', id)
     .order('position', { referencedTable: 'post_images', ascending: true })
@@ -201,6 +215,7 @@ export async function getPost(
     author: row.author,
     images: row.images ?? [],
     attachments: row.attachments ?? [],
+    video: firstVideo(row.video),
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
     comments: (row.comments ?? [])

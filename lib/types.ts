@@ -68,6 +68,20 @@ export interface PostAttachment {
   created_at: string | null
 }
 
+// An optional Bunny Stream video attached to a post (one per post, admin-only).
+// Mirrors the video_* columns on ClassroomRecording. Absent for posts with no
+// video — the post then renders exactly as before.
+export interface PostVideo {
+  id: string
+  post_id: string
+  video_provider: string | null
+  video_id: string | null
+  video_status: string | null // 'pending' | 'processing' | 'ready' | 'failed'
+  video_duration_seconds: number | null
+  video_thumbnail_url: string | null
+  created_at: string | null
+}
+
 export interface Comment {
   id: string
   post_id: string
@@ -80,6 +94,7 @@ export type PostWithRelations = Post & {
   author: Profile
   images: PostImage[]
   attachments: PostAttachment[]
+  video: PostVideo | null
   comment_count: number
   likes_count: number
   liked_by_current_user: boolean
@@ -95,6 +110,7 @@ export type PostWithFullRelations = Post & {
   author: Profile
   images: PostImage[]
   attachments: PostAttachment[]
+  video: PostVideo | null
   comments: CommentWithRelations[]
   channel: { slug: string } | null
   likes_count: number
