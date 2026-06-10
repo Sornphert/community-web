@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Upload as UploadIcon, X } from 'lucide-react'
+import { FileText, Image as ImageIcon, Upload as UploadIcon, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { convertToJpg } from '@/lib/image'
 import { formatFileSize } from '@/lib/format'
@@ -11,6 +11,8 @@ import {
   MAX_CONTENT_FILE_SIZE_BYTES,
   isAllowedLessonFile,
 } from '@/lib/content-files'
+import { isAllowedCoverImage } from '@/lib/topic-covers'
+import { uploadTopicCover } from '@/lib/topic-cover-upload'
 import type { Topic } from '@/lib/types'
 import { createDocumentLesson, createTopic } from '../actions'
 
@@ -23,6 +25,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
   const router = useRouter()
   const [topicMode, setTopicMode] = useState<string>(topics[0]?.id ?? NEW_TOPIC)
   const [newTopicName, setNewTopicName] = useState('')
+  const [coverFile, setCoverFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -47,6 +50,19 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
     }
     setError(null)
     setFile(picked)
+  }
+
+  function handleCoverPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0] ?? null
+    e.target.value = '' // allow re-picking the same file after removal
+    if (!picked) return
+
+    if (!isAllowedCoverImage(picked)) {
+      setError('The cover must be an image file.')
+      return
+    }
+    setError(null)
+    setCoverFile(picked)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,7 +92,19 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
           setIsSubmitting(false)
           return
         }
-        const result = await createTopic({ name: newTopicName })
+        // Optional cover — upload to topic-covers first, then attach on create.
+        let coverImageUrl: string | null = null
+        let coverStoragePath: string | null = null
+        if (coverFile) {
+          const cover = await uploadTopicCover(coverFile)
+          coverImageUrl = cover.url
+          coverStoragePath = cover.path
+        }
+        const result = await createTopic({
+          name: newTopicName,
+          coverImageUrl,
+          coverStoragePath,
+        })
         if (result.error || !result.topic) {
           throw new Error(result.error ?? 'Could not create the topic.')
         }
@@ -121,6 +149,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
       if (topicMode === NEW_TOPIC) {
         setTopicMode(topicId)
         setNewTopicName('')
+        setCoverFile(null)
       }
       setSuccess('Lesson uploaded.')
       router.refresh()
@@ -156,15 +185,51 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
       </label>
 
       {topicMode === NEW_TOPIC && (
-        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-          New topic name
-          <input
-            type="text"
-            value={newTopicName}
-            onChange={(e) => setNewTopicName(e.target.value)}
-            className={inputClass}
-          />
-        </label>
+        <>
+          <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+            New topic name
+            <input
+              type="text"
+              value={newTopicName}
+              onChange={(e) => setNewTopicName(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+
+          <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+            Cover image (optional)
+            {coverFile ? (
+              <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-2">
+                <ImageIcon className="h-4 w-4 shrink-0 text-zinc-500" />
+                <span className="min-w-0 flex-1 truncate text-sm font-normal text-zinc-900">
+                  {coverFile.name}
+                </span>
+                <span className="shrink-0 text-xs font-normal text-zinc-500">
+                  {formatFileSize(coverFile.size)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCoverFile(null)}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  aria-label="Remove cover image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-4 text-sm font-normal text-zinc-700 hover:bg-zinc-50">
+                <UploadIcon className="h-4 w-4" />
+                Choose a cover image
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverPicked}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+        </>
       )}
 
       <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">

@@ -42,6 +42,8 @@ function revalidate(topicId?: string) {
 
 export async function createTopic(input: {
   name: string
+  coverImageUrl?: string | null
+  coverStoragePath?: string | null
 }): Promise<{ error?: string; topic?: Topic }> {
   const name = input.name.trim()
   if (!name) {
@@ -51,10 +53,16 @@ export async function createTopic(input: {
   const auth = await requireAdmin()
   if ('error' in auth) return auth
 
-  // Only `name` is required — position/is_locked/etc. use DB defaults.
+  // Only `name` is required — position/is_locked/etc. use DB defaults. The cover
+  // is optional; the client uploads it to topic-covers first and passes the
+  // resulting URL + path (both null when no cover was attached).
   const { data, error } = await auth.supabase
     .from('topics')
-    .insert({ name })
+    .insert({
+      name,
+      cover_image_url: input.coverImageUrl ?? null,
+      cover_storage_path: input.coverStoragePath ?? null,
+    })
     .select('*')
     .single()
 

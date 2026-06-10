@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import {
   Film,
   FileText,
+  Image as ImageIcon,
   Users,
   CalendarDays,
   ArrowRightLeft,
@@ -30,6 +31,12 @@ const cards: AdminCard[] = [
     label: 'Classroom Documents',
     description: 'Upload PDF and image lessons into topics.',
     icon: FileText,
+  },
+  {
+    href: '/admin/classroom/topics',
+    label: 'Topic Covers',
+    description: 'Set or change the cover image on classroom topics.',
+    icon: ImageIcon,
   },
   {
     href: '/members',
