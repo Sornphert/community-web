@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
   Film,
+  FileText,
   Users,
   CalendarDays,
   ArrowRightLeft,
@@ -23,6 +24,12 @@ const cards: AdminCard[] = [
     label: 'Classroom Recordings',
     description: 'Create and manage recording folders and videos.',
     icon: Film,
+  },
+  {
+    href: '/admin/classroom/documents',
+    label: 'Classroom Documents',
+    description: 'Upload PDF and image lessons into topics.',
+    icon: FileText,
   },
   {
     href: '/members',
