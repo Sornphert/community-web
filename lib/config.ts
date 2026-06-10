@@ -31,6 +31,10 @@ export const HERO_URL = process.env.NEXT_PUBLIC_HERO_URL ?? '/hero.jpg'
 export const FAVICON_URL =
   process.env.NEXT_PUBLIC_FAVICON_URL ?? '/icon.jpg'
 
+// Hero banner visibility. Defaults to true; only an explicit 'false' hides it
+// (reliable on Vercel, unlike an empty NEXT_PUBLIC_HERO_URL).
+export const SHOW_HERO = process.env.NEXT_PUBLIC_SHOW_HERO !== 'false'
+
 // Domain / calendar --------------------------------------------------------
 // App domain used to build the .ics UID (event.id@domain).
 export const APP_DOMAIN =

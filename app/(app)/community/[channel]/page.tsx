@@ -12,7 +12,7 @@ import {
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
-import { APP_NAME, HERO_URL } from '@/lib/config'
+import { APP_NAME, HERO_URL, SHOW_HERO } from '@/lib/config'
 
 export default async function ChannelPage({
   params,
@@ -57,7 +57,7 @@ export default async function ChannelPage({
     <>
       <ChannelTabs channels={channels} />
 
-      {channel.slug === 'announcements' && HERO_URL !== '' && (
+      {channel.slug === 'announcements' && SHOW_HERO && (
         <div className="relative -mx-4 mb-6 aspect-video w-screen overflow-hidden md:mx-auto md:w-full md:max-w-3xl md:rounded-lg">
           <Image
             src={HERO_URL}
