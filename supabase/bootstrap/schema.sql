@@ -278,7 +278,8 @@ CREATE TABLE public.posts (
     title text,
     body text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
-    channel_id uuid
+    channel_id uuid,
+    edited_at timestamp with time zone
 );
 
 CREATE TABLE public.profiles (
@@ -435,8 +436,8 @@ CREATE POLICY "Users can delete images from their own posts" ON public.post_imag
 
 CREATE POLICY "Posts are viewable by authenticated users" ON public.posts FOR SELECT TO authenticated USING (true);
 CREATE POLICY posts_insert_channel_permitted ON public.posts FOR INSERT TO authenticated WITH CHECK (((auth.uid() = author_id) AND ((EXISTS ( SELECT 1 FROM public.channels c WHERE ((c.id = posts.channel_id) AND (c.post_permission = 'all'::text)))) OR (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true)))))));
-CREATE POLICY posts_update_admin ON public.posts FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true)))));
-CREATE POLICY "Users can delete their own posts" ON public.posts FOR DELETE TO authenticated USING ((auth.uid() = author_id));
+CREATE POLICY posts_update_owner_or_admin ON public.posts FOR UPDATE TO authenticated USING (((auth.uid() = author_id) OR (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true)))))) WITH CHECK (((auth.uid() = author_id) OR (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
+CREATE POLICY posts_delete_owner_or_admin ON public.posts FOR DELETE TO authenticated USING (((auth.uid() = author_id) OR (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
 
 CREATE POLICY "Profiles are viewable by authenticated users" ON public.profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE TO authenticated USING ((auth.uid() = id));

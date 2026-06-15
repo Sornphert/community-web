@@ -1,11 +1,13 @@
 import Link from 'next/link'
-import { AlertCircle, ArrowLeft, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
-import { getPlayerUrl } from '@/lib/bunny'
+import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
 import { CommentForm } from './comment-form'
 import { LikeButton } from './like-button'
+import { PostActions } from './post-actions'
+import { PostVideoPlayer } from './post-video-player'
 
 export function PostDetail({
   post,
@@ -36,7 +38,17 @@ export function PostDetail({
           </span>
           <span className="text-sm text-zinc-500">
             {formatRelativeTime(post.created_at)}
+            {post.edited_at && <span className="ml-1">(edited)</span>}
           </span>
+          {post.can_edit && (
+            <div className="ml-auto">
+              <PostActions
+                postId={post.id}
+                channelSlug={channelSlug}
+                variant="detail"
+              />
+            </div>
+          )}
         </div>
 
         {post.title && (
@@ -64,33 +76,17 @@ export function PostDetail({
         )}
 
         {/* Optional Bunny video. Absent for posts with no video — renders nothing,
-            so existing posts are unchanged. Mirrors the classroom player states. */}
-        {post.video &&
-          (post.video.video_status === 'ready' && post.video.video_id ? (
-            <div className="mt-4 aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 bg-black">
-              <iframe
-                src={getPlayerUrl(post.video.video_id)}
-                loading="lazy"
-                style={{ border: 'none', width: '100%', height: '100%' }}
-                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          ) : post.video.video_status === 'processing' ? (
-            <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
-              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Video is processing. Check back in a few minutes.
-              </p>
-            </div>
-          ) : post.video.video_status === 'failed' ? (
-            <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
-              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
-                <AlertCircle className="h-4 w-4" />
-                Video unavailable.
-              </p>
-            </div>
-          ) : null)}
+            so existing posts are unchanged. Click-to-load: no stream until play. */}
+        {post.video?.video_id && (
+          <PostVideoPlayer
+            playerUrl={getPlayerUrl(post.video.video_id)}
+            posterUrl={
+              post.video.video_thumbnail_url ??
+              getThumbnailUrl(post.video.video_id)
+            }
+            status={post.video.video_status}
+          />
+        )}
 
         {post.attachments.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">

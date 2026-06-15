@@ -44,6 +44,8 @@ export interface Post {
   body: string
   created_at: string
   channel_id: string | null
+  // Set by the updatePost action. null = never edited (drives the "(edited)" tag).
+  edited_at: string | null
 }
 
 export interface PostImage {
@@ -98,6 +100,8 @@ export type PostWithRelations = Post & {
   comment_count: number
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer is the author or an admin — drives edit/delete UI.
+  can_edit: boolean
 }
 
 export type CommentWithRelations = Comment & {
@@ -115,6 +119,8 @@ export type PostWithFullRelations = Post & {
   channel: { slug: string } | null
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer is the author or an admin — drives edit/delete UI.
+  can_edit: boolean
 }
 
 // A single user who liked a post or comment, for the likers modal.

@@ -2,9 +2,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MessageSquare, Paperclip } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithRelations } from '@/lib/types'
 import { LikeButton } from './like-button'
+import { PostActions } from './post-actions'
+import { PostVideoPlayer } from './post-video-player'
 
 export function PostCard({
   post,
@@ -14,6 +17,10 @@ export function PostCard({
   channelSlug: string
 }) {
   const firstImage = post.images[0]
+  // A ready/processing/failed video takes the media slot in place of the first
+  // image. Player + poster URLs are built server-side (Bunny library id / CDN
+  // host are not exposed to the client) and passed to the client player.
+  const video = post.video?.video_id ? post.video : null
 
   return (
     <Link
@@ -31,7 +38,17 @@ export function PostCard({
         </span>
         <span className="text-sm text-zinc-500">
           {formatRelativeTime(post.created_at)}
+          {post.edited_at && <span className="ml-1">(edited)</span>}
         </span>
+        {post.can_edit && (
+          <div className="ml-auto">
+            <PostActions
+              postId={post.id}
+              channelSlug={channelSlug}
+              variant="card"
+            />
+          </div>
+        )}
       </div>
 
       {post.title && (
@@ -44,16 +61,24 @@ export function PostCard({
         <p className="mt-1 line-clamp-3 text-zinc-700">{post.body}</p>
       )}
 
-      {firstImage && (
-        <div className="relative mt-3 aspect-video overflow-hidden rounded">
-          <Image
-            src={firstImage.url}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 672px"
-          />
-        </div>
+      {video ? (
+        <PostVideoPlayer
+          playerUrl={getPlayerUrl(video.video_id!)}
+          posterUrl={video.video_thumbnail_url ?? getThumbnailUrl(video.video_id!)}
+          status={video.video_status}
+        />
+      ) : (
+        firstImage && (
+          <div className="relative mt-3 aspect-video overflow-hidden rounded">
+            <Image
+              src={firstImage.url}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 672px"
+            />
+          </div>
+        )
       )}
 
       <div className="mt-3 flex items-center gap-4 border-t border-zinc-200 pt-3 text-sm text-zinc-500">

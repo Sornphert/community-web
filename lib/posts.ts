@@ -33,6 +33,7 @@ type FeedRow = {
   title: string
   body: string
   created_at: string
+  edited_at: string | null
   channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
@@ -48,6 +49,7 @@ type PostRow = {
   title: string
   body: string
   created_at: string
+  edited_at: string | null
   channel_id: string | null
   author: Profile | null
   images: PostImage[] | null
@@ -58,6 +60,21 @@ type PostRow = {
     | null
   channel: { slug: string } | null
   likes: LikeRow[] | null
+}
+
+// Whether the current viewer may edit/delete a post: the author, or any admin.
+// Fetched once per request and combined with each post's author_id.
+async function getViewerIsAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  uid: string | null,
+): Promise<boolean> {
+  if (!uid) return false
+  const { data } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', uid)
+    .maybeSingle()
+  return data?.is_admin === true
 }
 
 // Embedded shape returned by the likers queries below.
@@ -112,6 +129,7 @@ export async function getPostsForChannel(
     data: { user },
   } = await supabase.auth.getUser()
   const uid = user?.id ?? null
+  const viewerIsAdmin = await getViewerIsAdmin(supabase, uid)
 
   const { data, error } = await supabase
     .from('posts')
@@ -139,6 +157,7 @@ export async function getPostsForChannel(
         title: row.title,
         body: row.body,
         created_at: row.created_at,
+        edited_at: row.edited_at,
         channel_id: row.channel_id,
         author: row.author,
         images: row.images ?? [],
@@ -147,6 +166,7 @@ export async function getPostsForChannel(
         comment_count: row.comments?.[0]?.count ?? 0,
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
+        can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
       }
     })
 }
@@ -176,6 +196,7 @@ export async function getPost(
     data: { user },
   } = await supabase.auth.getUser()
   const uid = user?.id ?? null
+  const viewerIsAdmin = await getViewerIsAdmin(supabase, uid)
 
   const { data, error } = await supabase
     .from('posts')
@@ -210,6 +231,7 @@ export async function getPost(
     title: row.title,
     body: row.body,
     created_at: row.created_at,
+    edited_at: row.edited_at,
     channel_id: row.channel_id,
     channel: row.channel,
     author: row.author,
@@ -218,6 +240,7 @@ export async function getPost(
     video: firstVideo(row.video),
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
+    can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
     comments: (row.comments ?? [])
       .filter(
         (
