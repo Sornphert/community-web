@@ -36,7 +36,7 @@ export default async function AppLayout({
         isAdmin={isAdmin}
         channels={channels}
       />
-      <main className="flex flex-1 flex-col bg-zinc-50 p-4 pb-20 md:p-6 md:pb-6">
+      <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>
     </div>

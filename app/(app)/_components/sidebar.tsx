@@ -52,8 +52,8 @@ export function Sidebar({
   return (
     <>
       {/* Desktop: vertical sidebar */}
-      <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-zinc-200 md:bg-zinc-50">
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-zinc-200">
+      <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-line">
           <Image 
             src={BRAND_LOGO_URL} 
             alt={APP_NAME}
@@ -61,7 +61,7 @@ export function Sidebar({
             height={40} 
             className="rounded shrink-0"
           />
-          <h1 className="font-semibold text-zinc-900 text-sm leading-tight">
+          <h1 className="font-semibold text-fg text-sm leading-tight">
             {APP_NAME}
           </h1>
         </div>
@@ -75,8 +75,8 @@ export function Sidebar({
                     href="/community"
                     className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                       isActive('/community')
-                        ? 'font-medium text-zinc-900'
-                        : 'text-zinc-600 hover:bg-zinc-100'
+                        ? 'font-medium text-fg'
+                        : 'text-fg-soft hover:bg-muted'
                     }`}
                   >
                     <Icon className="h-5 w-5 shrink-0" />
@@ -91,8 +91,8 @@ export function Sidebar({
                           href={channelHref}
                           className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
                             isActive(channelHref)
-                              ? 'bg-zinc-100 font-medium text-zinc-900'
-                              : 'text-zinc-600 hover:bg-zinc-100'
+                              ? 'bg-muted font-medium text-fg'
+                              : 'text-fg-soft hover:bg-muted'
                           }`}
                         >
                           {channel.name}
@@ -110,8 +110,8 @@ export function Sidebar({
                 href={href}
                 className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                   isActive(href)
-                    ? 'bg-zinc-100 font-medium text-zinc-900'
-                    : 'text-zinc-600 hover:bg-zinc-100'
+                    ? 'bg-muted font-medium text-fg'
+                    : 'text-fg-soft hover:bg-muted'
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -121,14 +121,14 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="border-t border-zinc-200 p-3">
+        <div className="border-t border-line p-3">
           {SHOW_THEME_TOGGLE && (
             <div className="pb-1">
               <ThemeToggle />
             </div>
           )}
           <p
-            className="truncate px-1 pb-2 text-xs text-zinc-500"
+            className="truncate px-1 pb-2 text-xs text-fg-muted"
             title={userEmail}
           >
             {userEmail}
@@ -136,7 +136,7 @@ export function Sidebar({
           <form action={signOut}>
             <button
               type="submit"
-              className="w-full rounded-md px-3 py-2 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-100"
+              className="w-full rounded-md px-3 py-2 text-left text-sm text-fg-soft transition-colors hover:bg-muted"
             >
               Sign out
             </button>
@@ -145,7 +145,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile: sticky top brand bar */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 md:hidden">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
           src={BRAND_LOGO_URL}
           alt={APP_NAME}
@@ -153,7 +153,7 @@ export function Sidebar({
           height={32}
           className="rounded shrink-0"
         />
-        <h1 className="font-semibold text-zinc-900 text-sm leading-tight truncate">
+        <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {APP_NAME}
         </h1>
         {SHOW_THEME_TOGGLE && (
@@ -164,15 +164,15 @@ export function Sidebar({
       </header>
 
       {/* Mobile: bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-zinc-200 bg-zinc-50 md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-canvas md:hidden">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors ${
               isActive(href)
-                ? 'font-medium text-zinc-900'
-                : 'text-zinc-600 hover:bg-zinc-100'
+                ? 'font-medium text-fg'
+                : 'text-fg-soft hover:bg-muted'
             }`}
           >
             <Icon className="h-5 w-5" />
