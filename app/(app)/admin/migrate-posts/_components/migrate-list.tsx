@@ -56,19 +56,19 @@ function MigrateRow({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <div className="flex items-center gap-2 text-sm text-zinc-500">
-        <span className="font-medium text-zinc-700">
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <div className="flex items-center gap-2 text-sm text-fg-muted">
+        <span className="font-medium text-fg-secondary">
           {post.author?.display_name ?? 'Unknown'}
         </span>
         <span>{formatRelativeTime(post.created_at)}</span>
       </div>
 
       {post.title && (
-        <h2 className="mt-2 font-semibold text-zinc-900">{post.title}</h2>
+        <h2 className="mt-2 font-semibold text-fg">{post.title}</h2>
       )}
       {post.body && (
-        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-zinc-600">
+        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-fg-soft">
           {post.body}
         </p>
       )}
@@ -78,7 +78,7 @@ function MigrateRow({
           value={channelId}
           onChange={(e) => setChannelId(e.target.value)}
           disabled={isSaving}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50"
         >
           <option value="">Select channel…</option>
           {channels.map((channel) => (
@@ -91,11 +91,11 @@ function MigrateRow({
           type="button"
           onClick={handleSave}
           disabled={isSaving || !channelId}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
         >
           {isSaving ? 'Saving…' : 'Save'}
         </button>
-        {error && <span className="text-sm text-red-700">{error}</span>}
+        {error && <span className="text-sm text-danger-text">{error}</span>}
       </div>
     </div>
   )

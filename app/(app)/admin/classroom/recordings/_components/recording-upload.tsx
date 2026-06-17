@@ -8,7 +8,7 @@ import type { ClassroomRecording } from '@/lib/types'
 import { getRecordingUploadCredentials, refreshRecordingStatus } from '../actions'
 
 const secondaryBtn =
-  'rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50'
+  'rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted disabled:opacity-50'
 
 // Upload area shown inside the recording modal. Drives a direct-to-Bunny TUS
 // upload using presigned credentials minted by the server action — the API key
@@ -91,14 +91,14 @@ export function RecordingUpload({
 
   if (uploading) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-        <div className="mb-2 flex items-center gap-2 text-sm text-zinc-700">
-          <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+      <div className="rounded-md border border-line bg-canvas p-3">
+        <div className="mb-2 flex items-center gap-2 text-sm text-fg-secondary">
+          <Loader2 className="h-4 w-4 animate-spin text-fg-muted" />
           Uploading… {progress}%
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-strong">
           <div
-            className="h-full rounded-full bg-zinc-900 transition-all"
+            className="h-full rounded-full bg-inverse transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -109,10 +109,10 @@ export function RecordingUpload({
   // Live status (the parent re-renders after router.refresh()).
   if (status === 'processing') {
     return (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+      <div className="rounded-md border border-line bg-canvas p-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 text-sm text-zinc-700">
-            <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+          <span className="flex items-center gap-2 text-sm text-fg-secondary">
+            <Loader2 className="h-4 w-4 animate-spin text-fg-muted" />
             Video processing…
           </span>
           <button
@@ -127,16 +127,16 @@ export function RecordingUpload({
             Refresh
           </button>
         </div>
-        {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+        {error && <p className="mt-2 text-sm text-danger-text">{error}</p>}
       </div>
     )
   }
 
   if (status === 'ready' && !replacing) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+      <div className="rounded-md border border-line bg-canvas p-3">
         {recording.video_thumbnail_url && (
-          <div className="mb-2 aspect-video w-full overflow-hidden rounded bg-zinc-100">
+          <div className="mb-2 aspect-video w-full overflow-hidden rounded bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={recording.video_thumbnail_url}
@@ -159,14 +159,14 @@ export function RecordingUpload({
 
   // 'pending' | 'failed' | null, or replacing an existing video.
   return (
-    <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+    <div className="rounded-md border border-line bg-canvas p-3">
       {status === 'failed' && (
-        <p className="mb-2 flex items-center gap-1.5 text-sm text-red-700">
+        <p className="mb-2 flex items-center gap-1.5 text-sm text-danger-text">
           <AlertCircle className="h-4 w-4" />
           The previous upload failed. Try again.
         </p>
       )}
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-medium text-fg-secondary hover:bg-hover-subtle">
         <UploadIcon className="h-4 w-4" />
         Choose a video file
         <input
@@ -177,7 +177,7 @@ export function RecordingUpload({
           className="hidden"
         />
       </label>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger-text">{error}</p>}
     </div>
   )
 }

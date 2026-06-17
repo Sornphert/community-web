@@ -24,10 +24,10 @@ export default async function AdminDocumentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900">
+      <h1 className="mb-1 text-xl font-semibold text-fg">
         Classroom Documents
       </h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <p className="mb-6 text-sm text-fg-muted">
         Upload a PDF or image as a document lesson into a topic.
       </p>
 

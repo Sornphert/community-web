@@ -24,13 +24,13 @@ export default async function AdminTopicCoversPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900">Topic Covers</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <h1 className="mb-1 text-xl font-semibold text-fg">Topic Covers</h1>
+      <p className="mb-6 text-sm text-fg-muted">
         Set or change the cover image shown on each classroom topic card.
       </p>
 
       {topics.length === 0 ? (
-        <p className="text-sm text-zinc-500">No topics yet.</p>
+        <p className="text-sm text-fg-muted">No topics yet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {topics.map((topic) => (

@@ -47,7 +47,7 @@ export function TopicCoverRow({ topic }: { topic: Topic }) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3">
+    <div className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
       {topic.cover_image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -56,20 +56,20 @@ export function TopicCoverRow({ topic }: { topic: Topic }) {
           className="h-14 w-20 shrink-0 rounded object-cover"
         />
       ) : (
-        <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded bg-zinc-100">
-          <span className="px-1 text-center text-[10px] font-medium text-zinc-500">
+        <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded bg-muted">
+          <span className="px-1 text-center text-[10px] font-medium text-fg-muted">
             No cover
           </span>
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-zinc-900">{topic.name}</p>
-        {error && <p className="mt-0.5 text-xs text-red-700">{error}</p>}
+        <p className="truncate font-medium text-fg">{topic.name}</p>
+        {error && <p className="mt-0.5 text-xs text-danger-text">{error}</p>}
       </div>
 
       <label
-        className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 ${
+        className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary hover:bg-hover-subtle ${
           isSaving ? 'pointer-events-none opacity-50' : ''
         }`}
       >

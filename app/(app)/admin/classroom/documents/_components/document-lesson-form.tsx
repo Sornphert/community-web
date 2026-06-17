@@ -19,7 +19,7 @@ import { createDocumentLesson, createTopic } from '../actions'
 const NEW_TOPIC = '__new__'
 
 const inputClass =
-  'rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500'
+  'rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring'
 
 export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
   const router = useRouter()
@@ -166,9 +166,9 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4"
+      className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4"
     >
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Topic
         <select
           value={topicMode}
@@ -186,7 +186,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
 
       {topicMode === NEW_TOPIC && (
         <>
-          <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+          <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
             New topic name
             <input
               type="text"
@@ -196,28 +196,28 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
             />
           </label>
 
-          <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+          <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
             Cover image (optional)
             {coverFile ? (
-              <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-2">
-                <ImageIcon className="h-4 w-4 shrink-0 text-zinc-500" />
-                <span className="min-w-0 flex-1 truncate text-sm font-normal text-zinc-900">
+              <div className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
+                <ImageIcon className="h-4 w-4 shrink-0 text-fg-muted" />
+                <span className="min-w-0 flex-1 truncate text-sm font-normal text-fg">
                   {coverFile.name}
                 </span>
-                <span className="shrink-0 text-xs font-normal text-zinc-500">
+                <span className="shrink-0 text-xs font-normal text-fg-muted">
                   {formatFileSize(coverFile.size)}
                 </span>
                 <button
                   type="button"
                   onClick={() => setCoverFile(null)}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-fg"
                   aria-label="Remove cover image"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
             ) : (
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-4 text-sm font-normal text-zinc-700 hover:bg-zinc-50">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-normal text-fg-secondary hover:bg-hover-subtle">
                 <UploadIcon className="h-4 w-4" />
                 Choose a cover image
                 <input
@@ -232,7 +232,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         </>
       )}
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Title
         <input
           type="text"
@@ -242,7 +242,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Description
         <textarea
           value={description}
@@ -252,28 +252,28 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         />
       </label>
 
-      <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         File (PDF or image)
         {file ? (
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-2">
-            <FileText className="h-4 w-4 shrink-0 text-zinc-500" />
-            <span className="min-w-0 flex-1 truncate text-sm font-normal text-zinc-900">
+          <div className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
+            <FileText className="h-4 w-4 shrink-0 text-fg-muted" />
+            <span className="min-w-0 flex-1 truncate text-sm font-normal text-fg">
               {file.name}
             </span>
-            <span className="shrink-0 text-xs font-normal text-zinc-500">
+            <span className="shrink-0 text-xs font-normal text-fg-muted">
               {formatFileSize(file.size)}
             </span>
             <button
               type="button"
               onClick={() => setFile(null)}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-fg"
               aria-label="Remove file"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-4 text-sm font-normal text-zinc-700 hover:bg-zinc-50">
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-normal text-fg-secondary hover:bg-hover-subtle">
             <UploadIcon className="h-4 w-4" />
             Choose a PDF or image
             <input
@@ -287,12 +287,12 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
       </div>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
           {error}
         </p>
       )}
       {success && (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-md bg-success-subtle px-3 py-2 text-sm text-success-text">
           {success}
         </p>
       )}
@@ -301,7 +301,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
         >
           {isSubmitting ? 'Uploading…' : 'Upload lesson'}
         </button>

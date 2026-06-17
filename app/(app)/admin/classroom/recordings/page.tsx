@@ -28,10 +28,10 @@ export default async function AdminRecordingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900">
+      <h1 className="mb-1 text-xl font-semibold text-fg">
         Manage Recordings
       </h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <p className="mb-6 text-sm text-fg-muted">
         Create folders and recordings for the Classroom. Video upload arrives in
         Stage 2.
       </p>

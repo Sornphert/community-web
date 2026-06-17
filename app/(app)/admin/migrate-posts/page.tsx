@@ -27,18 +27,18 @@ export default async function MigratePostsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900">
+      <h1 className="mb-1 text-xl font-semibold text-fg">
         Assign Channels
       </h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <p className="mb-6 text-sm text-fg-muted">
         {posts.length} post{posts.length === 1 ? '' : 's'} without a channel.
         Assign each one, then run migration 0003 to require the column.
       </p>
 
       {posts.length === 0 ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 text-center text-zinc-500">
+        <div className="rounded-lg border border-line bg-surface p-6 text-center text-fg-muted">
           All posts have a channel. You can now run{' '}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs">
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">
             0003_posts_channel_required.sql
           </code>
           .

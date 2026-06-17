@@ -75,8 +75,8 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <h1 className="mb-1 text-xl font-semibold text-zinc-900">Admin</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <h1 className="mb-1 text-xl font-semibold text-fg">Admin</h1>
+      <p className="mb-6 text-sm text-fg-muted">
         Manage classroom content, members, events, and more.
       </p>
 
@@ -85,26 +85,26 @@ export default async function AdminPage() {
           <Link
             key={href}
             href={href}
-            className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
+            className="flex items-start gap-3 rounded-lg border border-line bg-surface p-4 hover:bg-hover-subtle"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-700">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-fg-secondary">
               <Icon className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <div className="font-medium text-zinc-900">{label}</div>
-              <p className="text-sm text-zinc-500">{description}</p>
+              <div className="font-medium text-fg">{label}</div>
+              <p className="text-sm text-fg-muted">{description}</p>
             </div>
           </Link>
         ))}
 
         {/* Phase 2 — not yet built */}
-        <div className="flex items-start gap-3 rounded-lg border border-dashed border-zinc-200 bg-white p-4 opacity-60">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-400">
+        <div className="flex items-start gap-3 rounded-lg border border-dashed border-line bg-surface p-4 opacity-60">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-fg-faint">
             <ShieldCheck className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <div className="font-medium text-zinc-500">User Roles</div>
-            <p className="text-sm text-zinc-400">
+            <div className="font-medium text-fg-muted">User Roles</div>
+            <p className="text-sm text-fg-faint">
               Promote or demote admins. Coming soon.
             </p>
           </div>

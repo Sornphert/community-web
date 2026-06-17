@@ -73,16 +73,16 @@ function ModalShell({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-sm font-semibold text-fg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            className="rounded p-1 text-fg-faint hover:bg-muted hover:text-fg-secondary"
           >
             <X className="h-5 w-5" />
           </button>
@@ -94,12 +94,12 @@ function ModalShell({
 }
 
 const inputClass =
-  'w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50'
-const labelClass = 'mb-1 block text-sm font-medium text-zinc-700'
+  'w-full rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50'
+const labelClass = 'mb-1 block text-sm font-medium text-fg-secondary'
 const primaryBtn =
-  'rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50'
+  'rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50'
 const secondaryBtn =
-  'rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50'
+  'rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted disabled:opacity-50'
 
 // ---------------------------------------------------------------------------
 // Folder create/edit modal
@@ -170,13 +170,13 @@ function FolderModal({
         </div>
         <div>
           <label className={labelClass}>Parent folder</label>
-          <p className="rounded-md bg-zinc-100 px-3 py-2 text-sm text-zinc-600">
+          <p className="rounded-md bg-muted px-3 py-2 text-sm text-fg-soft">
             {parentLabel}
           </p>
         </div>
 
         {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
             {error}
           </p>
         )}
@@ -290,7 +290,7 @@ function RecordingModal({
         </div>
 
         {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
             {error}
           </p>
         )}
@@ -301,7 +301,7 @@ function RecordingModal({
             <RecordingUpload recording={uploadRecording} onUploaded={onClose} />
           </div>
         ) : (
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-fg-faint">
             You can upload a video after creating the recording.
           </p>
         )}
@@ -360,8 +360,8 @@ function DeleteModal({
   return (
     <ModalShell title="Delete" onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-zinc-700">
-          Delete <span className="font-medium text-zinc-900">{name}</span>?
+        <p className="text-sm text-fg-secondary">
+          Delete <span className="font-medium text-fg">{name}</span>?
         </p>
         {target === 'folder' && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -371,7 +371,7 @@ function DeleteModal({
         )}
 
         {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
             {error}
           </p>
         )}
@@ -384,7 +384,7 @@ function DeleteModal({
             type="button"
             onClick={handleConfirm}
             disabled={isPending}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-danger-hover disabled:opacity-50"
           >
             {isPending ? 'Deleting…' : 'Delete'}
           </button>
@@ -398,13 +398,13 @@ function DeleteModal({
 // Tree rows
 // ---------------------------------------------------------------------------
 
-const iconBtn = 'rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700'
+const iconBtn = 'rounded p-1.5 text-fg-faint hover:bg-muted hover:text-fg-secondary'
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   ready: { label: 'Ready', className: 'bg-green-50 text-green-700' },
   processing: { label: 'Processing', className: 'bg-amber-50 text-amber-700' },
-  failed: { label: 'Failed', className: 'bg-red-50 text-red-700' },
-  pending: { label: 'No video', className: 'bg-zinc-100 text-zinc-500' },
+  failed: { label: 'Failed', className: 'bg-danger-subtle text-danger-text' },
+  pending: { label: 'No video', className: 'bg-muted text-fg-muted' },
 }
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -440,8 +440,8 @@ function AdminRecordingRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3">
-      <div className="flex aspect-video w-20 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-100">
+    <div className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3">
+      <div className="flex aspect-video w-20 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
         {recording.video_status === 'ready' && recording.video_thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -450,11 +450,11 @@ function AdminRecordingRow({
             className="h-full w-full object-cover"
           />
         ) : (
-          <PlayCircle className="h-5 w-5 text-zinc-400" />
+          <PlayCircle className="h-5 w-5 text-fg-faint" />
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="truncate font-medium text-zinc-900">{recording.title}</p>
+        <p className="truncate font-medium text-fg">{recording.title}</p>
         <StatusBadge status={recording.video_status} />
       </div>
       <button
@@ -502,18 +502,18 @@ function AdminFolderNode({
 
   return (
     <div>
-      <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-2 pl-3">
+      <div className="flex items-center gap-1 rounded-lg border border-line bg-surface p-2 pl-3">
         <button
           type="button"
           onClick={() => onToggle(node.folder.id)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           {isOpen ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-fg-muted" />
           ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
           )}
-          <span className="truncate font-medium text-zinc-900">
+          <span className="truncate font-medium text-fg">
             {node.folder.name}
           </span>
         </button>
@@ -586,12 +586,12 @@ function AdminFolderNode({
 
       {isOpen && (
         <div
-          className={`mt-2 flex flex-col gap-2 border-l border-zinc-200 ${indentClass(
+          className={`mt-2 flex flex-col gap-2 border-l border-line ${indentClass(
             depth + 1,
           )}`}
         >
           {isEmpty ? (
-            <p className="px-3 py-2 text-sm italic text-zinc-400">
+            <p className="px-3 py-2 text-sm italic text-fg-faint">
               No recordings in this folder yet
             </p>
           ) : (
@@ -667,14 +667,14 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
             position: nextPosition(tree.map((node) => node.folder)),
           })
         }
-        className="mb-4 inline-flex items-center gap-1 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+        className="mb-4 inline-flex items-center gap-1 rounded-md bg-inverse px-3 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
       >
         <Plus className="h-4 w-4" />
         New Folder
       </button>
 
       {tree.length === 0 ? (
-        <p className="rounded-lg border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500">
+        <p className="rounded-lg border border-line bg-surface p-6 text-center text-sm text-fg-muted">
           No folders yet. Create one to get started.
         </p>
       ) : (
