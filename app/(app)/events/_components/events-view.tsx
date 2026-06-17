@@ -85,7 +85,7 @@ export function EventsView({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-zinc-900">
+                <h1 className="text-xl font-semibold text-fg">
                   {monthLabel(view.year, view.month)}
                 </h1>
                 <div className="flex items-center">
@@ -93,7 +93,7 @@ export function EventsView({
                     type="button"
                     onClick={goPrev}
                     aria-label="Previous month"
-                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                    className="rounded-md p-1.5 text-fg-muted hover:bg-muted hover:text-fg-secondary"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -101,7 +101,7 @@ export function EventsView({
                     type="button"
                     onClick={goNext}
                     aria-label="Next month"
-                    className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                    className="rounded-md p-1.5 text-fg-muted hover:bg-muted hover:text-fg-secondary"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -109,23 +109,23 @@ export function EventsView({
                 <button
                   type="button"
                   onClick={goToday}
-                  className="rounded-md border border-zinc-300 px-2.5 py-1 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+                  className="rounded-md border border-line-strong px-2.5 py-1 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
                 >
                   Today
                 </button>
               </div>
-              <p className="mt-0.5 text-xs text-zinc-400">{KL_TZ_LABEL}</p>
+              <p className="mt-0.5 text-xs text-fg-faint">{KL_TZ_LABEL}</p>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex rounded-md border border-zinc-300 p-0.5">
+              <div className="flex rounded-md border border-line-strong p-0.5">
                 <button
                   type="button"
                   onClick={() => setMode('month')}
                   className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
                     mode === 'month'
-                      ? 'bg-zinc-900 text-white'
-                      : 'text-zinc-600 hover:bg-zinc-100'
+                      ? 'bg-inverse text-inverse-fg'
+                      : 'text-fg-soft hover:bg-muted'
                   }`}
                 >
                   Month
@@ -135,8 +135,8 @@ export function EventsView({
                   onClick={() => setMode('list')}
                   className={`rounded px-2.5 py-1 text-sm font-medium transition-colors ${
                     mode === 'list'
-                      ? 'bg-zinc-900 text-white'
-                      : 'text-zinc-600 hover:bg-zinc-100'
+                      ? 'bg-inverse text-inverse-fg'
+                      : 'text-fg-soft hover:bg-muted'
                   }`}
                 >
                   List
@@ -147,7 +147,7 @@ export function EventsView({
                 <button
                   type="button"
                   onClick={() => setComposer({ open: true, event: null })}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-inverse px-3 py-1.5 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
                 >
                   <Plus className="h-4 w-4" />
                   Event
@@ -213,12 +213,12 @@ export function EventsView({
                     setDayPopup(null)
                     setSelected(event)
                   }}
-                  className="flex w-full flex-col gap-0.5 rounded-md border border-zinc-200 p-2.5 text-left transition-colors hover:bg-zinc-50"
+                  className="flex w-full flex-col gap-0.5 rounded-md border border-line p-2.5 text-left transition-colors hover:bg-hover-subtle"
                 >
-                  <span className="text-xs font-medium text-zinc-500">
+                  <span className="text-xs font-medium text-fg-muted">
                     {formatKlTime(event.starts_at)}
                   </span>
-                  <span className="text-sm font-medium text-zinc-900">
+                  <span className="text-sm font-medium text-fg">
                     {event.title}
                   </span>
                 </button>

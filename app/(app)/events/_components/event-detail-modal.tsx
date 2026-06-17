@@ -78,7 +78,7 @@ export function EventDetailModal({
       <button
         type="button"
         onClick={handleAddToCalendar}
-        className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+        className="inline-flex items-center gap-2 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
       >
         <CalendarPlus className="h-4 w-4" />
         Add to Calendar
@@ -89,7 +89,7 @@ export function EventDetailModal({
           <button
             type="button"
             onClick={() => onEdit(event)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
           >
             <Pencil className="h-4 w-4" />
             Edit
@@ -98,7 +98,7 @@ export function EventDetailModal({
             type="button"
             onClick={() => handleDelete('one')}
             disabled={deleting}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-danger-border px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-subtle disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
             {inSeries ? 'Delete this event' : deleting ? 'Deleting…' : 'Delete'}
@@ -108,7 +108,7 @@ export function EventDetailModal({
               type="button"
               onClick={() => handleDelete('series')}
               disabled={deleting}
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-danger-border px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-subtle disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
               Delete entire series
@@ -122,34 +122,34 @@ export function EventDetailModal({
   return (
     <Modal title="Event" onClose={onClose} footer={footer}>
       <div className="flex flex-col gap-4">
-        <h3 className="text-xl font-semibold text-zinc-900">{event.title}</h3>
+        <h3 className="text-xl font-semibold text-fg">{event.title}</h3>
 
-        <div className="flex flex-col gap-2 text-sm text-zinc-700">
+        <div className="flex flex-col gap-2 text-sm text-fg-secondary">
           <p className="flex items-start gap-2">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-fg-faint" />
             <span>
               {formatKlDateLong(event.starts_at)}
               <br />
               {formatKlTime(event.starts_at)} – {formatKlTime(event.ends_at)}
-              <span className="ml-1 text-zinc-400">({KL_TZ_LABEL})</span>
+              <span className="ml-1 text-fg-faint">({KL_TZ_LABEL})</span>
             </span>
           </p>
 
           {event.location && (
             <p className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-fg-faint" />
               <span>{event.location}</span>
             </p>
           )}
 
           {event.meeting_url && (
             <p className="flex items-start gap-2">
-              <Video className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+              <Video className="mt-0.5 h-4 w-4 shrink-0 text-fg-faint" />
               <a
                 href={event.meeting_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all text-zinc-900 underline hover:text-zinc-600"
+                className="break-all text-fg underline hover:text-fg-soft"
               >
                 {event.meeting_url}
               </a>
@@ -158,19 +158,19 @@ export function EventDetailModal({
         </div>
 
         {event.description && (
-          <p className="whitespace-pre-wrap text-sm text-zinc-700">
+          <p className="whitespace-pre-wrap text-sm text-fg-secondary">
             {event.description}
           </p>
         )}
 
         {inSeries && (
-          <p className="inline-flex w-fit items-center gap-1.5 rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+          <p className="inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-fg-soft">
             <CalendarRange className="h-3.5 w-3.5" />
             Part of a {seriesCount}-day series
           </p>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     </Modal>
   )

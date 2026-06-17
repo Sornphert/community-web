@@ -15,9 +15,9 @@ export function ListView({
 }) {
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white py-20 text-center">
-        <Calendar className="h-8 w-8 text-zinc-300" />
-        <p className="text-sm text-zinc-500">No events yet</p>
+      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-line bg-surface py-20 text-center">
+        <Calendar className="h-8 w-8 text-fg-disabled" />
+        <p className="text-sm text-fg-muted">No events yet</p>
       </div>
     )
   }
@@ -29,14 +29,14 @@ export function ListView({
           <button
             type="button"
             onClick={() => onSelectEvent(event)}
-            className="flex w-full flex-col gap-0.5 rounded-lg border border-zinc-200 bg-white p-4 text-left transition-colors hover:bg-zinc-50"
+            className="flex w-full flex-col gap-0.5 rounded-lg border border-line bg-surface p-4 text-left transition-colors hover:bg-hover-subtle"
           >
-            <span className="text-sm font-medium text-zinc-500">
+            <span className="text-sm font-medium text-fg-muted">
               {formatKlDateLong(event.starts_at)} · {formatKlTime(event.starts_at)}
             </span>
-            <span className="font-semibold text-zinc-900">{event.title}</span>
+            <span className="font-semibold text-fg">{event.title}</span>
             {event.location && (
-              <span className="text-sm text-zinc-600">{event.location}</span>
+              <span className="text-sm text-fg-soft">{event.location}</span>
             )}
           </button>
         </li>

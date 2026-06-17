@@ -31,11 +31,11 @@ export function EventsSidebar({
   return (
     <div className="flex flex-col gap-6">
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-900">
+        <h2 className="mb-2 text-sm font-semibold text-fg">
           Upcoming Events
         </h2>
         {upcoming.length === 0 ? (
-          <p className="rounded-lg border border-zinc-200 bg-white px-3 py-4 text-sm text-zinc-500">
+          <p className="rounded-lg border border-line bg-surface px-3 py-4 text-sm text-fg-muted">
             No upcoming events. Check back soon!
           </p>
         ) : (
@@ -53,7 +53,7 @@ export function EventsSidebar({
 
       {past.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900">
+          <h2 className="mb-2 text-sm font-semibold text-fg">
             Past Events
           </h2>
           <ul className="flex flex-col gap-2">
@@ -88,11 +88,11 @@ function SidebarRow({
       <button
         type="button"
         onClick={() => onSelectEvent(event)}
-        className="flex w-full items-center gap-3 rounded-lg border border-zinc-200 bg-white p-2.5 text-left transition-colors hover:bg-zinc-50"
+        className="flex w-full items-center gap-3 rounded-lg border border-line bg-surface p-2.5 text-left transition-colors hover:bg-hover-subtle"
       >
         <div
           className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md ${
-            muted ? 'bg-zinc-100 text-zinc-500' : 'bg-zinc-900 text-white'
+            muted ? 'bg-muted text-fg-muted' : 'bg-inverse text-inverse-fg'
           }`}
         >
           <span className="text-sm font-semibold leading-none">{badge.day}</span>
@@ -101,10 +101,10 @@ function SidebarRow({
           </span>
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-900">
+          <p className="truncate text-sm font-medium text-fg">
             {event.title}
           </p>
-          <p className="text-xs text-zinc-500">{formatKlTime(event.starts_at)}</p>
+          <p className="text-xs text-fg-muted">{formatKlTime(event.starts_at)}</p>
         </div>
       </button>
     </li>

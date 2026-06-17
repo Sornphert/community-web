@@ -31,16 +31,16 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-sm font-semibold text-fg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            className="rounded p-1 text-fg-faint hover:bg-muted hover:text-fg-secondary"
           >
             <X className="h-5 w-5" />
           </button>
@@ -49,7 +49,7 @@ export function Modal({
         <div className="overflow-y-auto px-4 py-4">{children}</div>
 
         {footer && (
-          <div className="border-t border-zinc-200 px-4 py-3">{footer}</div>
+          <div className="border-t border-line px-4 py-3">{footer}</div>
         )}
       </div>
     </div>

@@ -27,12 +27,12 @@ export function MonthCalendar({
   const cells = buildMonthGrid(year, month)
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-      <div className="grid grid-cols-7 border-b border-zinc-200 bg-zinc-50">
+    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+      <div className="grid grid-cols-7 border-b border-line bg-canvas">
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className="px-2 py-2 text-center text-xs font-medium text-zinc-500"
+            className="px-2 py-2 text-center text-xs font-medium text-fg-muted"
           >
             {d}
           </div>
@@ -49,18 +49,18 @@ export function MonthCalendar({
           return (
             <div
               key={cell.dateKey}
-              className={`min-h-[96px] border-b border-r border-zinc-100 p-1.5 ${
+              className={`min-h-[96px] border-b border-r border-line-subtle p-1.5 ${
                 i % 7 === 6 ? 'border-r-0' : ''
-              } ${cell.inMonth ? 'bg-white' : 'bg-zinc-50/60'}`}
+              } ${cell.inMonth ? 'bg-surface' : 'bg-canvas/60'}`}
             >
               <div className="mb-1 flex justify-end">
                 <span
                   className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs ${
                     isToday
-                      ? 'bg-zinc-900 font-semibold text-white'
+                      ? 'bg-inverse font-semibold text-inverse-fg'
                       : cell.inMonth
-                        ? 'text-zinc-700'
-                        : 'text-zinc-400'
+                        ? 'text-fg-secondary'
+                        : 'text-fg-faint'
                   }`}
                 >
                   {cell.day}
@@ -74,9 +74,9 @@ export function MonthCalendar({
                     type="button"
                     onClick={() => onSelectEvent(event)}
                     title={event.title}
-                    className="flex w-full items-center gap-1 truncate rounded bg-zinc-100 px-1.5 py-1 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-200"
+                    className="flex w-full items-center gap-1 truncate rounded bg-muted px-1.5 py-1 text-left text-xs text-fg-secondary transition-colors hover:bg-strong"
                   >
-                    <span className="shrink-0 font-medium text-zinc-500">
+                    <span className="shrink-0 font-medium text-fg-muted">
                       {formatKlTime(event.starts_at)}
                     </span>
                     <span className="truncate">{event.title}</span>
@@ -87,7 +87,7 @@ export function MonthCalendar({
                   <button
                     type="button"
                     onClick={() => onShowMore(cell.dateKey)}
-                    className="rounded px-1.5 py-0.5 text-left text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                    className="rounded px-1.5 py-0.5 text-left text-xs font-medium text-fg-muted hover:bg-muted hover:text-fg-secondary"
                   >
                     +{overflow} more
                   </button>

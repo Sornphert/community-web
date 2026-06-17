@@ -16,8 +16,8 @@ import { createEvent, updateEvent } from '../actions'
 import { Modal } from './modal'
 
 const inputClass =
-  'rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500'
-const labelClass = 'flex flex-col gap-1 text-sm font-medium text-zinc-700'
+  'rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring'
+const labelClass = 'flex flex-col gap-1 text-sm font-medium text-fg-secondary'
 
 // Admin create/edit form. All date/time inputs are KL wall-clock; they're
 // converted to UTC ISO before hitting the server action (KL has no DST, so the
@@ -110,7 +110,7 @@ export function EventComposerModal({
       <button
         type="button"
         onClick={onClose}
-        className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+        className="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
       >
         Cancel
       </button>
@@ -118,7 +118,7 @@ export function EventComposerModal({
         type="submit"
         form="event-composer-form"
         disabled={submitting}
-        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+        className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
       >
         {submitting ? 'Saving…' : editing ? 'Save changes' : 'Create event'}
       </button>
@@ -180,12 +180,12 @@ export function EventComposerModal({
             />
           </label>
         </div>
-        <p className="-mt-2 text-xs text-zinc-400">
+        <p className="-mt-2 text-xs text-fg-faint">
           Times are in {KL_TZ_LABEL}.
         </p>
 
         {!editing && (
-          <div className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+          <div className="flex flex-col gap-2 rounded-md border border-line bg-canvas p-3">
             <label className={labelClass}>
               Repeat
               <select
@@ -219,7 +219,7 @@ export function EventComposerModal({
                   />
                 </label>
                 {seriesDates.length > 0 && (
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-fg-muted">
                     Creates {seriesDates.length} events:{' '}
                     {seriesDates.join(', ')}
                   </p>
@@ -261,7 +261,7 @@ export function EventComposerModal({
           />
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
       </form>
     </Modal>
   )
