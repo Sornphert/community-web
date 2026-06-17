@@ -100,16 +100,16 @@ export function PostVideoUpload({
 
   if (uploading) {
     return (
-      <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Video
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <div className="mb-2 flex items-center gap-2 text-sm font-normal text-zinc-700">
-            <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+        <div className="rounded-md border border-line bg-canvas p-3">
+          <div className="mb-2 flex items-center gap-2 text-sm font-normal text-fg-secondary">
+            <Loader2 className="h-4 w-4 animate-spin text-fg-muted" />
             Uploading {fileName ? `“${fileName}”` : 'video'}… {progress}%
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-strong">
             <div
-              className="h-full rounded-full bg-zinc-900 transition-all"
+              className="h-full rounded-full bg-inverse transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -120,17 +120,17 @@ export function PostVideoUpload({
 
   if (done) {
     return (
-      <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Video
-        <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-          <span className="min-w-0 flex-1 truncate text-sm font-normal text-zinc-900">
+        <div className="flex items-center gap-2 rounded-md border border-line bg-canvas px-3 py-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+          <span className="min-w-0 flex-1 truncate text-sm font-normal text-fg">
             {fileName ?? 'Video'} uploaded — it will process after you post.
           </span>
           <button
             type="button"
             onClick={handleRemove}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-fg"
             aria-label="Remove video"
           >
             <X className="h-4 w-4" />
@@ -141,9 +141,9 @@ export function PostVideoUpload({
   }
 
   return (
-    <div className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+    <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
       Video (optional)
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 py-4 text-sm font-normal text-zinc-700 hover:bg-zinc-50">
+      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-normal text-fg-secondary hover:bg-hover-subtle">
         <UploadIcon className="h-4 w-4" />
         Choose a video file
         <input
@@ -155,7 +155,7 @@ export function PostVideoUpload({
         />
       </label>
       {error && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm font-normal text-red-700">
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-normal text-danger-text">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </p>

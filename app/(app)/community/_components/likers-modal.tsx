@@ -55,16 +55,16 @@ export function LikersModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[70vh] w-full max-w-sm flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="flex max-h-[70vh] w-full max-w-sm flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">Likes</h2>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-sm font-semibold text-fg">Likes</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            className="rounded p-1 text-fg-faint hover:bg-muted hover:text-fg-secondary"
           >
             <X className="h-5 w-5" />
           </button>
@@ -72,9 +72,9 @@ export function LikersModal({
 
         <div className="overflow-y-auto px-4 py-3">
           {loading ? (
-            <p className="py-4 text-center text-sm text-zinc-500">Loading…</p>
+            <p className="py-4 text-center text-sm text-fg-muted">Loading…</p>
           ) : likers.length === 0 ? (
-            <p className="py-4 text-center text-sm text-zinc-500">
+            <p className="py-4 text-center text-sm text-fg-muted">
               No likes yet
             </p>
           ) : (
@@ -86,7 +86,7 @@ export function LikersModal({
                     name={liker.display_name}
                     size="sm"
                   />
-                  <span className="text-sm font-medium text-zinc-900">
+                  <span className="text-sm font-medium text-fg">
                     {liker.display_name}
                   </span>
                 </li>

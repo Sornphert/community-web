@@ -20,8 +20,8 @@ export function PostVideoPlayer({
 
   if (status === 'processing') {
     return (
-      <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
-        <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+      <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-muted">
+        <p className="flex items-center gap-2 px-4 text-center text-sm text-fg-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
           Video is processing. Check back in a few minutes.
         </p>
@@ -31,8 +31,8 @@ export function PostVideoPlayer({
 
   if (status === 'failed') {
     return (
-      <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100">
-        <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+      <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-lg border border-line bg-muted">
+        <p className="flex items-center gap-2 px-4 text-center text-sm text-fg-muted">
           <AlertCircle className="h-4 w-4" />
           Video unavailable.
         </p>
@@ -45,7 +45,7 @@ export function PostVideoPlayer({
   }
 
   return (
-    <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 bg-black">
+    <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-lg border border-line bg-black">
       {playing ? (
         <iframe
           src={`${playerUrl}?autoplay=true`}

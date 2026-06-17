@@ -25,7 +25,7 @@ export function PostCard({
   return (
     <Link
       href={`/community/${channelSlug}/${post.id}`}
-      className="block rounded-lg border border-zinc-200 bg-white p-4"
+      className="block rounded-lg border border-line bg-surface p-4"
     >
       <div className="flex items-center gap-3">
         <Avatar
@@ -33,10 +33,10 @@ export function PostCard({
           name={post.author.display_name}
           size="md"
         />
-        <span className="font-medium text-zinc-900">
+        <span className="font-medium text-fg">
           {post.author.display_name}
         </span>
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-fg-muted">
           {formatRelativeTime(post.created_at)}
           {post.edited_at && <span className="ml-1">(edited)</span>}
         </span>
@@ -52,13 +52,13 @@ export function PostCard({
       </div>
 
       {post.title && (
-        <h2 className="mt-3 text-lg font-semibold text-zinc-900">
+        <h2 className="mt-3 text-lg font-semibold text-fg">
           {post.title}
         </h2>
       )}
 
       {post.body && (
-        <p className="mt-1 line-clamp-3 text-zinc-700">{post.body}</p>
+        <p className="mt-1 line-clamp-3 text-fg-secondary">{post.body}</p>
       )}
 
       {video ? (
@@ -81,7 +81,7 @@ export function PostCard({
         )
       )}
 
-      <div className="mt-3 flex items-center gap-4 border-t border-zinc-200 pt-3 text-sm text-zinc-500">
+      <div className="mt-3 flex items-center gap-4 border-t border-line pt-3 text-sm text-fg-muted">
         <LikeButton
           targetType="post"
           targetId={post.id}

@@ -20,23 +20,23 @@ export function PostDetail({
     <div className="mx-auto w-full max-w-2xl">
       <Link
         href={`/community/${channelSlug}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to community
       </Link>
 
-      <article className="rounded-lg border border-zinc-200 bg-white p-4">
+      <article className="rounded-lg border border-line bg-surface p-4">
         <div className="flex items-center gap-3">
           <Avatar
             url={post.author.avatar_url}
             name={post.author.display_name}
             size="md"
           />
-          <span className="font-medium text-zinc-900">
+          <span className="font-medium text-fg">
             {post.author.display_name}
           </span>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-fg-muted">
             {formatRelativeTime(post.created_at)}
             {post.edited_at && <span className="ml-1">(edited)</span>}
           </span>
@@ -52,13 +52,13 @@ export function PostDetail({
         </div>
 
         {post.title && (
-          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
+          <h1 className="mt-3 text-2xl font-semibold text-fg">
             {post.title}
           </h1>
         )}
 
         {post.body && (
-          <p className="mt-2 whitespace-pre-wrap text-zinc-700">{post.body}</p>
+          <p className="mt-2 whitespace-pre-wrap text-fg-secondary">{post.body}</p>
         )}
 
         {post.images.length > 0 && (
@@ -93,14 +93,14 @@ export function PostDetail({
             {post.attachments.map((attachment) => (
               <div
                 key={attachment.id}
-                className="flex items-center gap-3 rounded-md border border-zinc-200 px-3 py-2"
+                className="flex items-center gap-3 rounded-md border border-line px-3 py-2"
               >
-                <FileText className="h-5 w-5 shrink-0 text-zinc-500" />
+                <FileText className="h-5 w-5 shrink-0 text-fg-muted" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-900">
+                  <p className="truncate text-sm font-medium text-fg">
                     {attachment.file_name}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-fg-muted">
                     {formatFileSize(attachment.file_size)}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ export function PostDetail({
                   href={attachment.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 rounded-md bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-200"
+                  className="shrink-0 rounded-md bg-muted px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-strong"
                 >
                   Open
                 </a>
@@ -117,7 +117,7 @@ export function PostDetail({
           </div>
         )}
 
-        <div className="mt-4 flex items-center border-t border-zinc-200 pt-3 text-sm text-zinc-500">
+        <div className="mt-4 flex items-center border-t border-line pt-3 text-sm text-fg-muted">
           <LikeButton
             targetType="post"
             targetId={post.id}
@@ -127,12 +127,12 @@ export function PostDetail({
         </div>
       </article>
 
-      <h2 className="mt-8 text-lg font-semibold text-zinc-900">
+      <h2 className="mt-8 text-lg font-semibold text-fg">
         Comments ({post.comments.length})
       </h2>
 
       {post.comments.length === 0 ? (
-        <p className="mt-2 text-zinc-500">No comments yet</p>
+        <p className="mt-2 text-fg-muted">No comments yet</p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           {post.comments.map((comment) => (
@@ -144,14 +144,14 @@ export function PostDetail({
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-900">
+                  <span className="text-sm font-medium text-fg">
                     {comment.author.display_name}
                   </span>
-                  <span className="text-sm text-zinc-500">
+                  <span className="text-sm text-fg-muted">
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-zinc-700">
+                <p className="whitespace-pre-wrap text-sm text-fg-secondary">
                   {comment.body}
                 </p>
                 <div className="mt-1">

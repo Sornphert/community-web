@@ -73,11 +73,11 @@ export default async function ChannelPage({
       <div className="mx-auto w-full max-w-2xl">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">
+            <h1 className="text-xl font-semibold text-fg">
               {channel.name}
             </h1>
             {channel.description && (
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-sm text-fg-muted">
                 {channel.description}
               </p>
             )}
@@ -85,7 +85,7 @@ export default async function ChannelPage({
           {canPost && (
             <Link
               href={`/community/${channel.slug}/new`}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-inverse px-3 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
             >
               <Plus className="h-4 w-4" />
               New Post
@@ -95,7 +95,7 @@ export default async function ChannelPage({
 
         {posts.length === 0 ? (
           <div className="flex flex-1 items-center justify-center py-20">
-            <p className="text-zinc-500">No posts yet</p>
+            <p className="text-fg-muted">No posts yet</p>
           </div>
         ) : (
           <div className="flex flex-col gap-4">

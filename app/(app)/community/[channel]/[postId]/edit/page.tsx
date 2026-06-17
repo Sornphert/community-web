@@ -64,13 +64,13 @@ export default async function EditPostPage({
     <div className="mx-auto w-full max-w-2xl">
       <Link
         href={`/community/${channel}/${postId}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to post
       </Link>
 
-      <h1 className="mb-4 text-xl font-semibold text-zinc-900">Edit post</h1>
+      <h1 className="mb-4 text-xl font-semibold text-fg">Edit post</h1>
 
       <NewPostForm
         channelId={post.channel_id ?? ''}

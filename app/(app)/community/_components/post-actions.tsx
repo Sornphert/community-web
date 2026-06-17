@@ -54,12 +54,12 @@ export function PostActions({
   if (confirming) {
     return (
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-zinc-500">Delete?</span>
+        <span className="text-fg-muted">Delete?</span>
         <button
           type="button"
           onClick={handleConfirm}
           disabled={isPending}
-          className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          className="rounded-md bg-danger px-2 py-1 text-xs font-medium text-white hover:bg-danger-hover disabled:opacity-50"
         >
           {isPending ? 'Deleting…' : 'Yes'}
         </button>
@@ -70,7 +70,7 @@ export function PostActions({
             setConfirming(false)
           }}
           disabled={isPending}
-          className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200 disabled:opacity-50"
+          className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-fg-secondary hover:bg-strong disabled:opacity-50"
         >
           No
         </button>
@@ -84,7 +84,7 @@ export function PostActions({
         type="button"
         onClick={handleEdit}
         aria-label="Edit post"
-        className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+        className="flex h-8 w-8 items-center justify-center rounded-full text-fg-faint transition-colors hover:bg-muted hover:text-fg-secondary"
       >
         <Pencil className="h-4 w-4" />
       </button>
@@ -95,11 +95,11 @@ export function PostActions({
           setConfirming(true)
         }}
         aria-label="Delete post"
-        className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+        className="flex h-8 w-8 items-center justify-center rounded-full text-fg-faint transition-colors hover:bg-danger-subtle hover:text-danger"
       >
         <Trash2 className="h-4 w-4" />
       </button>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   )
 }

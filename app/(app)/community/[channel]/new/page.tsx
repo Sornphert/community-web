@@ -44,13 +44,13 @@ export default async function NewPostPage({
     <div className="mx-auto w-full max-w-2xl">
       <Link
         href={`/community/${channel.slug}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to {channel.name}
       </Link>
 
-      <h1 className="mb-4 text-xl font-semibold text-zinc-900">
+      <h1 className="mb-4 text-xl font-semibold text-fg">
         New Post in {channel.name}
       </h1>
 

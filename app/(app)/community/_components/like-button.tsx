@@ -62,7 +62,7 @@ export function LikeButton({
         disabled={isPending}
         aria-pressed={liked}
         aria-label={liked ? 'Unlike' : 'Like'}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+        className="flex h-8 w-8 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-muted disabled:opacity-50"
       >
         <Heart
           className={`h-4 w-4 ${liked ? 'fill-red-500 text-red-500' : ''}`}
@@ -72,7 +72,7 @@ export function LikeButton({
         type="button"
         onClick={handleOpenModal}
         disabled={count === 0}
-        className="min-w-4 text-left text-sm text-zinc-500 hover:underline disabled:cursor-default disabled:no-underline"
+        className="min-w-4 text-left text-sm text-fg-muted hover:underline disabled:cursor-default disabled:no-underline"
       >
         {count}
       </button>
