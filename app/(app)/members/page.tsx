@@ -23,11 +23,11 @@ export default async function MembersPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <h1 className="mb-4 text-xl font-semibold text-zinc-900">Members</h1>
+      <h1 className="mb-4 text-xl font-semibold text-fg">Members</h1>
 
       {members.length === 0 ? (
         <div className="flex flex-1 items-center justify-center py-20">
-          <p className="text-zinc-500">No members yet</p>
+          <p className="text-fg-muted">No members yet</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -35,7 +35,7 @@ export default async function MembersPage() {
             <Link
               key={member.id}
               href={`/members/${member.id}`}
-              className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 hover:bg-zinc-50"
+              className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 hover:bg-hover-subtle"
             >
               <Avatar
                 url={member.avatar_url}
@@ -44,17 +44,17 @@ export default async function MembersPage() {
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-zinc-900">
+                  <span className="font-medium text-fg">
                     {member.display_name}
                   </span>
                   {member.is_admin && (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-fg-soft">
                       Admin
                     </span>
                   )}
                 </div>
                 {member.bio && (
-                  <p className="truncate text-sm text-zinc-500">{member.bio}</p>
+                  <p className="truncate text-sm text-fg-muted">{member.bio}</p>
                 )}
               </div>
             </Link>

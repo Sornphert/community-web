@@ -31,12 +31,12 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <h1 className="mb-4 text-xl font-semibold text-zinc-900">Profile</h1>
+      <h1 className="mb-4 text-xl font-semibold text-fg">Profile</h1>
 
       <ProfileForm profile={profileData} email={user.email ?? ''} />
 
-      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-zinc-900">Account</h2>
+      <div className="mt-6 flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <h2 className="text-sm font-semibold text-fg">Account</h2>
         <ChangePasswordButton email={user.email ?? ''} />
         <DeleteAccountButton />
       </div>
@@ -44,7 +44,7 @@ export default async function ProfilePage() {
       <form action={signOut} className="mt-6">
         <button
           type="submit"
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+          className="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
         >
           Sign out
         </button>

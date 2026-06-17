@@ -43,7 +43,7 @@ export function ChangePasswordButton({ email }: { email: string }) {
         type="button"
         onClick={handleClick}
         disabled={isPending}
-        className="self-start rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+        className="self-start rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted disabled:opacity-50"
       >
         {isPending ? 'Sending…' : 'Change password'}
       </button>
@@ -51,7 +51,7 @@ export function ChangePasswordButton({ email }: { email: string }) {
       {message && (
         <p
           className={`text-sm ${
-            message.type === 'success' ? 'text-emerald-600' : 'text-red-600'
+            message.type === 'success' ? 'text-success' : 'text-danger'
           }`}
         >
           {message.text}

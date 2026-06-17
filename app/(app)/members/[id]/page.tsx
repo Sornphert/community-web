@@ -51,27 +51,27 @@ export default async function MemberProfilePage({
     <div className="mx-auto w-full max-w-2xl">
       <Link
         href="/members"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to members
       </Link>
 
-      <section className="mt-4 flex flex-col items-center rounded-lg border border-zinc-200 bg-white p-6 text-center">
+      <section className="mt-4 flex flex-col items-center rounded-lg border border-line bg-surface p-6 text-center">
         <Avatar
           url={member.avatar_url}
           name={member.display_name}
           size="lg"
         />
-        <h1 className="mt-3 text-xl font-semibold text-zinc-900">
+        <h1 className="mt-3 text-xl font-semibold text-fg">
           {member.display_name}
         </h1>
         {member.is_admin && (
-          <span className="mt-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+          <span className="mt-2 rounded-full bg-muted px-2 py-0.5 text-xs text-fg-soft">
             Admin
           </span>
         )}
-        {member.bio && <p className="mt-2 text-zinc-600">{member.bio}</p>}
+        {member.bio && <p className="mt-2 text-fg-soft">{member.bio}</p>}
 
         {socialEntries.length > 0 && (
           <div className="mt-3 flex items-center justify-center gap-4">
@@ -84,7 +84,7 @@ export default async function MemberProfilePage({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="text-zinc-500 transition-colors hover:text-zinc-900"
+                  className="text-fg-muted transition-colors hover:text-fg"
                 >
                   <Icon className="h-5 w-5" />
                 </a>
@@ -93,14 +93,14 @@ export default async function MemberProfilePage({
           </div>
         )}
 
-        <div className="my-4 w-full border-t border-zinc-200" />
+        <div className="my-4 w-full border-t border-line" />
 
-        <span className="self-start text-sm text-zinc-500">Recent posts</span>
+        <span className="self-start text-sm text-fg-muted">Recent posts</span>
       </section>
 
       {member.posts.length === 0 ? (
         <div className="mt-6 flex items-center justify-center">
-          <p className="text-zinc-500">No posts yet</p>
+          <p className="text-fg-muted">No posts yet</p>
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
@@ -108,23 +108,23 @@ export default async function MemberProfilePage({
             <Link
               key={post.id}
               href={`/community/${post.id}`}
-              className="rounded-lg border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
+              className="rounded-lg border border-line bg-surface p-4 hover:bg-hover-subtle"
             >
               <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-zinc-900">
+                <span className="text-sm font-medium text-fg">
                   {member.display_name}
                 </span>
-                <span className="text-sm text-zinc-500">
+                <span className="text-sm text-fg-muted">
                   {formatRelativeTime(post.created_at)}
                 </span>
               </div>
               {post.title && (
-                <h2 className="mt-2 font-semibold text-zinc-900">
+                <h2 className="mt-2 font-semibold text-fg">
                   {post.title}
                 </h2>
               )}
               {post.body && (
-                <p className="mt-1 line-clamp-1 text-sm text-zinc-600">
+                <p className="mt-1 line-clamp-1 text-sm text-fg-soft">
                   {post.body}
                 </p>
               )}

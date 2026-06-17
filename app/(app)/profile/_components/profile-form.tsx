@@ -146,7 +146,7 @@ export function ProfileForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4"
+      className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4"
     >
       <div className="flex items-center gap-4">
         {avatarPreview ? (
@@ -162,7 +162,7 @@ export function ProfileForm({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
         >
           Change photo
         </button>
@@ -175,39 +175,39 @@ export function ProfileForm({
         />
       </div>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Email
         <input
           type="email"
           value={email}
           disabled
           readOnly
-          className="rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 outline-none"
+          className="rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm text-fg-muted outline-none"
         />
-        <span className="text-xs font-normal text-zinc-400">
+        <span className="text-xs font-normal text-fg-faint">
           Email cannot be changed. Contact admin if you need to update it.
         </span>
       </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Display name *
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Bio
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           rows={4}
           placeholder="Tell people about yourself"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
         />
       </label>
 
@@ -216,11 +216,11 @@ export function ProfileForm({
           type="button"
           onClick={() => setSocialOpen((open) => !open)}
           aria-expanded={socialOpen}
-          className="flex items-center justify-between text-sm font-medium text-zinc-700"
+          className="flex items-center justify-between text-sm font-medium text-fg-secondary"
         >
           Social links
           <ChevronDown
-            className={`h-4 w-4 text-zinc-500 transition-transform ${
+            className={`h-4 w-4 text-fg-muted transition-transform ${
               socialOpen ? 'rotate-180' : ''
             }`}
           />
@@ -230,7 +230,7 @@ export function ProfileForm({
             {SOCIAL_PLATFORMS.map(({ id, label, placeholder }) => (
               <label
                 key={id}
-                className="flex flex-col gap-1 text-sm font-medium text-zinc-700"
+                className="flex flex-col gap-1 text-sm font-medium text-fg-secondary"
               >
                 {label}
                 <input
@@ -240,7 +240,7 @@ export function ProfileForm({
                     setSocial((prev) => ({ ...prev, [id]: e.target.value }))
                   }
                   placeholder={placeholder}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
+                  className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                 />
               </label>
             ))}
@@ -251,7 +251,7 @@ export function ProfileForm({
       {message && (
         <p
           className={`text-sm ${
-            message.type === 'success' ? 'text-emerald-600' : 'text-red-600'
+            message.type === 'success' ? 'text-success' : 'text-danger'
           }`}
         >
           {message.text}
@@ -262,7 +262,7 @@ export function ProfileForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
         >
           {isSubmitting ? 'Saving…' : 'Save'}
         </button>

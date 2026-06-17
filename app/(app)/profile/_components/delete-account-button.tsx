@@ -65,7 +65,7 @@ export function DeleteAccountButton() {
       <button
         type="button"
         onClick={openModal}
-        className="self-start rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
+        className="self-start rounded-md border border-danger-border px-4 py-2 text-sm font-medium text-danger-text transition-colors hover:bg-danger-subtle disabled:opacity-50"
       >
         Delete account
       </button>
@@ -76,11 +76,11 @@ export function DeleteAccountButton() {
           onClick={closeModal}
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-900">
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <h2 className="text-sm font-semibold text-fg">
                 Delete your account?
               </h2>
               <button
@@ -88,14 +88,14 @@ export function DeleteAccountButton() {
                 onClick={closeModal}
                 disabled={isPending}
                 aria-label="Close"
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50"
+                className="rounded p-1 text-fg-faint hover:bg-muted hover:text-fg-secondary disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
-              <div className="text-sm text-zinc-600">
+              <div className="text-sm text-fg-soft">
                 <p>This will permanently delete your account, including:</p>
                 <ul className="mt-2 list-disc pl-5">
                   <li>Your profile, avatar, and bio</li>
@@ -104,14 +104,14 @@ export function DeleteAccountButton() {
                 </ul>
                 <p className="mt-3">
                   Your posts and comments will be kept but shown as{' '}
-                  <span className="font-medium text-zinc-900">
+                  <span className="font-medium text-fg">
                     [Deleted user]
                   </span>
                   . Once deleted, you cannot recover this account.
                 </p>
               </div>
 
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
                 To confirm, type DELETE below
                 <input
                   type="text"
@@ -121,18 +121,18 @@ export function DeleteAccountButton() {
                   autoCapitalize="characters"
                   autoComplete="off"
                   disabled={isPending}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 disabled:opacity-50"
+                  className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50"
                 />
               </label>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-danger">{error}</p>}
 
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={isPending}
-                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+                  className="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -140,7 +140,7 @@ export function DeleteAccountButton() {
                   type="button"
                   onClick={handleDelete}
                   disabled={confirmText !== 'DELETE' || isPending}
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                  className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-danger-hover disabled:opacity-50"
                 >
                   {isPending ? 'Deleting…' : 'Delete account permanently'}
                 </button>
