@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
+import { SHOW_THEME_TOGGLE } from '@/lib/config'
 import { ProfileForm } from './_components/profile-form'
+import { ThemeToggle } from '../_components/theme-toggle'
 import { ChangePasswordButton } from './_components/change-password-button'
 import { DeleteAccountButton } from './_components/delete-account-button'
 
@@ -34,6 +36,13 @@ export default async function ProfilePage() {
       <h1 className="mb-4 text-xl font-semibold text-fg">Profile</h1>
 
       <ProfileForm profile={profileData} email={user.email ?? ''} />
+
+      {SHOW_THEME_TOGGLE && (
+        <div className="mt-6 flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+          <h2 className="text-sm font-semibold text-fg">Appearance</h2>
+          <ThemeToggle />
+        </div>
+      )}
 
       <div className="mt-6 flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
         <h2 className="text-sm font-semibold text-fg">Account</h2>

@@ -4,11 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
 
-export function ThemeToggle({
-  variant = 'full',
-}: {
-  variant?: 'full' | 'icon'
-}) {
+export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -31,20 +27,6 @@ export function ThemeToggle({
       : 'Switch to dark mode'
 
   const Icon = isDark ? Sun : Moon
-
-  if (variant === 'icon') {
-    return (
-      <button
-        type="button"
-        onClick={() => setTheme(isDark ? 'light' : 'dark')}
-        aria-label={label}
-        title={label}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-fg-soft transition-colors hover:bg-muted"
-      >
-        <Icon className="h-5 w-5" />
-      </button>
-    )
-  }
 
   return (
     <button

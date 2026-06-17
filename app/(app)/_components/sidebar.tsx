@@ -14,8 +14,7 @@ import {
 import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
-import { APP_NAME, BRAND_LOGO_URL, SHOW_THEME_TOGGLE } from '@/lib/config'
-import { ThemeToggle } from './theme-toggle'
+import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
 type NavItem = {
   href: string
@@ -122,11 +121,6 @@ export function Sidebar({
         </nav>
 
         <div className="border-t border-line p-3">
-          {SHOW_THEME_TOGGLE && (
-            <div className="pb-1">
-              <ThemeToggle />
-            </div>
-          )}
           <p
             className="truncate px-1 pb-2 text-xs text-fg-muted"
             title={userEmail}
@@ -156,11 +150,6 @@ export function Sidebar({
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {APP_NAME}
         </h1>
-        {SHOW_THEME_TOGGLE && (
-          <div className="ml-auto">
-            <ThemeToggle variant="icon" />
-          </div>
-        )}
       </header>
 
       {/* Mobile: bottom tab bar */}
