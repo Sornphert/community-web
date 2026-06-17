@@ -1,26 +1,123 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Neutrals */
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --muted: #f4f4f5;
+  --strong: #e4e4e7;
+  --hover-subtle: #fafafa;
+  --fg: #18181b;
+  --fg-secondary: #3f3f46;
+  --fg-soft: #52525b;
+  --fg-muted: #71717a;
+  --fg-faint: #a1a1aa;
+  --fg-disabled: #d4d4d8;
+  --line: #e4e4e7;
+  --line-subtle: #f4f4f5;
+  --line-strong: #d4d4d8;
+  --ring: #71717a;
+
+  /* Inverse (primary buttons / active pills) */
+  --inverse: #18181b;
+  --inverse-fg: #ffffff;
+  --inverse-hover: #3f3f46;
+
+  /* Danger */
+  --danger-text: #b91c1c;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-subtle: #fef2f2;
+  --danger-border: #fca5a5;
+
+  /* Success */
+  --success: #059669;
+  --success-hover: #047857;
+  --success-text: #047857;
+  --success-subtle: #ecfdf5;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Neutrals */
+  --canvas: #09090b;
+  --surface: #18181b;
+  --muted: #27272a;
+  --strong: #3f3f46;
+  --hover-subtle: #27272a;
+  --fg: #fafafa;
+  --fg-secondary: #d4d4d8;
+  --fg-soft: #a1a1aa;
+  --fg-muted: #a1a1aa;
+  --fg-faint: #71717a;
+  --fg-disabled: #52525b;
+  --line: #27272a;
+  --line-subtle: #27272a;
+  --line-strong: #3f3f46;
+  --ring: #a1a1aa;
+
+  /* Inverse */
+  --inverse: #f4f4f5;
+  --inverse-fg: #18181b;
+  --inverse-hover: #d4d4d8;
+
+  /* Danger */
+  --danger-text: #f87171;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --danger-subtle: #3a1212;
+  --danger-border: #991b1b;
+
+  /* Success */
+  --success: #10b981;
+  --success-hover: #059669;
+  --success-text: #34d399;
+  --success-subtle: #0f2a1e;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-strong: var(--strong);
+  --color-hover-subtle: var(--hover-subtle);
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-soft: var(--fg-soft);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-fg-disabled: var(--fg-disabled);
+  --color-line: var(--line);
+  --color-line-subtle: var(--line-subtle);
+  --color-line-strong: var(--line-strong);
+  --color-ring: var(--ring);
+
+  --color-inverse: var(--inverse);
+  --color-inverse-fg: var(--inverse-fg);
+  --color-inverse-hover: var(--inverse-hover);
+
+  --color-danger-text: var(--danger-text);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-danger-border: var(--danger-border);
+
+  --color-success: var(--success);
+  --color-success-hover: var(--success-hover);
+  --color-success-text: var(--success-text);
+  --color-success-subtle: var(--success-subtle);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--fg);
   font-family: Arial, Helvetica, sans-serif;
 }

@@ -41,6 +41,14 @@ export const SHOW_HERO = process.env.NEXT_PUBLIC_SHOW_HERO !== 'false'
 export const SHOW_RECORDINGS =
   process.env.NEXT_PUBLIC_SHOW_RECORDINGS !== 'false'
 
+// Light/dark theme toggle visibility. Defaults to OFF (inverse of the SHOW_*
+// pattern above): only an explicit 'true' shows the toggle. The token-based
+// dark theme is migrated screen-by-screen, so the toggle stays hidden in prod
+// until every screen is verified, then is flipped on in one env change per
+// instance. ThemeProvider always mounts regardless; only the toggle UI is gated.
+export const SHOW_THEME_TOGGLE =
+  process.env.NEXT_PUBLIC_SHOW_THEME_TOGGLE === 'true'
+
 // Domain / calendar --------------------------------------------------------
 // App domain used to build the .ics UID (event.id@domain).
 export const APP_DOMAIN =
