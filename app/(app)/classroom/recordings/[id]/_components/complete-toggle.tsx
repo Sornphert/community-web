@@ -38,15 +38,15 @@ export function CompleteToggle({
         disabled={isPending}
         className={
           completed
-            ? 'self-start rounded-md bg-emerald-600 px-4 py-2 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50'
-            : 'self-start rounded-md bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50'
+            ? 'self-start rounded-md bg-success px-4 py-2 text-white transition-colors hover:bg-success-hover disabled:opacity-50'
+            : 'self-start rounded-md bg-inverse px-4 py-2 text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50'
         }
       >
         {completed ? 'Completed ✓' : 'Mark as complete'}
       </button>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
           {error}
         </p>
       )}

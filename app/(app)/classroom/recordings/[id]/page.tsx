@@ -38,32 +38,32 @@ export default async function RecordingPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <nav className="flex flex-wrap items-center gap-1 text-sm text-zinc-500">
-        <Link href="/classroom" className="hover:text-zinc-900">
+      <nav className="flex flex-wrap items-center gap-1 text-sm text-fg-muted">
+        <Link href="/classroom" className="hover:text-fg">
           Classroom
         </Link>
-        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
-        <Link href="/classroom/recordings" className="hover:text-zinc-900">
+        <ChevronRight className="h-4 w-4 shrink-0 text-fg-disabled" />
+        <Link href="/classroom/recordings" className="hover:text-fg">
           Recordings
         </Link>
         {ancestors.map((folder) => (
           <Fragment key={folder.id}>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-fg-disabled" />
             <Link
               href={`/classroom/recordings#folder-${folder.id}`}
-              className="hover:text-zinc-900"
+              className="hover:text-fg"
             >
               {folder.name}
             </Link>
           </Fragment>
         ))}
-        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
-        <span className="font-medium text-zinc-900">{recording.title}</span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-fg-disabled" />
+        <span className="font-medium text-fg">{recording.title}</span>
       </nav>
 
       <div className="mt-4">
         {recording.video_status === 'ready' && recording.video_id ? (
-          <div className="aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 bg-black">
+          <div className="aspect-video w-full overflow-hidden rounded-lg border border-line bg-black">
             <iframe
               src={getPlayerUrl(recording.video_id)}
               loading="lazy"
@@ -73,19 +73,19 @@ export default async function RecordingPage({
             />
           </div>
         ) : (
-          <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100">
+          <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border border-line bg-muted">
             {recording.video_status === 'processing' ? (
-              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+              <p className="flex items-center gap-2 px-4 text-center text-sm text-fg-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Video is processing. Check back in a few minutes.
               </p>
             ) : recording.video_status === 'failed' ? (
-              <p className="flex items-center gap-2 px-4 text-center text-sm text-zinc-500">
+              <p className="flex items-center gap-2 px-4 text-center text-sm text-fg-muted">
                 <AlertCircle className="h-4 w-4" />
                 Video unavailable. Please contact admin.
               </p>
             ) : (
-              <p className="px-4 text-center text-sm text-zinc-500">
+              <p className="px-4 text-center text-sm text-fg-muted">
                 No video for this recording yet.
               </p>
             )}
@@ -94,14 +94,14 @@ export default async function RecordingPage({
       </div>
 
       <div className="mt-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">
+        <h1 className="text-2xl font-semibold text-fg">
           {recording.title}
         </h1>
         {createdDate && (
-          <p className="mt-1 text-sm text-zinc-500">Created {createdDate}</p>
+          <p className="mt-1 text-sm text-fg-muted">Created {createdDate}</p>
         )}
         {recording.description && (
-          <p className="mt-4 whitespace-pre-wrap text-zinc-600">
+          <p className="mt-4 whitespace-pre-wrap text-fg-soft">
             {recording.description}
           </p>
         )}

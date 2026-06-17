@@ -35,7 +35,7 @@ export default async function ContentPage({
     <div className="mx-auto w-full max-w-3xl">
       <Link
         href={`/classroom/topic/${item.topic_id}`}
-        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to topic
@@ -44,7 +44,7 @@ export default async function ContentPage({
       <div className="mt-4">
         {item.type === 'video' ? (
           parsed ? (
-            <div className="aspect-video w-full overflow-hidden rounded-lg border border-zinc-200 bg-black">
+            <div className="aspect-video w-full overflow-hidden rounded-lg border border-line bg-black">
               <iframe
                 src={parsed.embedUrl}
                 className="h-full w-full"
@@ -53,8 +53,8 @@ export default async function ContentPage({
               />
             </div>
           ) : (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-700">
+            <div className="rounded-lg border border-danger-border bg-danger-subtle p-4">
+              <p className="text-sm font-medium text-danger-text">
                 Could not load video. Check the URL.
               </p>
               {item.video_url && (
@@ -62,7 +62,7 @@ export default async function ContentPage({
                   href={item.video_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-block break-all text-sm text-red-700 underline"
+                  className="mt-2 inline-block break-all text-sm text-danger-text underline"
                 >
                   {item.video_url}
                 </a>
@@ -71,7 +71,7 @@ export default async function ContentPage({
           )
         ) : (
           item.thumbnail_url && (
-            <div className="mx-auto mb-6 w-full max-w-sm overflow-hidden rounded-lg border border-zinc-200 shadow-sm">
+            <div className="mx-auto mb-6 w-full max-w-sm overflow-hidden rounded-lg border border-line shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.thumbnail_url}
@@ -84,9 +84,9 @@ export default async function ContentPage({
       </div>
 
       <div className="mt-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">{item.title}</h1>
+        <h1 className="text-2xl font-semibold text-fg">{item.title}</h1>
         {item.description && (
-          <p className="mt-2 whitespace-pre-wrap text-zinc-600">
+          <p className="mt-2 whitespace-pre-wrap text-fg-soft">
             {item.description}
           </p>
         )}
@@ -97,7 +97,7 @@ export default async function ContentPage({
           href={item.document_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 sm:w-auto"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-inverse px-4 py-3 text-sm font-medium text-inverse-fg hover:bg-inverse-hover sm:w-auto"
         >
           <ExternalLink className="h-4 w-4" />
           Open Document

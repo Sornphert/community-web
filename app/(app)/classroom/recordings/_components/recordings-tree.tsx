@@ -54,9 +54,9 @@ function RecordingRow({
   return (
     <Link
       href={`/classroom/recordings/${recording.id}`}
-      className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 hover:bg-zinc-50"
+      className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 hover:bg-hover-subtle"
     >
-      <div className="flex aspect-video w-24 shrink-0 items-center justify-center overflow-hidden rounded bg-zinc-100">
+      <div className="flex aspect-video w-24 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
         {recording.video_thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -65,23 +65,23 @@ function RecordingRow({
             className="h-full w-full object-cover"
           />
         ) : (
-          <PlayCircle className="h-6 w-6 text-zinc-400" />
+          <PlayCircle className="h-6 w-6 text-fg-faint" />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 font-medium text-zinc-900">
+        <p className="line-clamp-2 font-medium text-fg">
           {recording.title}
         </p>
         {recording.video_duration_seconds != null && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-fg-muted">
             {formatDuration(recording.video_duration_seconds)}
           </p>
         )}
       </div>
 
       {completed && (
-        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
       )}
     </Link>
   )
@@ -109,29 +109,29 @@ function FolderNode({
       <button
         type="button"
         onClick={() => onToggle(node.folder.id)}
-        className="flex w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-left hover:bg-zinc-50"
+        className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface p-3 text-left hover:bg-hover-subtle"
       >
         {isOpen ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-fg-muted" />
         ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
         )}
-        <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">
+        <span className="min-w-0 flex-1 truncate font-medium text-fg">
           {node.folder.name}
         </span>
-        <span className="shrink-0 text-xs text-zinc-500">
+        <span className="shrink-0 text-xs text-fg-muted">
           {count} {count === 1 ? 'recording' : 'recordings'}
         </span>
       </button>
 
       {isOpen && (
         <div
-          className={`mt-2 flex flex-col gap-2 border-l border-zinc-200 ${indentClass(
+          className={`mt-2 flex flex-col gap-2 border-l border-line ${indentClass(
             depth + 1,
           )}`}
         >
           {isEmpty ? (
-            <p className="px-3 py-2 text-sm italic text-zinc-400">
+            <p className="px-3 py-2 text-sm italic text-fg-faint">
               No recordings in this folder yet
             </p>
           ) : (

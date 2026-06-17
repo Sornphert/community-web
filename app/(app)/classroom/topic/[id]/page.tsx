@@ -45,27 +45,27 @@ export default async function TopicPage({
     <div className="mx-auto w-full max-w-2xl">
       <Link
         href="/classroom"
-        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to classroom
       </Link>
 
       <div className="mt-4">
-        <h1 className="text-2xl font-semibold text-zinc-900">{topic.name}</h1>
+        <h1 className="text-2xl font-semibold text-fg">{topic.name}</h1>
         {topic.description && (
-          <p className="mt-2 whitespace-pre-wrap text-zinc-600">
+          <p className="mt-2 whitespace-pre-wrap text-fg-soft">
             {topic.description}
           </p>
         )}
       </div>
 
-      <div className="my-4 border-t border-zinc-200" />
+      <div className="my-4 border-t border-line" />
 
-      <h2 className="mb-2 text-sm text-zinc-500">Lessons</h2>
+      <h2 className="mb-2 text-sm text-fg-muted">Lessons</h2>
 
       {items.length === 0 ? (
-        <p className="mt-4 text-zinc-500">No content yet</p>
+        <p className="mt-4 text-fg-muted">No content yet</p>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((item) => (

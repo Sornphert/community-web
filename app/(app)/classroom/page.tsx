@@ -17,11 +17,11 @@ export default async function ClassroomPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <h1 className="mb-4 text-xl font-semibold text-zinc-900">Classroom</h1>
+      <h1 className="mb-4 text-xl font-semibold text-fg">Classroom</h1>
 
       {visibleTopics.length === 0 ? (
         <div className="flex flex-1 items-center justify-center py-20">
-          <p className="text-zinc-500">No topics yet</p>
+          <p className="text-fg-muted">No topics yet</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
