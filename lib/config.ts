@@ -49,6 +49,13 @@ export const SHOW_RECORDINGS =
 export const SHOW_THEME_TOGGLE =
   process.env.NEXT_PUBLIC_SHOW_THEME_TOGGLE === 'true'
 
+// "Johnson Weekly 市场报告" feature visibility. Defaults to OFF (the
+// SHOW_THEME_TOGGLE === 'true' pattern, NOT the !== 'false' pattern), so the
+// feature is fully invisible on Bootcamp and on Johnson until flipped on. Gates
+// the sidebar Weekly Report entry, the "Add Week" button, AND the /weekly routes
+// (which 404 when off, so the feature is invisible even by direct URL).
+export const SHOW_WEEKLY = process.env.NEXT_PUBLIC_SHOW_WEEKLY === 'true'
+
 // Domain / calendar --------------------------------------------------------
 // App domain used to build the .ics UID (event.id@domain).
 export const APP_DOMAIN =

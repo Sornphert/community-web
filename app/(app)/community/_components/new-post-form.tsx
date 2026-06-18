@@ -45,11 +45,15 @@ export function NewPostForm({
   channelSlug,
   isAdmin,
   initialPost,
+  basePath = '/community',
 }: {
   channelId: string
   channelSlug: string
   isAdmin: boolean
   initialPost?: EditPost
+  // URL prefix for the post-create / post-edit redirect. Defaults to
+  // '/community'; the /weekly tree passes '/weekly'.
+  basePath?: string
 }) {
   const router = useRouter()
   const isEdit = !!initialPost
@@ -246,7 +250,7 @@ export function NewPostForm({
       }
     }
 
-    const postUrl = `/community/${channelSlug}/${postId}`
+    const postUrl = `${basePath}/${channelSlug}/${postId}`
 
     // Attach the optional video LAST, and never let its failure break the post:
     // the post is already saved at this point. On failure, log it, keep the
@@ -348,7 +352,7 @@ export function NewPostForm({
       throw new Error(result.error)
     }
 
-    const postUrl = `/community/${channelSlug}/${postId}`
+    const postUrl = `${basePath}/${channelSlug}/${postId}`
     router.push(postUrl)
     router.refresh()
   }

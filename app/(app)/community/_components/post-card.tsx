@@ -12,9 +12,13 @@ import { PostVideoPlayer } from './post-video-player'
 export function PostCard({
   post,
   channelSlug,
+  basePath = '/community',
 }: {
   post: PostWithRelations
   channelSlug: string
+  // URL prefix for post links. Defaults to '/community'; the /weekly tree passes
+  // '/weekly' so the same card renders under both segments.
+  basePath?: string
 }) {
   const firstImage = post.images[0]
   // A ready/processing/failed video takes the media slot in place of the first
@@ -24,7 +28,7 @@ export function PostCard({
 
   return (
     <Link
-      href={`/community/${channelSlug}/${post.id}`}
+      href={`${basePath}/${channelSlug}/${post.id}`}
       className="block rounded-lg border border-line bg-surface p-4"
     >
       <div className="flex items-center gap-3">
@@ -45,6 +49,7 @@ export function PostCard({
             <PostActions
               postId={post.id}
               channelSlug={channelSlug}
+              basePath={basePath}
               variant="card"
             />
           </div>

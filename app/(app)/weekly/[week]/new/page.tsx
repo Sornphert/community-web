@@ -4,24 +4,20 @@ import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getChannelBySlug } from '@/lib/posts'
 import { SHOW_WEEKLY } from '@/lib/config'
-import { NewPostForm } from '../../_components/new-post-form'
+import { NewPostForm } from '../../../community/_components/new-post-form'
 
-export default async function NewPostPage({
+export default async function NewWeekPostPage({
   params,
 }: {
-  params: Promise<{ channel: string }>
+  params: Promise<{ week: string }>
 }) {
-  const { channel: slug } = await params
-  const channel = await getChannelBySlug(slug)
-  if (!channel) {
+  if (!SHOW_WEEKLY) {
     notFound()
   }
 
-  // Collision guard: weekly channels compose under /weekly, not /community.
-  if (channel.section === 'weekly') {
-    if (SHOW_WEEKLY) {
-      redirect(`/weekly/${channel.slug}/new`)
-    }
+  const { week: slug } = await params
+  const channel = await getChannelBySlug(slug)
+  if (!channel || channel.section !== 'weekly') {
     notFound()
   }
 
@@ -33,9 +29,6 @@ export default async function NewPostPage({
     redirect('/login')
   }
 
-  // Fetch admin status once: it both guards admin-only channels (below) and
-  // gates the optional video upload in the composer (admin-only, regardless of
-  // the channel's post_permission). RLS is the real enforcement in both cases.
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_admin')
@@ -43,16 +36,16 @@ export default async function NewPostPage({
     .maybeSingle()
   const isAdmin = profile?.is_admin === true
 
-  // Server-side guard for admin-only channels (mirrors the hidden "New Post"
-  // button on the channel feed).
-  if (channel.post_permission === 'admin_only' && !isAdmin) {
-    redirect(`/community/${channel.slug}`)
+  // Weekly channels are always admin_only — non-admins go back to the week feed.
+  // RLS (posts_insert_channel_permitted) is the real enforcement.
+  if (!isAdmin) {
+    redirect(`/weekly/${channel.slug}`)
   }
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href={`/community/${channel.slug}`}
+        href={`/weekly/${channel.slug}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -67,6 +60,7 @@ export default async function NewPostPage({
         channelId={channel.id}
         channelSlug={channel.slug}
         isAdmin={isAdmin}
+        basePath="/weekly"
       />
     </div>
   )

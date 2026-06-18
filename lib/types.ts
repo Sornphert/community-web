@@ -34,8 +34,36 @@ export interface Channel {
   description: string | null
   position: number
   post_permission: 'all' | 'admin_only'
+  // Discriminator (migration 0014). 'community' = a normal Community channel;
+  // 'weekly' = a "Johnson Weekly 市场报告" week folder. Existing rows default to
+  // 'community'. getChannels() filters to 'community'; the weekly fetchers to
+  // 'weekly'.
+  section: 'community' | 'weekly'
+  // Weekly channels only: the PER-MONTH sort key (restarts at 1 in each month,
+  // ordered DESC = newest week on top). null for community channels. Independent
+  // of `slug`, which is a global unique id ('week-N' where N is a global seed).
+  week_number: number | null
+  // Weekly channels only: the month (week_groups row) this week belongs to.
+  // Enforced non-null for weekly by the channels_weekly_has_group CHECK; null
+  // for community channels.
+  group_id: string | null
   created_at: string
 }
+
+// A "month" container grouping weeks. Manually named (free text); ordered by a
+// hidden `position` sort key (DESC = newest month on top). Migration 0014.
+export interface WeekGroup {
+  id: string
+  name: string
+  position: number
+  created_at: string | null
+}
+
+// A month decorated with its week count, for the /weekly hub month grid.
+export type MonthFolder = WeekGroup & { week_count: number }
+
+// A weekly channel decorated with its post count, for a month's week grid.
+export type WeekFolder = Channel & { post_count: number }
 
 export interface Post {
   id: string
@@ -116,7 +144,9 @@ export type PostWithFullRelations = Post & {
   attachments: PostAttachment[]
   video: PostVideo | null
   comments: CommentWithRelations[]
-  channel: { slug: string } | null
+  // section drives the /community post-detail collision guard: a weekly post is
+  // redirected to its canonical /weekly URL.
+  channel: { slug: string; section: 'community' | 'weekly' } | null
   likes_count: number
   liked_by_current_user: boolean
   // True when the current viewer is the author or an admin — drives edit/delete UI.

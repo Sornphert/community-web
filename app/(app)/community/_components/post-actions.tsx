@@ -13,10 +13,14 @@ export function PostActions({
   postId,
   channelSlug,
   variant,
+  basePath = '/community',
 }: {
   postId: string
   channelSlug: string
   variant: 'card' | 'detail'
+  // URL prefix for edit / post-delete navigation. Defaults to '/community';
+  // '/weekly' under the weekly tree.
+  basePath?: string
 }) {
   const router = useRouter()
   const [confirming, setConfirming] = useState(false)
@@ -30,7 +34,7 @@ export function PostActions({
 
   function handleEdit(e: React.MouseEvent) {
     stop(e)
-    router.push(`/community/${channelSlug}/${postId}/edit`)
+    router.push(`${basePath}/${channelSlug}/${postId}/edit`)
   }
 
   function handleConfirm(e: React.MouseEvent) {
@@ -44,7 +48,7 @@ export function PostActions({
         return
       }
       if (variant === 'detail') {
-        router.push(`/community/${channelSlug}`)
+        router.push(`${basePath}/${channelSlug}`)
       } else {
         router.refresh()
       }

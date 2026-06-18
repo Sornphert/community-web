@@ -12,18 +12,24 @@ import { PostVideoPlayer } from './post-video-player'
 export function PostDetail({
   post,
   channelSlug,
+  basePath = '/community',
+  backLabel = 'Back to community',
 }: {
   post: PostWithFullRelations
   channelSlug: string
+  // URL prefix + back-link label. Default to the Community feed; the /weekly tree
+  // passes '/weekly' and the week's name (e.g. "第 1 周 · Week 1").
+  basePath?: string
+  backLabel?: string
 }) {
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href={`/community/${channelSlug}`}
+        href={`${basePath}/${channelSlug}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to community
+        {backLabel}
       </Link>
 
       <article className="rounded-lg border border-line bg-surface p-4">
@@ -45,6 +51,7 @@ export function PostDetail({
               <PostActions
                 postId={post.id}
                 channelSlug={channelSlug}
+                basePath={basePath}
                 variant="detail"
               />
             </div>

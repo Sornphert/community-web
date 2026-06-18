@@ -12,7 +12,7 @@ import {
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
-import { APP_NAME, HERO_URL, SHOW_HERO } from '@/lib/config'
+import { APP_NAME, HERO_URL, SHOW_HERO, SHOW_WEEKLY } from '@/lib/config'
 
 export default async function ChannelPage({
   params,
@@ -33,6 +33,16 @@ export default async function ChannelPage({
       redirect(`/community/${post.channel.slug}/${post.id}`)
     }
     return <PostDetail post={post} channelSlug="announcements" />
+  }
+
+  // URL-collision guard: a weekly channel's canonical home is /weekly. Never
+  // render it under /community. Redirect to the canonical URL when the feature is
+  // on; 404 when off (so it stays invisible).
+  if (channel.section === 'weekly') {
+    if (SHOW_WEEKLY) {
+      redirect(`/weekly/${channel.slug}`)
+    }
+    notFound()
   }
 
   const supabase = await createClient()

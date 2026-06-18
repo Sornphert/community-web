@@ -151,8 +151,20 @@ CREATE TABLE public.channels (
     description text,
     "position" integer DEFAULT 0 NOT NULL,
     post_permission text DEFAULT 'all'::text NOT NULL,
+    section text DEFAULT 'community'::text NOT NULL,
+    week_number integer,
+    group_id uuid,
     created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT channels_post_permission_check CHECK ((post_permission = ANY (ARRAY['all'::text, 'admin_only'::text])))
+    CONSTRAINT channels_post_permission_check CHECK ((post_permission = ANY (ARRAY['all'::text, 'admin_only'::text]))),
+    CONSTRAINT channels_section_check CHECK ((section = ANY (ARRAY['community'::text, 'weekly'::text]))),
+    CONSTRAINT channels_weekly_has_group CHECK (((section <> 'weekly'::text) OR (group_id IS NOT NULL)))
+);
+
+CREATE TABLE public.week_groups (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
 );
 
 CREATE TABLE public.classroom_folders (
@@ -327,6 +339,7 @@ ALTER TABLE ONLY public.post_likes ADD CONSTRAINT post_likes_pkey PRIMARY KEY (p
 ALTER TABLE ONLY public.posts ADD CONSTRAINT posts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.profiles ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.topics ADD CONSTRAINT topics_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.week_groups ADD CONSTRAINT week_groups_pkey PRIMARY KEY (id);
 
 
 --
@@ -334,6 +347,7 @@ ALTER TABLE ONLY public.topics ADD CONSTRAINT topics_pkey PRIMARY KEY (id);
 --
 
 CREATE INDEX channels_position_idx ON public.channels USING btree ("position");
+CREATE INDEX channels_section_group_week_idx ON public.channels USING btree (section, group_id, week_number DESC);
 CREATE INDEX classroom_folders_parent_folder_id_idx ON public.classroom_folders USING btree (parent_folder_id);
 CREATE INDEX classroom_recording_progress_recording_id_idx ON public.classroom_recording_progress USING btree (recording_id);
 CREATE INDEX classroom_recording_progress_user_id_idx ON public.classroom_recording_progress USING btree (user_id);
@@ -356,6 +370,7 @@ CREATE INDEX posts_channel_id_idx ON public.posts USING btree (channel_id);
 CREATE INDEX posts_created_at_idx ON public.posts USING btree (created_at DESC);
 CREATE INDEX profiles_deleted_at_idx ON public.profiles USING btree (deleted_at) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX topics_position_idx ON public.topics USING btree ("position");
+CREATE INDEX week_groups_position_idx ON public.week_groups USING btree ("position" DESC);
 
 
 --
@@ -366,6 +381,7 @@ CREATE INDEX topics_position_idx ON public.topics USING btree ("position");
 -- pg_constraint check for profiles foreign keys returned zero rows.
 --
 
+ALTER TABLE ONLY public.channels ADD CONSTRAINT channels_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.week_groups(id);
 ALTER TABLE ONLY public.classroom_folders ADD CONSTRAINT classroom_folders_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
 ALTER TABLE ONLY public.classroom_folders ADD CONSTRAINT classroom_folders_parent_folder_id_fkey FOREIGN KEY (parent_folder_id) REFERENCES public.classroom_folders(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.classroom_recording_progress ADD CONSTRAINT classroom_recording_progress_recording_id_fkey FOREIGN KEY (recording_id) REFERENCES public.classroom_recordings(id) ON DELETE CASCADE;
@@ -409,6 +425,7 @@ ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.week_groups ENABLE ROW LEVEL SECURITY;
 
 
 --
@@ -452,6 +469,11 @@ CREATE POLICY channels_insert_admin ON public.channels FOR INSERT TO authenticat
 CREATE POLICY channels_update_admin ON public.channels FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 CREATE POLICY channels_delete_admin ON public.channels FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 
+CREATE POLICY week_groups_select_authenticated ON public.week_groups FOR SELECT TO authenticated USING (true);
+CREATE POLICY week_groups_insert_admin ON public.week_groups FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+CREATE POLICY week_groups_update_admin ON public.week_groups FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+CREATE POLICY week_groups_delete_admin ON public.week_groups FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+
 CREATE POLICY classroom_folders_select_authenticated ON public.classroom_folders FOR SELECT TO authenticated USING (true);
 CREATE POLICY classroom_folders_insert_admin ON public.classroom_folders FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 CREATE POLICY classroom_folders_update_admin ON public.classroom_folders FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
@@ -490,6 +512,10 @@ CREATE POLICY events_select_authenticated ON public.events FOR SELECT TO authent
 CREATE POLICY events_insert_admin ON public.events FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 CREATE POLICY events_update_admin ON public.events FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))) WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 CREATE POLICY events_delete_admin ON public.events FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
+
+-- A fresh Supabase project can ship without the default table privileges
+-- PostgREST relies on, so grant them explicitly for week_groups (migration 0014).
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.week_groups TO anon, authenticated, service_role;
 
 
 -- =============================================================================

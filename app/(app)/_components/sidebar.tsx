@@ -6,6 +6,7 @@ import {
   MessageSquare,
   GraduationCap,
   CalendarDays,
+  Newspaper,
   Users,
   Shield,
   UserCircle,
@@ -14,7 +15,7 @@ import {
 import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
-import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
+import { APP_NAME, BRAND_LOGO_URL, SHOW_WEEKLY } from '@/lib/config'
 
 type NavItem = {
   href: string
@@ -34,6 +35,9 @@ export function Sidebar({
   const navItems: NavItem[] = [
     { href: '/community', label: 'Community', icon: MessageSquare },
     { href: '/classroom', label: 'Classroom', icon: GraduationCap },
+    ...(SHOW_WEEKLY
+      ? [{ href: '/weekly', label: 'Weekly Report', icon: Newspaper }]
+      : []),
     { href: '/events', label: 'Events', icon: CalendarDays },
     ...(isAdmin
       ? [
