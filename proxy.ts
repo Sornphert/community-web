@@ -64,7 +64,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && pathname === '/login') {
-    return redirectPreservingCookies('/community')
+    // [Phase 2 multi-tenant] Authenticated users land on the /home shell (the
+    // teacher picker), NOT directly in a community. NOTE: this file is shared with
+    // main's single-tenant app, where the landing is /community — keep that in mind
+    // when merging across branches.
+    return redirectPreservingCookies('/home')
   }
 
   return supabaseResponse

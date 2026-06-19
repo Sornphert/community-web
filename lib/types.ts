@@ -27,6 +27,35 @@ export interface Profile {
   social_links: SocialLinks
 }
 
+// A tenant in the multi-tenant build (one teacher = one community). The teacher
+// directory is openly readable by any authenticated user (teachers_select_all RLS);
+// all CONTENT remains gated by membership. NO branding column yet — card colors are
+// derived deterministically from `slug` in the UI (see home/_components/teacher-card).
+export interface Teacher {
+  id: string
+  slug: string
+  name: string
+  created_at: string | null
+}
+
+export type MembershipRole = 'member' | 'admin'
+export type MembershipStatus = 'active' | 'revoked'
+
+// The profile↔teacher join. A row exists only when an admin grants access; role
+// and status live here (is_admin is gone from profiles in the MT schema).
+export interface Membership {
+  id: string
+  profile_id: string
+  teacher_id: string
+  role: MembershipRole
+  status: MembershipStatus
+  created_at: string | null
+}
+
+// A teacher the current user actively belongs to, decorated with their role in it
+// — the shape the /home "Your communities" cards consume.
+export type TeacherWithRole = Teacher & { role: MembershipRole }
+
 export interface Channel {
   id: string
   slug: string

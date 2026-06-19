@@ -13,5 +13,8 @@ export default async function RootPage() {
     redirect('/login')
   }
 
-  redirect('/community')
+  // [Phase 2 multi-tenant] Land on the /home shell (teacher picker), not a single
+  // community. NOTE: shared with main's single-tenant app (which sends to
+  // /community) — mind this when merging across branches.
+  redirect('/home')
 }
