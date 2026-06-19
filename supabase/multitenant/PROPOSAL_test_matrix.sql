@@ -125,13 +125,23 @@ end $$;
 -- B1. A-member: sees A's post only, A's channels only.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-0000-0000-0000-000000000000","role":"authenticated"}';
+-- SCOPED to fixture UUIDs (Section B teachers A/B) so persistent seed data on the
+-- target DB cannot perturb the counts. (community-mt-dev carries real teachers/posts
+-- on top of this harness's own fixtures — absolute count(*) over the whole table is
+-- not a stable assertion.)
 do $$
 begin
-  if (select count(*) from public.posts) <> 1 then raise exception 'A-member should see 1 post'; end if;
-  if (select count(*) from public.posts where teacher_id <> 'aaaaaaaa-0000-0000-0000-000000000000') <> 0
-     then raise exception 'A-member saw a non-A post'; end if;
-  if (select count(*) from public.channels) <> 2 then raise exception 'A-member should see 2 A channels'; end if;
-  if (select count(*) from public.comments) <> 1 then raise exception 'A-member should see 1 A comment'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 1
+     then raise exception 'A-member should see 1 fixture post'; end if;
+  if (select count(*) from public.posts where teacher_id = 'bbbbbbbb-0000-0000-0000-000000000000') <> 0
+     then raise exception 'A-member saw a non-A fixture post'; end if;
+  if (select count(*) from public.channels
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 2
+     then raise exception 'A-member should see 2 A channels'; end if;
+  if (select count(*) from public.comments
+        where post_id in ('40a00000-0000-0000-0000-000000000000','40b00000-0000-0000-0000-000000000000')) <> 1
+     then raise exception 'A-member should see 1 A comment'; end if;
   insert into _results (msg) values ('B1 PASS');
 end $$;
 reset role;
@@ -143,7 +153,9 @@ do $$
 begin
   if (select count(*) from public.posts where teacher_id = 'aaaaaaaa-0000-0000-0000-000000000000') <> 0
      then raise exception 'B-member saw an A post'; end if;
-  if (select count(*) from public.posts) <> 1 then raise exception 'B-member should see exactly 1 (B) post'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 1
+     then raise exception 'B-member should see exactly 1 (B) fixture post'; end if;
   insert into _results (msg) values ('B2 PASS');
 end $$;
 reset role;
@@ -153,20 +165,33 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"31313131-0000-0000-0000-000000000000","role":"authenticated"}';
 do $$
 begin
-  if (select count(*) from public.posts) <> 2 then raise exception 'Dual should see 2 posts'; end if;
-  if (select count(*) from public.channels) <> 3 then raise exception 'Dual should see 3 channels'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 2
+     then raise exception 'Dual should see 2 fixture posts'; end if;
+  if (select count(*) from public.channels
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 3
+     then raise exception 'Dual should see 3 fixture channels'; end if;
   insert into _results (msg) values ('B3 PASS');
 end $$;
 reset role;
 
--- B4. Non-member: sees nothing.
+-- B4. Non-member: sees no CONTENT. (The teacher DIRECTORY is open as of the Phase 2
+--     shell — teachers_select_all USING(true) — so teachers is visible; content
+--     isolation is what B4 asserts. The open-directory widening is proven surgical
+--     in Section K.)
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"41414141-0000-0000-0000-000000000000","role":"authenticated"}';
 do $$
 begin
-  if (select count(*) from public.posts) <> 0 then raise exception 'Non-member saw posts'; end if;
-  if (select count(*) from public.channels) <> 0 then raise exception 'Non-member saw channels'; end if;
-  if (select count(*) from public.teachers) <> 0 then raise exception 'Non-member saw teachers'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'Non-member saw fixture posts'; end if;
+  if (select count(*) from public.channels
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'Non-member saw fixture channels'; end if;
+  if (select count(*) from public.teachers
+        where id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 2
+     then raise exception 'Non-member cannot see open teacher directory'; end if;  -- open directory [Phase 2]
   insert into _results (msg) values ('B4 PASS');
 end $$;
 reset role;
@@ -176,7 +201,9 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"51515151-0000-0000-0000-000000000000","role":"authenticated"}';
 do $$
 begin
-  if (select count(*) from public.posts) <> 0 then raise exception 'Revoked member saw posts'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'Revoked member saw fixture posts'; end if;
   insert into _results (msg) values ('B5 PASS');
 end $$;
 reset role;
@@ -469,6 +496,55 @@ begin
   if (select count(*) from public.profiles where id = '51515151-0000-0000-0000-000000000000') <> 1
      then raise exception 'H1 FAIL: tombstone/revoked co-member not visible (breaks [Deleted user] rendering)'; end if;
   insert into _results (msg) values ('H1 PASS');
+end $$;
+reset role;
+
+
+-- =============================================================================
+-- SECTION K — [Phase 2] open teacher directory is SURGICAL
+-- =============================================================================
+-- After REPLACING teachers_select_member with teachers_select_all (USING(true)),
+-- ANY authenticated user reads the teacher directory, but content stays locked
+-- behind has_membership(teacher_id). Proves the widening leaked NO content.
+-- (content_items row 80a for teacher A was seeded in Section E above.)
+
+-- K1. A no-membership user (u_none) sees BOTH teachers but ZERO content rows.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"41414141-0000-0000-0000-000000000000","role":"authenticated"}';
+do $$
+begin
+  if (select count(*) from public.teachers
+        where id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 2
+     then raise exception 'K1 FAIL: directory not open to a non-member'; end if;
+  if (select count(*) from public.posts
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'K1 FAIL: non-member saw posts'; end if;
+  if (select count(*) from public.channels
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'K1 FAIL: non-member saw channels'; end if;
+  if (select count(*) from public.content_items
+        where teacher_id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 0
+     then raise exception 'K1 FAIL: non-member saw content_items'; end if;
+  insert into _results (msg) values ('K1 PASS (open directory, content stays locked)');
+end $$;
+reset role;
+
+-- K2. A B-member sees the full directory (2 teachers) but still ZERO of teacher A's
+--     content — proving the widening did not become a cross-teacher content path.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"21212121-0000-0000-0000-000000000000","role":"authenticated"}';
+do $$
+begin
+  if (select count(*) from public.teachers
+        where id in ('aaaaaaaa-0000-0000-0000-000000000000','bbbbbbbb-0000-0000-0000-000000000000')) <> 2
+     then raise exception 'K2 FAIL: B-member cannot see the full directory'; end if;
+  if (select count(*) from public.posts where teacher_id = 'aaaaaaaa-0000-0000-0000-000000000000') <> 0
+     then raise exception 'K2 FAIL: B-member saw A posts'; end if;
+  if (select count(*) from public.channels where teacher_id = 'aaaaaaaa-0000-0000-0000-000000000000') <> 0
+     then raise exception 'K2 FAIL: B-member saw A channels'; end if;
+  if (select count(*) from public.content_items where teacher_id = 'aaaaaaaa-0000-0000-0000-000000000000') <> 0
+     then raise exception 'K2 FAIL: B-member saw A content'; end if;
+  insert into _results (msg) values ('K2 PASS (full directory, A content still hidden from B)');
 end $$;
 reset role;
 

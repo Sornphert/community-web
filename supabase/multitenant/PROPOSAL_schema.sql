@@ -549,10 +549,22 @@ grant update (display_name, bio, avatar_url, social_links) on public.profiles to
 -- =============================================================================
 
 -- ----- teachers ---------------------------------------------------------------
--- You can see a teacher you belong to. (Public branding before login is an app
--- concern via a separate public view — deferred, NOT Phase 1.) No client writes.
-create policy teachers_select_member on public.teachers
-  for select to authenticated using (has_membership(id));
+-- OPEN DIRECTORY [Phase 2 shell]: any authenticated user may read teacher rows so
+-- the /home shell can render a "Discover" list of teachers you are NOT yet a member
+-- of. This REPLACES the earlier member-only policy (using (has_membership(id)));
+-- using (true) subsumes the member-only case and avoids two ORed policies.
+--
+-- SAFE TO WIDEN: teachers carries only directory-safe columns (id, slug, name,
+-- created_at) — no sensitive data exposed.
+--
+-- SURGICAL: this widens row-visibility on `teachers` ONLY. Every content table
+-- (channels/posts/topics/content_items/events/recordings + all leaves) still gates
+-- on has_membership(teacher_id) via memberships — independent of teacher
+-- row-visibility — so a non-member can list the directory but reads ZERO content.
+-- Proven by test matrix Section K. Anon still gets nothing (no anon grant); the
+-- pre-login public-branding surface remains deferred follow-up #3. No client writes.
+create policy teachers_select_all on public.teachers
+  for select to authenticated using (true);
 
 -- ----- memberships ------------------------------------------------------------
 -- [R3] authenticated CANNOT write memberships (no insert/update/delete policy →
