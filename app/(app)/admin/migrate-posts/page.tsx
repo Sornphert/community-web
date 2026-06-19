@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getChannels, getUnassignedPosts } from '@/lib/posts'
+import { getChannelsLegacyUnscoped, getUnassignedPosts } from '@/lib/posts'
 import { MigrateList } from './_components/migrate-list'
 
 export default async function MigratePostsPage() {
@@ -22,7 +22,7 @@ export default async function MigratePostsPage() {
 
   const [posts, channels] = await Promise.all([
     getUnassignedPosts(),
-    getChannels(),
+    getChannelsLegacyUnscoped(),
   ])
 
   return (

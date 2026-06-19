@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getChannels } from '@/lib/posts'
+import { getChannelsLegacyUnscoped } from '@/lib/posts'
 import { Sidebar } from './_components/sidebar'
 
 export default async function AppLayout({
@@ -27,7 +27,7 @@ export default async function AppLayout({
 
   const isAdmin = profile?.is_admin === true
 
-  const channels = await getChannels()
+  const channels = await getChannelsLegacyUnscoped()
 
   return (
     <div className="flex flex-1 flex-col md:flex-row">

@@ -27,22 +27,29 @@ export function Sidebar({
   userEmail,
   isAdmin,
   channels,
+  slug,
 }: {
   userEmail: string
   isAdmin: boolean
   channels: Channel[]
+  // [MT] Present in the teacher shell (/t/[slug]) → all teacher nav is prefixed with
+  // `/t/${slug}`. Absent in the not-yet-ported single-tenant (app) layout → legacy
+  // unprefixed hrefs. /profile is GLOBAL and stays unprefixed in both cases.
+  slug?: string
 }) {
+  const base = slug ? `/t/${slug}` : ''
+
   const navItems: NavItem[] = [
-    { href: '/community', label: 'Community', icon: MessageSquare },
-    { href: '/classroom', label: 'Classroom', icon: GraduationCap },
+    { href: `${base}/community`, label: 'Community', icon: MessageSquare },
+    { href: `${base}/classroom`, label: 'Classroom', icon: GraduationCap },
     ...(SHOW_WEEKLY
-      ? [{ href: '/weekly', label: 'Weekly Report', icon: Newspaper }]
+      ? [{ href: `${base}/weekly`, label: 'Weekly Report', icon: Newspaper }]
       : []),
-    { href: '/events', label: 'Events', icon: CalendarDays },
+    { href: `${base}/events`, label: 'Events', icon: CalendarDays },
     ...(isAdmin
       ? [
-          { href: '/members', label: 'Members', icon: Users },
-          { href: '/admin', label: 'Admin', icon: Shield },
+          { href: `${base}/members`, label: 'Members', icon: Users },
+          { href: `${base}/admin`, label: 'Admin', icon: Shield },
         ]
       : []),
     { href: '/profile', label: 'Profile', icon: UserCircle },
@@ -71,13 +78,13 @@ export function Sidebar({
 
         <nav className="flex flex-1 flex-col gap-1 px-2">
           {navItems.map(({ href, label, icon: Icon }) => {
-            if (href === '/community') {
+            if (href === `${base}/community`) {
               return (
                 <div key={href} className="flex flex-col gap-1">
                   <Link
-                    href="/community"
+                    href={`${base}/community`}
                     className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                      isActive('/community')
+                      isActive(`${base}/community`)
                         ? 'font-medium text-fg'
                         : 'text-fg-soft hover:bg-muted'
                     }`}
@@ -87,7 +94,7 @@ export function Sidebar({
                   </Link>
                   <div className="ml-7 flex flex-col gap-0.5">
                     {channels.map((channel) => {
-                      const channelHref = `/community/${channel.slug}`
+                      const channelHref = `${base}/community/${channel.slug}`
                       return (
                         <Link
                           key={channel.id}

@@ -92,12 +92,40 @@ export type UnassignedPost = {
   author: Profile | null
 }
 
-export async function getChannels(): Promise<Channel[]> {
+// Community channels for ONE teacher, position-ordered. The scoped, isolation-safe
+// path: the /t/[slug] shell and every ported Community route pass teacher_id, so a
+// member only ever sees their own teacher's channels.
+//
+// LEAK-GUARD: only Community channels (section='community'). Weekly channels must
+// never appear in the Community sidebar / mobile tabs / migrate-posts list — their
+// canonical home is the /weekly tree (see getMonths / getWeeksForMonth).
+export async function getChannels(teacherId: string): Promise<Channel[]> {
   const supabase = await createClient()
 
-  // LEAK-GUARD: only Community channels. Weekly channels (section='weekly') must
-  // never appear in the Community sidebar / mobile tabs / migrate-posts list.
-  // Their canonical home is the /weekly tree (see getMonths / getWeeksForMonth).
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('teacher_id', teacherId)
+    .eq('section', 'community')
+    .order('position', { ascending: true })
+
+  if (error) {
+    throw new Error(`Failed to load channels: ${error.message}`)
+  }
+
+  return (data ?? []) as Channel[]
+}
+
+// DELIBERATELY UN-SCOPED — returns Community channels across EVERY teacher the viewer
+// belongs to (under MT RLS). The ugly name is the whole point: this is the ONLY
+// un-scoped channels path, so it is callable only on purpose and is trivially
+// greppable for the Step 4 sweep. It exists solely for the not-yet-ported
+// single-tenant (app) callers ((app)/layout.tsx, (app)/admin/migrate-posts,
+// (app)/community/[channel]). DELETE it when those routes are removed in the
+// per-vertical port. NEVER call it from a /t/[slug] route.
+export async function getChannelsLegacyUnscoped(): Promise<Channel[]> {
+  const supabase = await createClient()
+
   const { data, error } = await supabase
     .from('channels')
     .select('*')

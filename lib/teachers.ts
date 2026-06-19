@@ -1,5 +1,30 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { MembershipRole, Teacher, TeacherWithRole } from '@/lib/types'
+
+// Resolve a teacher by its URL slug — the entry point for every /t/[slug] render.
+// cache()-wrapped so the layout (gate + sidebar) and every page underneath share a
+// single lookup per request: the slug is carried in the URL and re-resolved per page
+// rather than threaded through props/context. Returns null for an unknown slug so the
+// layout can notFound(). The teachers_select_all RLS lets ANY authenticated user
+// resolve the row (open directory) — membership is gated separately in the layout.
+export const getTeacherBySlug = cache(
+  async (slug: string): Promise<Teacher | null> => {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('teachers')
+      .select('*')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (error) {
+      throw new Error(`Failed to load teacher: ${error.message}`)
+    }
+
+    return (data as Teacher | null) ?? null
+  },
+)
 
 // The current user's ACTIVE memberships, joined to their teacher, for the
 // "Your communities" section of the /home shell. Each result carries the user's

@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
   getChannelBySlug,
-  getChannels,
+  getChannelsLegacyUnscoped,
   getPost,
   getPostsForChannel,
 } from '@/lib/posts'
@@ -57,7 +57,7 @@ export default async function ChannelPage({
   const isAdmin = profile?.is_admin === true
 
   const [channels, posts] = await Promise.all([
-    getChannels(),
+    getChannelsLegacyUnscoped(),
     getPostsForChannel(channel.id),
   ])
 
