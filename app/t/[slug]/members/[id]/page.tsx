@@ -1,35 +1,29 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { SOCIAL_ICON } from '@/app/(app)/_components/social-icons'
 import { formatRelativeTime } from '@/lib/format'
-import { createClient } from '@/lib/supabase/server'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { getMemberProfile } from '@/lib/posts'
 import { SOCIAL_PLATFORMS, socialUrl } from '@/lib/social'
 
 export default async function MemberProfilePage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string; id: string }>
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { slug, id } = await params
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
 
-  if (!profile?.is_admin) redirect('/community')
-
-  const { id } = await params
-  const member = await getMemberProfile(id)
-
+  // [MT] Scoped to THIS teacher: returns null unless the target is an active member
+  // here (members of other teachers / revoked / tombstoned are not viewable), and
+  // their posts are scoped to teacher_id. Badge reads their role in this teacher.
+  const member = await getMemberProfile(id, teacher.id)
   if (!member) {
     notFound()
   }
@@ -50,7 +44,7 @@ export default async function MemberProfilePage({
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href="/members"
+        href={`/t/${slug}/members`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -66,7 +60,7 @@ export default async function MemberProfilePage({
         <h1 className="mt-3 text-xl font-semibold text-fg">
           {member.display_name}
         </h1>
-        {member.is_admin && (
+        {member.role === 'admin' && (
           <span className="mt-2 rounded-full bg-muted px-2 py-0.5 text-xs text-fg-soft">
             Admin
           </span>
@@ -104,32 +98,45 @@ export default async function MemberProfilePage({
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
-          {member.posts.map((post) => (
-            <Link
-              key={post.id}
-              href={`/community/${post.id}`}
-              className="rounded-lg border border-line bg-surface p-4 hover:bg-hover-subtle"
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-fg">
-                  {member.display_name}
-                </span>
-                <span className="text-sm text-fg-muted">
-                  {formatRelativeTime(post.created_at)}
-                </span>
+          {member.posts.map((post) => {
+            const inner = (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm font-medium text-fg">
+                    {member.display_name}
+                  </span>
+                  <span className="text-sm text-fg-muted">
+                    {formatRelativeTime(post.created_at)}
+                  </span>
+                </div>
+                {post.title && (
+                  <h2 className="mt-2 font-semibold text-fg">{post.title}</h2>
+                )}
+                {post.body && (
+                  <p className="mt-1 line-clamp-1 text-sm text-fg-soft">
+                    {post.body}
+                  </p>
+                )}
+              </>
+            )
+            const cardClass = 'rounded-lg border border-line bg-surface p-4'
+
+            // [MT] Post URL lives under its channel: /t/{slug}/community/{channel}/{id}.
+            // Unassigned posts (null channel) have no channel route → non-clickable.
+            return post.channel_slug ? (
+              <Link
+                key={post.id}
+                href={`/t/${slug}/community/${post.channel_slug}/${post.id}`}
+                className={`${cardClass} hover:bg-hover-subtle`}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div key={post.id} className={cardClass}>
+                {inner}
               </div>
-              {post.title && (
-                <h2 className="mt-2 font-semibold text-fg">
-                  {post.title}
-                </h2>
-              )}
-              {post.body && (
-                <p className="mt-1 line-clamp-1 text-sm text-fg-soft">
-                  {post.body}
-                </p>
-              )}
-            </Link>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

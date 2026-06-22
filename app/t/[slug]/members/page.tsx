@@ -1,25 +1,25 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Avatar } from '@/app/(app)/_components/avatar'
-import { createClient } from '@/lib/supabase/server'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { getAllMembers } from '@/lib/posts'
 
-export default async function MembersPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+// [MT] Member-visible directory: any active member of this teacher (membership is
+// gated by the /t/[slug] layout) sees the roster. No page-level admin guard — the
+// per-member "Admin" badge reads each listed member's role in THIS teacher.
+export default async function MembersPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
 
-  if (!profile?.is_admin) redirect('/community')
-
-  const members = await getAllMembers()
+  const members = await getAllMembers(teacher.id)
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -34,7 +34,7 @@ export default async function MembersPage() {
           {members.map((member) => (
             <Link
               key={member.id}
-              href={`/members/${member.id}`}
+              href={`/t/${slug}/members/${member.id}`}
               className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 hover:bg-hover-subtle"
             >
               <Avatar
@@ -47,7 +47,7 @@ export default async function MembersPage() {
                   <span className="font-medium text-fg">
                     {member.display_name}
                   </span>
-                  {member.is_admin && (
+                  {member.role === 'admin' && (
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-fg-soft">
                       Admin
                     </span>

@@ -8,7 +8,9 @@ import type {
   PostImage,
   PostVideo,
   Profile,
-  ProfileWithPosts,
+  MembershipRole,
+  MemberListItem,
+  MemberWithPosts,
   PostWithFullRelations,
   PostWithRelations,
   WeekFolder,
@@ -405,55 +407,99 @@ export async function getPost(
   }
 }
 
-export async function getAllMembers(): Promise<Profile[]> {
+// [MT] A teacher's member directory. Driven FROM memberships (not profiles): the
+// roster is exactly the profiles holding an ACTIVE membership in THIS teacher.
+// teacherId is REQUIRED — `memberships_select_self_or_comember` RLS lets a member
+// read co-members' rows for teachers they share, so an un-scoped query would NOT
+// error; it would return co-members across every teacher the viewer belongs to.
+// `.eq('teacher_id', teacherId)` is the real tenant boundary, and
+// `.eq('status', 'active')` is the real revoked-exclusion (revoked rows ARE visible
+// to members). Tombstoned profiles (deleted_at) are dropped client-side.
+export async function getAllMembers(
+  teacherId: string,
+): Promise<MemberListItem[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .is('deleted_at', null)
-    .order('display_name', { ascending: true })
+    .from('memberships')
+    .select('role, profile:profiles!profile_id(*)')
+    .eq('teacher_id', teacherId)
+    .eq('status', 'active')
 
   if (error) {
     throw new Error(`Failed to load members: ${error.message}`)
   }
 
-  return (data ?? []) as Profile[]
+  type Row = { role: MembershipRole; profile: Profile | null }
+
+  return ((data ?? []) as unknown as Row[])
+    .filter(
+      (row): row is Row & { profile: Profile } =>
+        row.profile !== null && row.profile.deleted_at === null,
+    )
+    .map((row) => ({ ...row.profile, role: row.role }))
+    .sort((a, b) => a.display_name.localeCompare(b.display_name))
 }
 
+// [MT] A single member's profile within THIS teacher's directory. Returns null
+// unless the target holds an ACTIVE membership in teacherId — so members of other
+// teachers (or revoked/tombstoned ones) are not viewable here. Their posts are
+// scoped to teacherId (posts.teacher_id is NOT NULL); the channel slug is embedded
+// to build the post URL (null channel = unassigned → rendered non-clickable).
 export async function getMemberProfile(
   id: string,
-): Promise<ProfileWithPosts | null> {
+  teacherId: string,
+): Promise<MemberWithPosts | null> {
   const supabase = await createClient()
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', id)
-    .is('deleted_at', null)
+  const { data: membership, error: membershipError } = await supabase
+    .from('memberships')
+    .select('role, profile:profiles!profile_id(*)')
+    .eq('profile_id', id)
+    .eq('teacher_id', teacherId)
+    .eq('status', 'active')
     .maybeSingle()
 
-  if (profileError) {
-    throw new Error(`Failed to load member: ${profileError.message}`)
+  if (membershipError) {
+    throw new Error(`Failed to load member: ${membershipError.message}`)
   }
 
-  if (!profile) {
+  const profile = (membership as { profile: Profile | null } | null)?.profile
+  if (!membership || !profile || profile.deleted_at !== null) {
     return null
   }
 
   const { data: posts, error: postsError } = await supabase
     .from('posts')
-    .select('id, title, body, created_at, author_id')
+    .select('id, title, body, created_at, author_id, channel:channels(slug)')
     .eq('author_id', id)
+    .eq('teacher_id', teacherId)
     .order('created_at', { ascending: false })
 
   if (postsError) {
     throw new Error(`Failed to load member posts: ${postsError.message}`)
   }
 
+  type PostRow = {
+    id: string
+    title: string | null
+    body: string
+    created_at: string
+    author_id: string
+    channel: { slug: string } | null
+  }
+
   return {
-    ...(profile as Profile),
-    posts: (posts ?? []) as ProfileWithPosts['posts'],
+    ...profile,
+    role: (membership as { role: MembershipRole }).role,
+    posts: ((posts ?? []) as unknown as PostRow[]).map((p) => ({
+      id: p.id,
+      title: p.title,
+      body: p.body,
+      created_at: p.created_at,
+      author_id: p.author_id,
+      channel_slug: p.channel?.slug ?? null,
+    })),
   }
 }
 

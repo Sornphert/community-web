@@ -56,11 +56,11 @@ export function Sidebar({
       ? [{ href: `${base}/weekly`, label: 'Weekly Report', icon: Newspaper }]
       : []),
     { href: `${base}/events`, label: 'Events', icon: CalendarDays },
+    // [MT] Members is a member-visible directory (gated by membership in the layout),
+    // so it shows for everyone. Admin stays admin-only.
+    { href: `${base}/members`, label: 'Members', icon: Users },
     ...(isAdmin
-      ? [
-          { href: `${base}/members`, label: 'Members', icon: Users },
-          { href: `${base}/admin`, label: 'Admin', icon: Shield },
-        ]
+      ? [{ href: `${base}/admin`, label: 'Admin', icon: Shield }]
       : []),
     { href: '/profile', label: 'Profile', icon: UserCircle },
   ]

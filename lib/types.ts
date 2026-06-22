@@ -190,8 +190,24 @@ export type Liker = {
   created_at: string
 }
 
-export type ProfileWithPosts = Profile & {
-  posts: Pick<Post, 'id' | 'title' | 'body' | 'created_at' | 'author_id'>[]
+// [MT] A member row in a teacher's directory: their profile decorated with their
+// role IN THIS TEACHER (memberships.role) — never the global is_admin, never the
+// viewer's role. Drives the per-member "Admin" badge.
+export type MemberListItem = Profile & { role: MembershipRole }
+
+// A member's post as shown on their profile. `channel_slug` is the post's channel
+// (null = unassigned) — needed to build the MT post URL /t/{slug}/community/{channel}/{id}.
+// `title` is nullable in the DB (posts.title is `text` nullable), so it is widened
+// here rather than taken from Post (whose `title` is typed non-null).
+export type MemberPost = Pick<
+  Post,
+  'id' | 'body' | 'created_at' | 'author_id'
+> & { title: string | null; channel_slug: string | null }
+
+// [MT] Member detail: profile + role-in-this-teacher + their posts SCOPED to this teacher.
+export type MemberWithPosts = Profile & {
+  role: MembershipRole
+  posts: MemberPost[]
 }
 
 export type Topic = {
