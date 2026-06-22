@@ -57,6 +57,7 @@ export default async function TeacherLayout({
         userEmail={user.email ?? ''}
         isAdmin={isAdmin}
         channels={channels}
+        brandName={teacher.name}
       />
       <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}

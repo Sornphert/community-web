@@ -1,50 +1,40 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
-import { getChannelBySlug, getPost } from '@/lib/posts'
-import { SHOW_WEEKLY } from '@/lib/config'
+import { getPost } from '@/lib/posts'
+import { getTeacherBySlug } from '@/lib/teachers'
+import { isTeacherAdmin } from '@/lib/auth'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
-import {
-  NewPostForm,
-  type EditPost,
-} from '../../../../community/_components/new-post-form'
+import { NewPostForm, type EditPost } from '../../../_components/new-post-form'
 
-export default async function EditWeekPostPage({
+export default async function EditPostPage({
   params,
 }: {
-  params: Promise<{ week: string; postId: string }>
+  params: Promise<{ slug: string; channel: string; postId: string }>
 }) {
-  if (!SHOW_WEEKLY) {
+  const { slug, channel, postId } = await params
+  const basePath = `/t/${slug}/community`
+
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
     notFound()
   }
 
-  const { week, postId } = await params
-  const [channel, post] = await Promise.all([
-    getChannelBySlug(week),
-    getPost(postId),
-  ])
-  if (!channel || channel.section !== 'weekly' || !post) {
+  const post = await getPost(postId)
+  if (!post) {
     notFound()
   }
 
-  // Author OR admin only. can_edit is computed by getPost; updatePost re-checks
-  // server-side and RLS is the third layer.
+  // Author OR admin only. can_edit is computed by getPost from the viewer's
+  // identity; the updatePost action re-checks server-side and RLS is the third
+  // layer.
   if (!post.can_edit) {
-    redirect(`/weekly/${week}/${postId}`)
+    redirect(`${basePath}/${channel}/${postId}`)
   }
 
-  // Video controls are admin-only (matches create).
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user!.id)
-    .maybeSingle()
-  const isAdmin = profile?.is_admin === true
+  // Video controls are admin-only (matches create). A non-admin author sees the
+  // existing video read-only. [MT] admin is per-teacher via is_teacher_admin.
+  const isAdmin = await isTeacherAdmin(teacher.id)
 
   const initialPost: EditPost = {
     id: post.id,
@@ -71,7 +61,7 @@ export default async function EditWeekPostPage({
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href={`/weekly/${week}/${postId}`}
+        href={`${basePath}/${channel}/${postId}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -82,10 +72,11 @@ export default async function EditWeekPostPage({
 
       <NewPostForm
         channelId={post.channel_id ?? ''}
-        channelSlug={week}
+        channelSlug={channel}
+        teacherId={teacher.id}
         isAdmin={isAdmin}
         initialPost={initialPost}
-        basePath="/weekly"
+        basePath={basePath}
       />
     </div>
   )

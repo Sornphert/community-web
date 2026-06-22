@@ -43,12 +43,17 @@ export type EditPost = {
 export function NewPostForm({
   channelId,
   channelSlug,
+  teacherId,
   isAdmin,
   initialPost,
   basePath = '/community',
 }: {
   channelId: string
   channelSlug: string
+  // [MT] The teacher this post belongs to. Stamped on the post row (posts.teacher_id
+  // is NOT NULL + RLS has_membership(teacher_id)) and used as the first storage path
+  // segment ({teacher_id}/{uid}/{post_id}/...), which storage RLS requires.
+  teacherId: string
   isAdmin: boolean
   initialPost?: EditPost
   // URL prefix for the post-create / post-edit redirect. Defaults to
@@ -175,7 +180,7 @@ export function NewPostForm({
 
     for (let index = 0; index < images.length; index++) {
       const blob = await convertToJpg(images[index].file)
-      const path = `${user.id}/${postId}/${index}.jpg`
+      const path = `${teacherId}/${user.id}/${postId}/${index}.jpg`
 
       const { error: uploadError } = await supabase.storage
         .from('post-images')
@@ -192,6 +197,7 @@ export function NewPostForm({
     const { error: postError } = await supabase.from('posts').insert({
       id: postId,
       author_id: user.id,
+      teacher_id: teacherId,
       title: title.trim(),
       body: body.trim(),
       channel_id: channelId,
@@ -220,7 +226,7 @@ export function NewPostForm({
 
     for (let index = 0; index < attachments.length; index++) {
       const file = attachments[index]
-      const path = `${user.id}/${postId}/${index}.pdf`
+      const path = `${teacherId}/${user.id}/${postId}/${index}.pdf`
 
       const { error: uploadError } = await supabase.storage
         .from('post-attachments')
@@ -295,7 +301,7 @@ export function NewPostForm({
     const newImages: { url: string; storage_path: string }[] = []
     for (const img of images) {
       const blob = await convertToJpg(img.file)
-      const path = `${user.id}/${postId}/${crypto.randomUUID()}.jpg`
+      const path = `${teacherId}/${user.id}/${postId}/${crypto.randomUUID()}.jpg`
       const { error: uploadError } = await supabase.storage
         .from('post-images')
         .upload(path, blob, { contentType: 'image/jpeg' })
@@ -312,7 +318,7 @@ export function NewPostForm({
       file_size: number
     }[] = []
     for (const file of attachments) {
-      const path = `${user.id}/${postId}/${crypto.randomUUID()}.pdf`
+      const path = `${teacherId}/${user.id}/${postId}/${crypto.randomUUID()}.pdf`
       const { error: uploadError } = await supabase.storage
         .from('post-attachments')
         .upload(path, file, { contentType: 'application/pdf' })
@@ -566,6 +572,7 @@ export function NewPostForm({
           {!showExistingVideo && (
             <PostVideoUpload
               title={title}
+              teacherId={teacherId}
               onUploadingChange={setVideoUploading}
               onUploaded={setVideoId}
               onCleared={() => setVideoId(null)}

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { isTeacherAdmin } from '@/lib/auth'
 import type {
   Channel,
   Comment,
@@ -213,7 +214,35 @@ export async function getWeeksForMonth(
   return { group, weeks }
 }
 
-export async function getChannelBySlug(slug: string): Promise<Channel | null> {
+// Scoped: a teacher's channel by slug. slug is unique PER TEACHER, so teacher_id
+// is required to disambiguate (without it, a multi-membership viewer matching the
+// same slug across teachers would make .maybeSingle() throw).
+export async function getChannelBySlug(
+  slug: string,
+  teacherId: string,
+): Promise<Channel | null> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select('*')
+    .eq('teacher_id', teacherId)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load channel: ${error.message}`)
+  }
+
+  return (data as Channel | null) ?? null
+}
+
+// DELIBERATELY UN-SCOPED — see getChannelsLegacyUnscoped. For the not-yet-ported
+// single-tenant (app) callers (legacy community + weekly). Greppable; DELETE with
+// those routes. NEVER call from a /t/[slug] route.
+export async function getChannelBySlugLegacyUnscoped(
+  slug: string,
+): Promise<Channel | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase

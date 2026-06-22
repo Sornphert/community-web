@@ -55,19 +55,19 @@ async function requireOwnerOrAdmin(
 
   const { data: post } = await supabase
     .from('posts')
-    .select('author_id')
+    .select('author_id, teacher_id')
     .eq('id', postId)
     .maybeSingle()
   if (!post) {
     return { error: 'Post not found.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  const isAdmin = profile?.is_admin === true
+  // [MT] Admin is per-teacher: resolve via the same is_teacher_admin RPC the RLS
+  // uses, keyed by THIS post's teacher_id (never global is_admin).
+  const { data: adminFlag } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: post.teacher_id,
+  })
+  const isAdmin = adminFlag === true
 
   if (user.id !== post.author_id && !isAdmin) {
     return { error: 'You can only edit your own posts.' }
@@ -210,7 +210,9 @@ export async function updatePost(input: UpdatePostInput): Promise<ActionResult> 
     }
   }
 
-  revalidatePath('/community', 'layout')
+  // Tenant-agnostic: the action doesn't carry the /t/[slug] prefix, and the client
+  // also calls router.refresh()/push() after this returns.
+  revalidatePath('/', 'layout')
   return { data: true }
 }
 
@@ -257,8 +259,6 @@ export async function deletePost({ postId }: { postId: string }): Promise<Action
     return { error: deleteError.message }
   }
 
-  revalidatePath('/community', 'layout')
-  // The author's member/profile page lists their posts.
-  revalidatePath(`/members/${auth.authorId}`)
+  revalidatePath('/', 'layout')
   return { data: true }
 }

@@ -28,6 +28,8 @@ export function Sidebar({
   isAdmin,
   channels,
   slug,
+  brandName,
+  brandLogoUrl,
 }: {
   userEmail: string
   isAdmin: boolean
@@ -36,8 +38,16 @@ export function Sidebar({
   // `/t/${slug}`. Absent in the not-yet-ported single-tenant (app) layout → legacy
   // unprefixed hrefs. /profile is GLOBAL and stays unprefixed in both cases.
   slug?: string
+  // [MT] Per-teacher brand. In the teacher shell the layout passes the teacher's
+  // own name; absent in the single-tenant (app) layout, where we fall back to the
+  // per-deployment APP_NAME / BRAND_LOGO_URL config (the `teachers` table has no
+  // logo column yet, so the logo image always uses the config default).
+  brandName?: string
+  brandLogoUrl?: string
 }) {
   const base = slug ? `/t/${slug}` : ''
+  const appName = brandName ?? APP_NAME
+  const logoUrl = brandLogoUrl ?? BRAND_LOGO_URL
 
   const navItems: NavItem[] = [
     { href: `${base}/community`, label: 'Community', icon: MessageSquare },
@@ -64,15 +74,15 @@ export function Sidebar({
       {/* Desktop: vertical sidebar */}
       <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-line">
-          <Image 
-            src={BRAND_LOGO_URL} 
-            alt={APP_NAME}
-            width={40} 
-            height={40} 
+          <Image
+            src={logoUrl}
+            alt={appName}
+            width={40}
+            height={40}
             className="rounded shrink-0"
           />
           <h1 className="font-semibold text-fg text-sm leading-tight">
-            {APP_NAME}
+            {appName}
           </h1>
         </div>
 
@@ -152,14 +162,14 @@ export function Sidebar({
       {/* Mobile: sticky top brand bar */}
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
-          src={BRAND_LOGO_URL}
-          alt={APP_NAME}
+          src={logoUrl}
+          alt={appName}
           width={32}
           height={32}
           className="rounded shrink-0"
         />
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
-          {APP_NAME}
+          {appName}
         </h1>
       </header>
 

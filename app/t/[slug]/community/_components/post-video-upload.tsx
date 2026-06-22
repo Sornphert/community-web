@@ -18,11 +18,15 @@ import { createPostVideoUploadCredentials } from './post-video-actions'
 //   onCleared         — fires when the admin removes the selected video.
 export function PostVideoUpload({
   title,
+  teacherId,
   onUploadingChange,
   onUploaded,
   onCleared,
 }: {
   title: string
+  // [MT] The teacher whose admin status gates the Bunny credential mint (the
+  // server action re-checks is_teacher_admin(teacherId) — RLS is the real guard).
+  teacherId: string
   onUploadingChange: (uploading: boolean) => void
   onUploaded: (videoId: string) => void
   onCleared: () => void
@@ -46,7 +50,7 @@ export function PostVideoUpload({
     setProgress(0)
     onUploadingChange(true)
 
-    const result = await createPostVideoUploadCredentials(title)
+    const result = await createPostVideoUploadCredentials(title, teacherId)
     if (result.error || !result.credentials || !result.videoId) {
       setError(result.error ?? 'Could not start the upload.')
       setUploading(false)

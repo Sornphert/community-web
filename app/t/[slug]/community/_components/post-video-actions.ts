@@ -6,13 +6,13 @@ import type { TusUploadCredentials } from '@/lib/bunny'
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
-// Shared admin guard. The DB-level enabler is the post_videos admin-only RLS
-// policies from migration 0012; this is the belt-and-suspenders guard so a
-// non-admin never reaches the Bunny call. Mirrors requireAdmin() in the
-// classroom recordings actions.
-async function requireAdmin(): Promise<
-  { supabase: ServerClient; userId: string } | { error: string }
-> {
+// Shared admin guard, scoped to THIS teacher. The DB-level enabler is the
+// post_videos admin-only RLS policies; this is the belt-and-suspenders guard so a
+// non-admin never reaches the Bunny call. [MT] Resolves admin via the same
+// is_teacher_admin RPC the RLS uses, so the UI gate can't drift from security.
+async function requireAdmin(
+  teacherId: string,
+): Promise<{ supabase: ServerClient; userId: string } | { error: string }> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -21,12 +21,10 @@ async function requireAdmin(): Promise<
     return { error: 'Not signed in.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (!profile?.is_admin) {
+  const { data: isAdmin, error } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: teacherId,
+  })
+  if (error || isAdmin !== true) {
     return { error: 'Admins only.' }
   }
 
@@ -38,12 +36,15 @@ async function requireAdmin(): Promise<
 // — the post doesn't exist yet; the composer inserts the post_videos row (with
 // this videoId) after the post itself is created. Mirrors createRecording +
 // getRecordingUploadCredentials, minus the recording row.
-export async function createPostVideoUploadCredentials(title: string): Promise<{
+export async function createPostVideoUploadCredentials(
+  title: string,
+  teacherId: string,
+): Promise<{
   error?: string
   videoId?: string
   credentials?: TusUploadCredentials
 }> {
-  const auth = await requireAdmin()
+  const auth = await requireAdmin(teacherId)
   if ('error' in auth) return auth
 
   let videoId: string
