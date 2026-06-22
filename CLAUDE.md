@@ -277,3 +277,5 @@ Supabase auth emails are sent through **Resend** via SMTP.
 - **Mobile Safari vs. Chrome on iOS** differences are usually viewport units (`dvh` vs `vh`) or HEIC image decoding.
 - **Vercel SSL** can take 5–30 min after DNS verification.
 - **Schema doc drift:** this file's schema description can fall behind `lib/types.ts`. Types win.
+## Multi-tenant conversion
+See memory/mt-app-group-breaks.md for MT conversion status, expected-broken states, and landmines for remaining verticals.
