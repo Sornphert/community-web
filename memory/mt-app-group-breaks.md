@@ -27,3 +27,10 @@ states that look like bugs but are intentional, with when each resolves.
   must swap it during its port.
 - Un-scoped spine reads under MT RLS do NOT error — they silently return cross-tenant
   rows. "It builds" proves nothing. Two-teacher persona isolation test is the only gate.
+
+## Weekly — intentionally skipped (revisit with parameterization pass)
+- old (app)/weekly was deleted during the Community port; /t/[slug]/weekly NOT built.
+- Weekly 404s everywhere — this is DELIBERATE, not a bug.
+- Decision: skip Weekly for now; port it later together with its per-teacher on/off
+  switch (needs the teachers.config settings column, same as branding). Building it
+  now would mean a global flag + a retrofit later; building it later = one clean pass.
