@@ -29,9 +29,14 @@ type ComposerState =
 export function EventsView({
   events,
   isAdmin,
+  teacherId,
 }: {
   events: CommunityEvent[]
   isAdmin: boolean
+  // [MT] Forwarded to the composer so created events are stamped with this
+  // teacher_id. Edits/deletes don't need it — those actions resolve the teacher
+  // from the existing event row.
+  teacherId: string
 }) {
   const router = useRouter()
   const today = klToday()
@@ -197,6 +202,7 @@ export function EventsView({
       {composer.open && (
         <EventComposerModal
           event={composer.event}
+          teacherId={teacherId}
           onClose={() => setComposer({ open: false })}
           onSaved={afterMutation}
         />

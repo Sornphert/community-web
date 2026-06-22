@@ -15,10 +15,12 @@ const MAX_SERIES_DAYS = 14
 type ActionResult = { error?: string }
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
-// Shared admin guard. The DB-level enabler is the events_*_admin RLS policies
-// from migration 0008; this is the belt-and-suspenders guard so a non-admin
-// never reaches the write. Mirrors admin/classroom/recordings/actions.ts.
-async function requireAdmin(): Promise<
+// [MT] Per-teacher admin guard. Resolves admin status through the SAME
+// is_teacher_admin RPC the events_*_admin RLS policies call, keyed to a specific
+// teacher — never a global is_admin (that column is gone under MT). This is the
+// belt-and-suspenders layer so a non-admin (or an admin of a DIFFERENT teacher)
+// never reaches the write; RLS is the real enforcement.
+async function requireTeacherAdmin(teacherId: string): Promise<
   { supabase: ServerClient; userId: string } | { error: string }
 > {
   const supabase = await createClient()
@@ -29,16 +31,33 @@ async function requireAdmin(): Promise<
     return { error: 'Not signed in.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (!profile?.is_admin) {
+  const { data } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: teacherId,
+  })
+  if (data !== true) {
     return { error: 'Admins only.' }
   }
 
   return { supabase, userId: user.id }
+}
+
+// Resolves the owning teacher of an existing event so update/delete can gate on
+// is_teacher_admin(thatTeacher) — an admin of teacher X must not mutate teacher
+// Y's event even though the action carries no slug. Mirrors requireOwnerOrAdmin
+// in the community posts actions (read the row's teacher_id, then gate).
+async function requireTeacherAdminForEvent(eventId: string): Promise<
+  { supabase: ServerClient; userId: string } | { error: string }
+> {
+  const supabase = await createClient()
+  const { data: existing } = await supabase
+    .from('events')
+    .select('teacher_id')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (!existing) {
+    return { error: 'Event not found.' }
+  }
+  return requireTeacherAdmin(existing.teacher_id)
 }
 
 type EventInput = {
@@ -90,7 +109,12 @@ function buildRow(input: EventInput):
   }
 }
 
-export async function createEvent(input: EventInput): Promise<ActionResult> {
+// [MT] teacherId is REQUIRED on create (stamped on every inserted row); updates
+// resolve the teacher from the existing row instead, so it lives here, not on the
+// shared EventInput.
+export async function createEvent(
+  input: EventInput & { teacherId: string },
+): Promise<ActionResult> {
   const row = buildRow(input)
   if ('error' in row) return { error: row.error }
 
@@ -102,18 +126,19 @@ export async function createEvent(input: EventInput): Promise<ActionResult> {
     return { error: `A series can span at most ${MAX_SERIES_DAYS} days.` }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
-  // Single event: behave exactly as before (series_id stays null).
+  // Single event: behave exactly as before (series_id stays null). [MT] teacher_id
+  // stamped — events.teacher_id is NOT NULL and RLS checks is_teacher_admin(it).
   if (repeat === 1) {
     const { error } = await auth.supabase
       .from('events')
-      .insert({ ...row, created_by: auth.userId })
+      .insert({ ...row, teacher_id: input.teacherId, created_by: auth.userId })
     if (error) {
       return { error: error.message }
     }
-    revalidatePath('/events')
+    revalidatePath('/', 'layout')
     return {}
   }
 
@@ -127,6 +152,7 @@ export async function createEvent(input: EventInput): Promise<ActionResult> {
   const endTime = klTimeInputValue(row.ends_at)
 
   const rows: (typeof row & {
+    teacher_id: string
     series_id: string
     created_by: string
   })[] = []
@@ -137,8 +163,12 @@ export async function createEvent(input: EventInput): Promise<ActionResult> {
     if (!startsAt || !endsAt) {
       return { error: 'Failed to compute series dates.' }
     }
+    // [MT] Every materialized series row gets teacher_id — the series-loop and the
+    // single-event paths above are separate inserts; both must stamp it or the
+    // series rows fail the events_insert_admin WITH CHECK (and would leak tenancy).
     rows.push({
       ...row,
+      teacher_id: input.teacherId,
       starts_at: startsAt,
       ends_at: endsAt,
       series_id: seriesId,
@@ -151,7 +181,7 @@ export async function createEvent(input: EventInput): Promise<ActionResult> {
     return { error: error.message }
   }
 
-  revalidatePath('/events')
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -161,7 +191,9 @@ export async function updateEvent(
   const row = buildRow(input)
   if ('error' in row) return { error: row.error }
 
-  const auth = await requireAdmin()
+  // [MT] Gate on THIS event's teacher — an admin of another teacher must not edit
+  // it (RLS backstops). teacher_id is never changed by an update.
+  const auth = await requireTeacherAdminForEvent(input.id)
   if ('error' in auth) return auth
 
   const { error } = await auth.supabase
@@ -173,7 +205,7 @@ export async function updateEvent(
     return { error: error.message }
   }
 
-  revalidatePath('/events')
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -184,7 +216,10 @@ export async function deleteEvent(input: {
   seriesId?: string | null
   scope?: 'one' | 'series'
 }): Promise<ActionResult> {
-  const auth = await requireAdmin()
+  // [MT] Gate on the targeted event's teacher (resolved from input.id), even for a
+  // series delete — every occurrence in a series shares one teacher_id, so gating
+  // on the clicked row's teacher covers the whole series; RLS backstops each row.
+  const auth = await requireTeacherAdminForEvent(input.id)
   if ('error' in auth) return auth
 
   const query = auth.supabase.from('events').delete()
@@ -197,6 +232,6 @@ export async function deleteEvent(input: {
     return { error: error.message }
   }
 
-  revalidatePath('/events')
+  revalidatePath('/', 'layout')
   return {}
 }

@@ -24,10 +24,15 @@ const labelClass = 'flex flex-col gap-1 text-sm font-medium text-fg-secondary'
 // fixed +08:00 conversion is exact). `event` non-null => edit mode.
 export function EventComposerModal({
   event,
+  teacherId,
   onClose,
   onSaved,
 }: {
   event: CommunityEvent | null
+  // [MT] Stamped on created events (events.teacher_id is NOT NULL, RLS-gated by
+  // is_teacher_admin(teacher_id)). Create-only: updates resolve the teacher from
+  // the existing row, so it isn't sent on edit.
+  teacherId: string
   onClose: () => void
   onSaved: () => void
 }) {
@@ -94,6 +99,7 @@ export function EventComposerModal({
       ? await updateEvent({ ...payload, id: event.id })
       : await createEvent({
           ...payload,
+          teacherId,
           repeatDays: repeats ? repeatDays : 1,
         })
 

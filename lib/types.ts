@@ -263,6 +263,9 @@ export type ClassroomRecordingProgress = {
 // (NOT NULL); display everywhere in Asia/Kuala_Lumpur. See lib/datetime.ts.
 export type CommunityEvent = {
   id: string
+  // [MT] Owning teacher; events.teacher_id is NOT NULL and RLS-gated by
+  // has_membership(teacher_id). Stamped on insert (single + every series row).
+  teacher_id: string
   title: string
   description: string | null
   starts_at: string
