@@ -193,3 +193,6 @@ where table_schema='public' and table_name='profiles' and column_name in
 
 If the dumped `create table public.profiles` still has an `auth.users` FK, the
 dump is stale/wrong — reconcile before committing.
+
+Dev personas (community-mt-dev only)
+Six auth users provisioned via the auth admin API, all password devpass123!: admin@dev.test (admin of teacher A), member@dev.test (member A), badmin@dev.test (admin of B, member of A), dual@dev.test (member A+B), none@dev.test (no memberships), revoked@dev.test (revoked from A). No DEV_seed.sql exists — these are NOT reproducible from the repo. A fresh dev DB requires re-creating these six users + their memberships by hand.

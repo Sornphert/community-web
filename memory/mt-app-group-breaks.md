@@ -60,3 +60,5 @@ states that look like bugs but are intentional, with when each resolves.
 - Decision: skip Weekly for now; port it later together with its per-teacher on/off
   switch (needs the teachers.config settings column, same as branding). Building it
   now would mean a global flag + a retrofit later; building it later = one clean pass.
+
+supabase/seed.sql + supabase/bootstrap/schema.sql remain single-tenant shape (no teacher_id, hardcoded 52a53b67 Recordings topic, "Johnson" literal in announcements). MT schema applied to community-mt-dev out-of-band; no MT-shaped reproducible seed exists. Standing up a fresh MT project from files is not yet possible — deferred to the schema-reproducibility pass.
