@@ -9,10 +9,12 @@ import type { ClassroomRecording } from '@/lib/types'
 type ActionResult = { error?: string }
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
-// Shared admin guard. The DB-level enabler is the *_admin RLS policies from
-// migration 0005; this is the belt-and-suspenders guard so a non-admin never
-// reaches the write. Returns the supabase client + user id on success.
-async function requireAdmin(): Promise<
+// [MT] Per-teacher admin guard. Resolves admin status through the SAME
+// is_teacher_admin RPC the classroom_folders/classroom_recordings *_admin RLS
+// policies call, keyed to a specific teacher — never a global is_admin (gone under
+// MT). Belt-and-suspenders; RLS is the real enforcement. Mirrors the events /
+// documents actions' requireTeacherAdmin.
+async function requireTeacherAdmin(teacherId: string): Promise<
   { supabase: ServerClient; userId: string } | { error: string }
 > {
   const supabase = await createClient()
@@ -23,24 +25,18 @@ async function requireAdmin(): Promise<
     return { error: 'Not signed in.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (!profile?.is_admin) {
+  const { data } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: teacherId,
+  })
+  if (data !== true) {
     return { error: 'Admins only.' }
   }
 
   return { supabase, userId: user.id }
 }
 
-function revalidate() {
-  revalidatePath('/admin/classroom/recordings')
-  revalidatePath('/classroom/recordings')
-}
-
 export async function createFolder(input: {
+  teacherId: string
   name: string
   position: number
   parentFolderId: string | null
@@ -50,10 +46,11 @@ export async function createFolder(input: {
     return { error: 'Name is required.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   const { error } = await auth.supabase.from('classroom_folders').insert({
+    teacher_id: input.teacherId,
     name,
     position: input.position,
     parent_folder_id: input.parentFolderId,
@@ -64,11 +61,12 @@ export async function createFolder(input: {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }
 
 export async function updateFolder(input: {
+  teacherId: string
   id: string
   name: string
   position: number
@@ -78,40 +76,46 @@ export async function updateFolder(input: {
     return { error: 'Name is required.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   const { error } = await auth.supabase
     .from('classroom_folders')
     .update({ name, position: input.position })
     .eq('id', input.id)
+    .eq('teacher_id', input.teacherId)
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }
 
-export async function deleteFolder(input: { id: string }): Promise<ActionResult> {
-  const auth = await requireAdmin()
+export async function deleteFolder(input: {
+  teacherId: string
+  id: string
+}): Promise<ActionResult> {
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   const { error } = await auth.supabase
     .from('classroom_folders')
     .delete()
     .eq('id', input.id)
+    .eq('teacher_id', input.teacherId)
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }
 
 export async function createRecording(input: {
+  teacherId: string
   folderId: string
   title: string
   description: string
@@ -122,13 +126,16 @@ export async function createRecording(input: {
     return { error: 'Title is required.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   // Insert the recording row first so a flaky Bunny call never blocks creation.
+  // teacher_id is stamped HERE (the only insert) — the later Bunny update and the
+  // upload-credentials path operate on this already-stamped row.
   const { data: inserted, error } = await auth.supabase
     .from('classroom_recordings')
     .insert({
+      teacher_id: input.teacherId,
       folder_id: input.folderId,
       title,
       description: input.description.trim() || null,
@@ -163,6 +170,7 @@ export async function createRecording(input: {
       video_status: 'pending',
     })
     .eq('id', inserted.id)
+    .eq('teacher_id', input.teacherId)
     .select('*')
     .single()
 
@@ -170,11 +178,12 @@ export async function createRecording(input: {
     return { error: updateError.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return { recording: updated as ClassroomRecording }
 }
 
 export async function updateRecording(input: {
+  teacherId: string
   id: string
   title: string
   description: string
@@ -185,7 +194,7 @@ export async function updateRecording(input: {
     return { error: 'Title is required.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   const { error } = await auth.supabase
@@ -196,19 +205,21 @@ export async function updateRecording(input: {
       position: input.position,
     })
     .eq('id', input.id)
+    .eq('teacher_id', input.teacherId)
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }
 
 export async function deleteRecording(input: {
+  teacherId: string
   id: string
 }): Promise<ActionResult> {
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   // Clean up the Bunny video first, but never let a flaky Bunny call orphan the
@@ -217,6 +228,7 @@ export async function deleteRecording(input: {
     .from('classroom_recordings')
     .select('video_id')
     .eq('id', input.id)
+    .eq('teacher_id', input.teacherId)
     .maybeSingle()
 
   if (existing?.video_id) {
@@ -234,12 +246,13 @@ export async function deleteRecording(input: {
     .from('classroom_recordings')
     .delete()
     .eq('id', input.id)
+    .eq('teacher_id', input.teacherId)
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -247,15 +260,17 @@ export async function deleteRecording(input: {
 // without the API key. Flips the recording to 'processing' — the upload has
 // begun; the webhook (or Refresh) will flip it to 'ready' once transcoded.
 export async function getRecordingUploadCredentials(
+  teacherId: string,
   recordingId: string,
 ): Promise<{ error?: string; credentials?: TusUploadCredentials }> {
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(teacherId)
   if ('error' in auth) return auth
 
   const { data: recording, error } = await auth.supabase
     .from('classroom_recordings')
     .select('video_id')
     .eq('id', recordingId)
+    .eq('teacher_id', teacherId)
     .maybeSingle()
 
   if (error) {
@@ -276,25 +291,30 @@ export async function getRecordingUploadCredentials(
     .from('classroom_recordings')
     .update({ video_status: 'processing' })
     .eq('id', recordingId)
+    .eq('teacher_id', teacherId)
 
   if (updateError) {
     return { error: updateError.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return { credentials }
 }
 
 // Manual fallback for when the webhook misses an event: re-reads the
 // authoritative status from Bunny and syncs our row.
-export async function refreshRecordingStatus(id: string): Promise<ActionResult> {
-  const auth = await requireAdmin()
+export async function refreshRecordingStatus(
+  teacherId: string,
+  id: string,
+): Promise<ActionResult> {
+  const auth = await requireTeacherAdmin(teacherId)
   if ('error' in auth) return auth
 
   const { data: recording, error } = await auth.supabase
     .from('classroom_recordings')
     .select('video_id')
     .eq('id', id)
+    .eq('teacher_id', teacherId)
     .maybeSingle()
 
   if (error) {
@@ -329,11 +349,12 @@ export async function refreshRecordingStatus(id: string): Promise<ActionResult> 
     .from('classroom_recordings')
     .update(update)
     .eq('id', id)
+    .eq('teacher_id', teacherId)
 
   if (updateError) {
     return { error: updateError.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return {}
 }

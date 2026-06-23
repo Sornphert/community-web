@@ -1,9 +1,21 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { buildFolderTree, getFolders, getRecordings } from '@/lib/recordings'
+import { getTeacherBySlug } from '@/lib/teachers'
+import { isTeacherAdmin } from '@/lib/auth'
 import { AdminRecordingsTree } from './_components/admin-recordings-tree'
 
-export default async function AdminRecordingsPage() {
+export default async function AdminRecordingsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -12,17 +24,13 @@ export default async function AdminRecordingsPage() {
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.is_admin) redirect('/community')
+  if (!(await isTeacherAdmin(teacher.id))) {
+    redirect(`/t/${slug}/classroom`)
+  }
 
   const [folders, recordings] = await Promise.all([
-    getFolders(),
-    getRecordings(),
+    getFolders(teacher.id),
+    getRecordings(teacher.id),
   ])
   const tree = buildFolderTree(folders, recordings)
 
@@ -32,11 +40,10 @@ export default async function AdminRecordingsPage() {
         Manage Recordings
       </h1>
       <p className="mb-6 text-sm text-fg-muted">
-        Create folders and recordings for the Classroom. Video upload arrives in
-        Stage 2.
+        Create folders and recordings for the Classroom.
       </p>
 
-      <AdminRecordingsTree tree={tree} />
+      <AdminRecordingsTree tree={tree} teacherId={teacher.id} />
     </div>
   )
 }

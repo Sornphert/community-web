@@ -12,12 +12,17 @@ export type RecordingTreeNode = {
 // imported from Server Components. Client tree components receive the already
 // built tree (RecordingTreeNode[]) as props; they must not import this file.
 
-export async function getFolders(): Promise<ClassroomFolder[]> {
+// [MT] Every fetcher takes a REQUIRED teacherId and filters teacher_id. An un-scoped
+// read does NOT error under MT RLS — it returns rows for EVERY teacher the viewer
+// belongs to. These .eq filters are the only thing preventing cross-tenant bleed.
+
+export async function getFolders(teacherId: string): Promise<ClassroomFolder[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('classroom_folders')
     .select('*')
+    .eq('teacher_id', teacherId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: false })
 
@@ -28,12 +33,15 @@ export async function getFolders(): Promise<ClassroomFolder[]> {
   return (data ?? []) as ClassroomFolder[]
 }
 
-export async function getRecordings(): Promise<ClassroomRecording[]> {
+export async function getRecordings(
+  teacherId: string,
+): Promise<ClassroomRecording[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('classroom_recordings')
     .select('*')
+    .eq('teacher_id', teacherId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: false })
 
@@ -46,13 +54,19 @@ export async function getRecordings(): Promise<ClassroomRecording[]> {
 
 export async function getRecording(
   id: string,
+  teacherId: string,
 ): Promise<ClassroomRecording | null> {
   const supabase = await createClient()
 
+  // LOAD-BEARING teacher_id filter — a dual-member passes has_membership for both
+  // teachers, so RLS would permit reading another teacher's recording by id. This
+  // filter is what makes /t/[A-slug]/classroom/recordings/[B-owned-id] resolve to
+  // null (→ notFound) rather than playing B's recording under A's shell.
   const { data, error } = await supabase
     .from('classroom_recordings')
     .select('*')
     .eq('id', id)
+    .eq('teacher_id', teacherId)
     .maybeSingle()
 
   if (error) {
@@ -62,10 +76,16 @@ export async function getRecording(
   return (data ?? null) as ClassroomRecording | null
 }
 
-// The set of recording ids the current user has marked complete. Resolves the
-// auth user internally and returns an empty Set when signed out, so callers
-// (the tree, the recording page) don't need to fetch the user themselves.
-export async function getUserRecordingProgress(): Promise<Set<string>> {
+// The set of recording ids the current user has marked complete, SCOPED to this
+// teacher. Resolves the auth user internally and returns an empty Set when signed
+// out. [MT] The teacher scope is REQUIRED, not cosmetic: classroom_recording_progress
+// is a leaf table with no teacher_id, so an un-scoped read serializes a dual-member's
+// OTHER teachers' recording_ids into this teacher's page payload (cross-tenant id
+// disclosure). The !inner join to classroom_recordings + teacher_id filter drops any
+// progress row whose recording belongs to another teacher.
+export async function getUserRecordingProgress(
+  teacherId: string,
+): Promise<Set<string>> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -76,8 +96,9 @@ export async function getUserRecordingProgress(): Promise<Set<string>> {
 
   const { data, error } = await supabase
     .from('classroom_recording_progress')
-    .select('recording_id')
+    .select('recording_id, classroom_recordings!inner(teacher_id)')
     .eq('user_id', user.id)
+    .eq('classroom_recordings.teacher_id', teacherId)
 
   if (error) {
     throw new Error(`Failed to load recording progress: ${error.message}`)

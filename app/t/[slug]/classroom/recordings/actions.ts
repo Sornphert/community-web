@@ -3,8 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-// Student-facing recording completion toggles. No admin check: RLS on
-// classroom_recording_progress restricts each user to their own rows.
+// Student-facing recording completion toggles. No admin check, and no teacher_id
+// stamp: classroom_recording_progress is a leaf table keyed by (user_id,
+// recording_id); its RLS restricts each user to their own rows AND requires
+// has_membership(parent.teacher_id), so a write to another teacher's recording is
+// rejected by RLS regardless of the (client-supplied) recordingId.
 
 export async function markRecordingComplete(
   recordingId: string,
@@ -28,8 +31,7 @@ export async function markRecordingComplete(
     return { error: error.message }
   }
 
-  revalidatePath('/classroom/recordings')
-  revalidatePath(`/classroom/recordings/${recordingId}`)
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -54,7 +56,6 @@ export async function unmarkRecordingComplete(
     return { error: error.message }
   }
 
-  revalidatePath('/classroom/recordings')
-  revalidatePath(`/classroom/recordings/${recordingId}`)
+  revalidatePath('/', 'layout')
   return {}
 }

@@ -47,13 +47,15 @@ function idsToExpandFor(
 function RecordingRow({
   recording,
   completed,
+  basePath,
 }: {
   recording: ClassroomRecording
   completed: boolean
+  basePath: string
 }) {
   return (
     <Link
-      href={`/classroom/recordings/${recording.id}`}
+      href={`${basePath}/${recording.id}`}
       className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 hover:bg-hover-subtle"
     >
       <div className="flex aspect-video w-24 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
@@ -93,12 +95,14 @@ function FolderNode({
   expanded,
   onToggle,
   completedIds,
+  basePath,
 }: {
   node: RecordingTreeNode
   depth: number
   expanded: Set<string>
   onToggle: (id: string) => void
   completedIds: Set<string>
+  basePath: string
 }) {
   const isOpen = expanded.has(node.folder.id)
   const count = countRecordings(node)
@@ -144,6 +148,7 @@ function FolderNode({
                   expanded={expanded}
                   onToggle={onToggle}
                   completedIds={completedIds}
+                  basePath={basePath}
                 />
               ))}
               {node.recordings.map((recording) => (
@@ -151,6 +156,7 @@ function FolderNode({
                   key={recording.id}
                   recording={recording}
                   completed={completedIds.has(recording.id)}
+                  basePath={basePath}
                 />
               ))}
             </>
@@ -164,16 +170,17 @@ function FolderNode({
 export function RecordingsTree({
   tree,
   completedIds,
+  basePath,
 }: {
   tree: RecordingTreeNode[]
   completedIds: Set<string>
+  basePath: string
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  // Open the tree to a folder linked via /classroom/recordings#folder-{id}
-  // (used by the recording-page breadcrumb). Deferred to a rAF callback so the
-  // state update isn't synchronous in the effect body, and so the scroll lands
-  // after paint.
+  // Open the tree to a folder linked via {basePath}#folder-{id} (used by the
+  // recording-page breadcrumb). Deferred to a rAF callback so the state update
+  // isn't synchronous in the effect body, and so the scroll lands after paint.
   useEffect(() => {
     const hash = window.location.hash
     if (!hash.startsWith('#folder-')) return
@@ -209,6 +216,7 @@ export function RecordingsTree({
           expanded={expanded}
           onToggle={toggle}
           completedIds={completedIds}
+          basePath={basePath}
         />
       ))}
     </div>

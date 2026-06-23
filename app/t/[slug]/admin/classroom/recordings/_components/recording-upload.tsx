@@ -15,9 +15,11 @@ const secondaryBtn =
 // never reaches the browser. `onUploaded` lets the parent close + refresh.
 export function RecordingUpload({
   recording,
+  teacherId,
   onUploaded,
 }: {
   recording: ClassroomRecording
+  teacherId: string
   onUploaded: () => void
 }) {
   const router = useRouter()
@@ -40,7 +42,7 @@ export function RecordingUpload({
     setUploading(true)
     setProgress(0)
 
-    const result = await getRecordingUploadCredentials(recording.id)
+    const result = await getRecordingUploadCredentials(teacherId, recording.id)
     if (result.error || !result.credentials) {
       setError(result.error ?? 'Could not start the upload.')
       setUploading(false)
@@ -80,7 +82,7 @@ export function RecordingUpload({
   async function handleRefresh() {
     setRefreshing(true)
     setError(null)
-    const result = await refreshRecordingStatus(recording.id)
+    const result = await refreshRecordingStatus(teacherId, recording.id)
     setRefreshing(false)
     if (result.error) {
       setError(result.error)

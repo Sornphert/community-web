@@ -8,22 +8,28 @@ import {
   getRecording,
   isRecordingCompleted,
 } from '@/lib/recordings'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { getPlayerUrl } from '@/lib/bunny'
 import { CompleteToggle } from './_components/complete-toggle'
 
 export default async function RecordingPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string; id: string }>
 }) {
-  const { id } = await params
+  const { slug, id } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+  const basePath = `/t/${slug}/classroom`
 
-  const recording = await getRecording(id)
+  const recording = await getRecording(id, teacher.id)
   if (!recording) {
     notFound()
   }
 
-  const folders = await getFolders()
+  const folders = await getFolders(teacher.id)
   const ancestors = getFolderAncestors(folders, recording.folder_id)
 
   const initiallyCompleted = await isRecordingCompleted(id)
@@ -39,18 +45,18 @@ export default async function RecordingPage({
   return (
     <div className="mx-auto w-full max-w-3xl">
       <nav className="flex flex-wrap items-center gap-1 text-sm text-fg-muted">
-        <Link href="/classroom" className="hover:text-fg">
+        <Link href={basePath} className="hover:text-fg">
           Classroom
         </Link>
         <ChevronRight className="h-4 w-4 shrink-0 text-fg-disabled" />
-        <Link href="/classroom/recordings" className="hover:text-fg">
+        <Link href={`${basePath}/recordings`} className="hover:text-fg">
           Recordings
         </Link>
         {ancestors.map((folder) => (
           <Fragment key={folder.id}>
             <ChevronRight className="h-4 w-4 shrink-0 text-fg-disabled" />
             <Link
-              href={`/classroom/recordings#folder-${folder.id}`}
+              href={`${basePath}/recordings#folder-${folder.id}`}
               className="hover:text-fg"
             >
               {folder.name}

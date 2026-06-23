@@ -201,6 +201,7 @@ function FolderModal({
 function RecordingModal({
   title,
   recording,
+  teacherId,
   submitLabel,
   onSubmit,
   onClose,
@@ -208,6 +209,7 @@ function RecordingModal({
   title: string
   // Present in edit mode; absent in create mode (set once created below).
   recording?: ClassroomRecording
+  teacherId: string
   submitLabel: string
   onSubmit: (values: {
     title: string
@@ -298,7 +300,11 @@ function RecordingModal({
         {uploadRecording ? (
           <div>
             <span className={labelClass}>Video</span>
-            <RecordingUpload recording={uploadRecording} onUploaded={onClose} />
+            <RecordingUpload
+              recording={uploadRecording}
+              teacherId={teacherId}
+              onUploaded={onClose}
+            />
           </div>
         ) : (
           <p className="text-xs text-fg-faint">
@@ -420,10 +426,12 @@ function StatusBadge({ status }: { status: string | null }) {
 
 function AdminRecordingRow({
   recording,
+  teacherId,
   onEdit,
   onDelete,
 }: {
   recording: ClassroomRecording
+  teacherId: string
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -432,7 +440,7 @@ function AdminRecordingRow({
 
   async function handleRefresh() {
     setRefreshing(true)
-    const result = await refreshRecordingStatus(recording.id)
+    const result = await refreshRecordingStatus(teacherId, recording.id)
     setRefreshing(false)
     if (!result.error) {
       router.refresh()
@@ -486,6 +494,7 @@ function AdminFolderNode({
   node,
   depth,
   parentLabel,
+  teacherId,
   expanded,
   onToggle,
   onModal,
@@ -493,6 +502,7 @@ function AdminFolderNode({
   node: RecordingTreeNode
   depth: number
   parentLabel: string
+  teacherId: string
   expanded: Set<string>
   onToggle: (id: string) => void
   onModal: (state: ModalState) => void
@@ -602,6 +612,7 @@ function AdminFolderNode({
                   node={child}
                   depth={depth + 1}
                   parentLabel={node.folder.name}
+                  teacherId={teacherId}
                   expanded={expanded}
                   onToggle={onToggle}
                   onModal={onModal}
@@ -611,6 +622,7 @@ function AdminFolderNode({
                 <AdminRecordingRow
                   key={recording.id}
                   recording={recording}
+                  teacherId={teacherId}
                   onEdit={() =>
                     onModal({ kind: 'recording-edit', recording })
                   }
@@ -636,7 +648,13 @@ function AdminFolderNode({
 // Root tree + modal orchestration
 // ---------------------------------------------------------------------------
 
-export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
+export function AdminRecordingsTree({
+  tree,
+  teacherId,
+}: {
+  tree: RecordingTreeNode[]
+  teacherId: string
+}) {
   const router = useRouter()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [modal, setModal] = useState<ModalState>(null)
@@ -685,6 +703,7 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
               node={node}
               depth={0}
               parentLabel="Root"
+              teacherId={teacherId}
               expanded={expanded}
               onToggle={toggle}
               onModal={setModal}
@@ -702,7 +721,12 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
           submitLabel="Create"
           onClose={closeModal}
           onSubmit={({ name, position }) =>
-            createFolder({ name, position, parentFolderId: modal.parentId })
+            createFolder({
+              teacherId,
+              name,
+              position,
+              parentFolderId: modal.parentId,
+            })
           }
         />
       )}
@@ -716,7 +740,7 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
           submitLabel="Save"
           onClose={closeModal}
           onSubmit={({ name, position }) =>
-            updateFolder({ id: modal.id, name, position })
+            updateFolder({ teacherId, id: modal.id, name, position })
           }
         />
       )}
@@ -724,10 +748,12 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
       {modal?.kind === 'recording-create' && (
         <RecordingModal
           title="Add Recording"
+          teacherId={teacherId}
           submitLabel="Create"
           onClose={closeModal}
           onSubmit={({ title, description, position }) =>
             createRecording({
+              teacherId,
               folderId: modal.folderId,
               title,
               description,
@@ -741,10 +767,12 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
         <RecordingModal
           title="Edit Recording"
           recording={modal.recording}
+          teacherId={teacherId}
           submitLabel="Save"
           onClose={closeModal}
           onSubmit={({ title, description, position }) =>
             updateRecording({
+              teacherId,
               id: modal.recording.id,
               title,
               description,
@@ -761,8 +789,8 @@ export function AdminRecordingsTree({ tree }: { tree: RecordingTreeNode[] }) {
           onClose={closeModal}
           onConfirm={() =>
             modal.target === 'folder'
-              ? deleteFolder({ id: modal.id })
-              : deleteRecording({ id: modal.id })
+              ? deleteFolder({ teacherId, id: modal.id })
+              : deleteRecording({ teacherId, id: modal.id })
           }
         />
       )}
