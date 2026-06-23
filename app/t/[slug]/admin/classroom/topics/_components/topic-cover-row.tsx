@@ -8,7 +8,15 @@ import { uploadTopicCover } from '@/lib/topic-cover-upload'
 import type { Topic } from '@/lib/types'
 import { updateTopicCover } from '../actions'
 
-export function TopicCoverRow({ topic }: { topic: Topic }) {
+export function TopicCoverRow({
+  topic,
+  teacherId,
+  uid,
+}: {
+  topic: Topic
+  teacherId: string
+  uid: string
+}) {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,8 +34,9 @@ export function TopicCoverRow({ topic }: { topic: Topic }) {
     setError(null)
     setIsSaving(true)
     try {
-      const { url, path } = await uploadTopicCover(picked)
+      const { url, path } = await uploadTopicCover(picked, teacherId, uid)
       const result = await updateTopicCover({
+        teacherId,
         topicId: topic.id,
         coverImageUrl: url,
         coverStoragePath: path,

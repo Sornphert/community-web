@@ -3,17 +3,23 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getContentItem, isContentCompleted } from '@/lib/classroom'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { parseVimeoUrl } from '@/lib/vimeo'
 import { CompleteToggle } from './_components/complete-toggle'
 
 export default async function ContentPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string; id: string }>
 }) {
-  const { id } = await params
+  const { slug, id } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+  const basePath = `/t/${slug}/classroom`
 
-  const item = await getContentItem(id)
+  const item = await getContentItem(id, teacher.id)
 
   if (!item) {
     notFound()
@@ -34,7 +40,7 @@ export default async function ContentPage({
   return (
     <div className="mx-auto w-full max-w-3xl">
       <Link
-        href={`/classroom/topic/${item.topic_id}`}
+        href={`${basePath}/topic/${item.topic_id}`}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />

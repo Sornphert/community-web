@@ -7,10 +7,9 @@ import type { Topic } from '@/lib/types'
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
-// Belt-and-suspenders admin guard (the topics RLS is the real enabler). Mirrors
-// the helper in admin/classroom/documents/actions.ts — kept file-local there, so
-// duplicated here rather than shared.
-async function requireAdmin(): Promise<
+// [MT] Per-teacher admin guard — mirrors the documents actions' helper (and the
+// events requireTeacherAdmin). The topics *_admin RLS is the real enabler.
+async function requireTeacherAdmin(teacherId: string): Promise<
   { supabase: ServerClient; userId: string } | { error: string }
 > {
   const supabase = await createClient()
@@ -21,12 +20,10 @@ async function requireAdmin(): Promise<
     return { error: 'Not signed in.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (!profile?.is_admin) {
+  const { data } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: teacherId,
+  })
+  if (data !== true) {
     return { error: 'Admins only.' }
   }
 
@@ -34,6 +31,7 @@ async function requireAdmin(): Promise<
 }
 
 export async function updateTopicCover(input: {
+  teacherId: string
   topicId: string
   coverImageUrl: string
   coverStoragePath: string
@@ -45,14 +43,16 @@ export async function updateTopicCover(input: {
     return { error: 'The cover upload is missing.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
-  // Grab the existing cover path first so we can clean it up after the swap.
+  // Grab the existing cover path first so we can clean it up after the swap. Scope
+  // by teacher_id so an admin of teacher X can never touch teacher Y's topic row.
   const { data: existing } = await auth.supabase
     .from('topics')
     .select('cover_storage_path')
     .eq('id', input.topicId)
+    .eq('teacher_id', input.teacherId)
     .maybeSingle()
 
   const { data, error } = await auth.supabase
@@ -62,6 +62,7 @@ export async function updateTopicCover(input: {
       cover_storage_path: input.coverStoragePath,
     })
     .eq('id', input.topicId)
+    .eq('teacher_id', input.teacherId)
     .select('*')
     .single()
 
@@ -77,7 +78,6 @@ export async function updateTopicCover(input: {
     await auth.supabase.storage.from(TOPIC_COVERS_BUCKET).remove([oldPath])
   }
 
-  revalidatePath('/classroom')
-  revalidatePath('/admin/classroom/topics')
+  revalidatePath('/', 'layout')
   return { topic: data as Topic }
 }

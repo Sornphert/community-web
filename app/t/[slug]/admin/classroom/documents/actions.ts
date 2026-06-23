@@ -6,10 +6,13 @@ import type { ContentItem, Topic } from '@/lib/types'
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
-// Shared admin guard. The DB-level enabler is the *_admin RLS policies on
-// topics/content_items; this is the belt-and-suspenders guard so a non-admin
-// never reaches the write. Returns the supabase client + user id on success.
-async function requireAdmin(): Promise<
+// [MT] Per-teacher admin guard. Resolves admin status through the SAME
+// is_teacher_admin RPC the topics/content_items *_admin RLS policies call, keyed to
+// a specific teacher — never a global is_admin (that column is gone under MT). This
+// is the belt-and-suspenders layer so a non-admin (or an admin of a DIFFERENT
+// teacher) never reaches the write; RLS is the real enforcement. Mirrors the events
+// actions' requireTeacherAdmin.
+async function requireTeacherAdmin(teacherId: string): Promise<
   { supabase: ServerClient; userId: string } | { error: string }
 > {
   const supabase = await createClient()
@@ -20,27 +23,18 @@ async function requireAdmin(): Promise<
     return { error: 'Not signed in.' }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (!profile?.is_admin) {
+  const { data } = await supabase.rpc('is_teacher_admin', {
+    p_teacher_id: teacherId,
+  })
+  if (data !== true) {
     return { error: 'Admins only.' }
   }
 
   return { supabase, userId: user.id }
 }
 
-function revalidate(topicId?: string) {
-  revalidatePath('/admin/classroom/documents')
-  revalidatePath('/classroom')
-  if (topicId) {
-    revalidatePath(`/classroom/topic/${topicId}`)
-  }
-}
-
 export async function createTopic(input: {
+  teacherId: string
   name: string
   coverImageUrl?: string | null
   coverStoragePath?: string | null
@@ -50,7 +44,7 @@ export async function createTopic(input: {
     return { error: 'Topic name is required.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
   // Only `name` is required — position/is_locked/etc. use DB defaults. The cover
@@ -59,6 +53,7 @@ export async function createTopic(input: {
   const { data, error } = await auth.supabase
     .from('topics')
     .insert({
+      teacher_id: input.teacherId,
       name,
       cover_image_url: input.coverImageUrl ?? null,
       cover_storage_path: input.coverStoragePath ?? null,
@@ -70,11 +65,12 @@ export async function createTopic(input: {
     return { error: error.message }
   }
 
-  revalidate()
+  revalidatePath('/', 'layout')
   return { topic: data as Topic }
 }
 
 export async function createDocumentLesson(input: {
+  teacherId: string
   topicId: string
   title: string
   description: string
@@ -93,14 +89,16 @@ export async function createDocumentLesson(input: {
     return { error: 'The file upload is missing.' }
   }
 
-  const auth = await requireAdmin()
+  const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
-  // Append after existing lessons in this topic for stable ordering.
+  // Append after existing lessons in this topic for stable ordering. Scope the
+  // count by teacher_id so it can never see another teacher's items.
   const { count, error: countError } = await auth.supabase
     .from('content_items')
     .select('id', { count: 'exact', head: true })
     .eq('topic_id', input.topicId)
+    .eq('teacher_id', input.teacherId)
 
   if (countError) {
     return { error: countError.message }
@@ -109,6 +107,7 @@ export async function createDocumentLesson(input: {
   const { data, error } = await auth.supabase
     .from('content_items')
     .insert({
+      teacher_id: input.teacherId,
       topic_id: input.topicId,
       type: 'document',
       title,
@@ -125,6 +124,6 @@ export async function createDocumentLesson(input: {
     return { error: error.message }
   }
 
-  revalidate(input.topicId)
+  revalidatePath('/', 'layout')
   return { item: data as ContentItem }
 }

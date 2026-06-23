@@ -21,7 +21,15 @@ const NEW_TOPIC = '__new__'
 const inputClass =
   'rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring'
 
-export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
+export function DocumentLessonForm({
+  topics,
+  teacherId,
+  uid,
+}: {
+  topics: Topic[]
+  teacherId: string
+  uid: string
+}) {
   const router = useRouter()
   const [topicMode, setTopicMode] = useState<string>(topics[0]?.id ?? NEW_TOPIC)
   const [newTopicName, setNewTopicName] = useState('')
@@ -96,11 +104,12 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         let coverImageUrl: string | null = null
         let coverStoragePath: string | null = null
         if (coverFile) {
-          const cover = await uploadTopicCover(coverFile)
+          const cover = await uploadTopicCover(coverFile, teacherId, uid)
           coverImageUrl = cover.url
           coverStoragePath = cover.path
         }
         const result = await createTopic({
+          teacherId,
           name: newTopicName,
           coverImageUrl,
           coverStoragePath,
@@ -116,7 +125,12 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
       const ext = isImage ? 'jpg' : 'pdf'
       const contentType = isImage ? 'image/jpeg' : 'application/pdf'
       const body: Blob = isImage ? await convertToJpg(file) : file
-      const path = `lessons/${crypto.randomUUID()}.${ext}`
+      // [MT] content-files RLS checks ONLY segment [1] of the path
+      // (is_teacher_admin(((storage.foldername(name))[1])::uuid)). Segment [1] MUST be
+      // teacherId — load-bearing for the write check. The {uid} segment is COSMETIC
+      // (parity with the Community storage path helper); do NOT build a per-uid
+      // boundary on it — this bucket has no [2]=auth.uid() check.
+      const path = `${teacherId}/${uid}/lessons/${crypto.randomUUID()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from(CONTENT_FILES_BUCKET)
@@ -130,6 +144,7 @@ export function DocumentLessonForm({ topics }: { topics: Topic[] }) {
         .getPublicUrl(path).data.publicUrl
 
       const result = await createDocumentLesson({
+        teacherId,
         topicId,
         title,
         description,

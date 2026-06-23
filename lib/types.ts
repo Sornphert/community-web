@@ -219,6 +219,11 @@ export type Topic = {
   position: number
   created_at: string | null
   is_locked: boolean
+  // [MT] Replaces the single-tenant hardcoded "Recordings" topic UUID. Exactly one
+  // topic per teacher carries is_recordings=true (enforced by the partial unique
+  // index topics_one_recordings_per_teacher_idx). The classroom landing special-cases
+  // this row to link to the Recordings tree instead of the generic topic view.
+  is_recordings: boolean
 }
 
 export type ContentItem = {

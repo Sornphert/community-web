@@ -1,12 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import type { ContentItem, Topic } from '@/lib/types'
 
-export async function getTopics(): Promise<Topic[]> {
+// [MT] Every fetcher takes a REQUIRED teacherId and filters teacher_id. Under MT RLS
+// a spine read is gated by has_membership(teacher_id), so an un-scoped read does NOT
+// error — it returns rows for EVERY teacher the viewer belongs to. The .eq filters
+// here are therefore the only thing preventing cross-tenant bleed for a dual-member.
+
+export async function getTopics(teacherId: string): Promise<Topic[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('topics')
     .select('*')
+    .eq('teacher_id', teacherId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: false })
 
@@ -17,13 +23,21 @@ export async function getTopics(): Promise<Topic[]> {
   return (data ?? []) as Topic[]
 }
 
-export async function getTopic(id: string): Promise<Topic | null> {
+export async function getTopic(
+  id: string,
+  teacherId: string,
+): Promise<Topic | null> {
   const supabase = await createClient()
 
+  // LOAD-BEARING: a dual-member passes has_membership for both teachers, so RLS would
+  // permit reading another teacher's topic by id. The teacher_id filter is what makes
+  // /t/[A-slug]/classroom/topic/[B-owned-id] resolve to null (→ notFound) rather than
+  // rendering B's topic under A's shell. NOT defense-in-depth — required.
   const { data, error } = await supabase
     .from('topics')
     .select('*')
     .eq('id', id)
+    .eq('teacher_id', teacherId)
     .maybeSingle()
 
   if (error) {
@@ -33,13 +47,17 @@ export async function getTopic(id: string): Promise<Topic | null> {
   return (data ?? null) as Topic | null
 }
 
-export async function getContentItems(topicId: string): Promise<ContentItem[]> {
+export async function getContentItems(
+  topicId: string,
+  teacherId: string,
+): Promise<ContentItem[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('content_items')
     .select('*')
     .eq('topic_id', topicId)
+    .eq('teacher_id', teacherId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: false })
 
@@ -50,13 +68,19 @@ export async function getContentItems(topicId: string): Promise<ContentItem[]> {
   return (data ?? []) as ContentItem[]
 }
 
-export async function getContentItem(id: string): Promise<ContentItem | null> {
+export async function getContentItem(
+  id: string,
+  teacherId: string,
+): Promise<ContentItem | null> {
   const supabase = await createClient()
 
+  // LOAD-BEARING teacher_id filter — same rationale as getTopic (dual-member could
+  // otherwise open /t/[A-slug]/classroom/content/[B-owned-id]).
   const { data, error } = await supabase
     .from('content_items')
     .select('*')
     .eq('id', id)
+    .eq('teacher_id', teacherId)
     .maybeSingle()
 
   if (error) {
@@ -66,6 +90,10 @@ export async function getContentItem(id: string): Promise<ContentItem | null> {
   return (data ?? null) as ContentItem | null
 }
 
+// Progress reads stay user-keyed (no teacherId param). content_progress is a leaf
+// table with no teacher_id; its RLS requires own-row AND has_membership(parent.teacher_id),
+// and the contentItemIds passed in are already teacher-scoped (built from this teacher's
+// items), so the read cannot return another teacher's progress.
 export async function getUserProgress(
   userId: string,
   contentItemIds: string[],

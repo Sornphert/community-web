@@ -1,9 +1,21 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getTopics } from '@/lib/classroom'
+import { getTeacherBySlug } from '@/lib/teachers'
+import { isTeacherAdmin } from '@/lib/auth'
 import { TopicCoverRow } from './_components/topic-cover-row'
 
-export default async function AdminTopicCoversPage() {
+export default async function AdminTopicCoversPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -12,15 +24,11 @@ export default async function AdminTopicCoversPage() {
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
+  if (!(await isTeacherAdmin(teacher.id))) {
+    redirect(`/t/${slug}/classroom`)
+  }
 
-  if (!profile?.is_admin) redirect('/community')
-
-  const topics = await getTopics()
+  const topics = await getTopics(teacher.id)
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -35,7 +43,7 @@ export default async function AdminTopicCoversPage() {
         <ul className="flex flex-col gap-3">
           {topics.map((topic) => (
             <li key={topic.id}>
-              <TopicCoverRow topic={topic} />
+              <TopicCoverRow topic={topic} teacherId={teacher.id} uid={user.id} />
             </li>
           ))}
         </ul>

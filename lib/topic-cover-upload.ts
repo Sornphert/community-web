@@ -10,6 +10,8 @@ import { MAX_TOPIC_COVER_SIZE_BYTES, TOPIC_COVERS_BUCKET } from '@/lib/topic-cov
 
 export async function uploadTopicCover(
   file: File,
+  teacherId: string,
+  uid: string,
 ): Promise<{ url: string; path: string }> {
   const supabase = createClient()
 
@@ -22,9 +24,12 @@ export async function uploadTopicCover(
     )
   }
 
-  // The topic-covers RLS only checks bucket_id + is_admin (no {user_id}/ folder
-  // constraint), so a flat covers/ prefix is fine. UUID avoids collisions.
-  const path = `covers/${crypto.randomUUID()}.jpg`
+  // [MT] topic-covers RLS checks ONLY segment [1] of the path
+  // (is_teacher_admin(((storage.foldername(name))[1])::uuid)). Segment [1] MUST be
+  // teacherId — it is load-bearing for the write check. The {uid} segment is
+  // COSMETIC (kept for parity with the Community storage path helper); do NOT build
+  // a per-uid boundary on it — this bucket has no [2]=auth.uid() check.
+  const path = `${teacherId}/${uid}/covers/${crypto.randomUUID()}.jpg`
 
   const { error } = await supabase.storage
     .from(TOPIC_COVERS_BUCKET)

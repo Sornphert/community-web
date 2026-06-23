@@ -3,18 +3,24 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getContentItems, getTopic, getUserProgress } from '@/lib/classroom'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { ContentRow } from './_components/content-row'
 
 export default async function TopicPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string; id: string }>
 }) {
-  const { id } = await params
+  const { slug, id } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+  const basePath = `/t/${slug}/classroom`
 
   const [topic, items] = await Promise.all([
-    getTopic(id),
-    getContentItems(id),
+    getTopic(id, teacher.id),
+    getContentItems(id, teacher.id),
   ])
 
   if (!topic) {
@@ -22,7 +28,7 @@ export default async function TopicPage({
   }
 
   if (topic.is_locked) {
-    redirect('/classroom')
+    redirect(basePath)
   }
 
   const supabase = await createClient()
@@ -44,7 +50,7 @@ export default async function TopicPage({
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href="/classroom"
+        href={basePath}
         className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -69,7 +75,7 @@ export default async function TopicPage({
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((item) => (
-            <Link key={item.id} href={`/classroom/content/${item.id}`}>
+            <Link key={item.id} href={`${basePath}/content/${item.id}`}>
               <ContentRow item={item} completed={completedIds.has(item.id)} />
             </Link>
           ))}

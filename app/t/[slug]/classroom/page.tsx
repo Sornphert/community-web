@@ -1,19 +1,31 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { getTopics } from '@/lib/classroom'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { SHOW_RECORDINGS } from '@/lib/config'
 import { TopicCard } from './_components/topic-card'
 
 // The "Recordings" topic row is special-cased: instead of opening the generic
 // topic view it links to the Classroom Recordings folder tree, and renders
-// unlocked regardless of its is_locked flag. Every other topic (incl.
-// 天命数据资料库) keeps its default behavior.
-const RECORDINGS_TOPIC_ID = '52a53b67-e2d0-43bf-a2db-38083b8d801d'
+// unlocked regardless of its is_locked flag. Every other topic keeps its default
+// behavior. [MT] The single-tenant hardcoded UUID is gone — the recordings topic
+// is now identified per-teacher by topic.is_recordings.
+export default async function ClassroomPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+  const basePath = `/t/${slug}/classroom`
 
-export default async function ClassroomPage() {
-  const topics = await getTopics()
+  const topics = await getTopics(teacher.id)
   const visibleTopics = SHOW_RECORDINGS
     ? topics
-    : topics.filter((t) => t.id !== RECORDINGS_TOPIC_ID)
+    : topics.filter((t) => !t.is_recordings)
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -26,9 +38,9 @@ export default async function ClassroomPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleTopics.map((topic) => {
-            if (topic.id === RECORDINGS_TOPIC_ID) {
+            if (topic.is_recordings) {
               return (
-                <Link key={topic.id} href="/classroom/recordings">
+                <Link key={topic.id} href={`${basePath}/recordings`}>
                   <TopicCard topic={{ ...topic, is_locked: false }} />
                 </Link>
               )
@@ -38,7 +50,7 @@ export default async function ClassroomPage() {
                 <TopicCard topic={topic} />
               </div>
             ) : (
-              <Link key={topic.id} href={`/classroom/topic/${topic.id}`}>
+              <Link key={topic.id} href={`${basePath}/topic/${topic.id}`}>
                 <TopicCard topic={topic} />
               </Link>
             )
