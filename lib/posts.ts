@@ -68,32 +68,8 @@ type PostRow = {
   likes: LikeRow[] | null
 }
 
-// Whether the current viewer may edit/delete a post: the author, or any admin.
-// Fetched once per request and combined with each post's author_id.
-async function getViewerIsAdmin(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  uid: string | null,
-): Promise<boolean> {
-  if (!uid) return false
-  const { data } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', uid)
-    .maybeSingle()
-  return data?.is_admin === true
-}
-
 // Embedded shape returned by the likers queries below.
 type LikerRow = { created_at: string; user: Profile | null }
-
-// A post awaiting channel assignment in the one-time /admin/migrate-posts UI.
-export type UnassignedPost = {
-  id: string
-  title: string
-  body: string
-  created_at: string
-  author: Profile | null
-}
 
 // Community channels for ONE teacher, position-ordered. The scoped, isolation-safe
 // path: the /t/[slug] shell and every ported Community route pass teacher_id, so a
@@ -109,29 +85,6 @@ export async function getChannels(teacherId: string): Promise<Channel[]> {
     .from('channels')
     .select('*')
     .eq('teacher_id', teacherId)
-    .eq('section', 'community')
-    .order('position', { ascending: true })
-
-  if (error) {
-    throw new Error(`Failed to load channels: ${error.message}`)
-  }
-
-  return (data ?? []) as Channel[]
-}
-
-// DELIBERATELY UN-SCOPED — returns Community channels across EVERY teacher the viewer
-// belongs to (under MT RLS). The ugly name is the whole point: this is the ONLY
-// un-scoped channels path, so it is callable only on purpose and is trivially
-// greppable for the Step 4 sweep. It exists solely for the not-yet-ported
-// single-tenant (app) callers ((app)/layout.tsx, (app)/admin/migrate-posts,
-// (app)/community/[channel]). DELETE it when those routes are removed in the
-// per-vertical port. NEVER call it from a /t/[slug] route.
-export async function getChannelsLegacyUnscoped(): Promise<Channel[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('channels')
-    .select('*')
     .eq('section', 'community')
     .order('position', { ascending: true })
 
@@ -239,29 +192,9 @@ export async function getChannelBySlug(
   return (data as Channel | null) ?? null
 }
 
-// DELIBERATELY UN-SCOPED — see getChannelsLegacyUnscoped. For the not-yet-ported
-// single-tenant (app) callers (legacy community + weekly). Greppable; DELETE with
-// those routes. NEVER call from a /t/[slug] route.
-export async function getChannelBySlugLegacyUnscoped(
-  slug: string,
-): Promise<Channel | null> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('channels')
-    .select('*')
-    .eq('slug', slug)
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(`Failed to load channel: ${error.message}`)
-  }
-
-  return (data as Channel | null) ?? null
-}
-
 export async function getPostsForChannel(
   channelId: string,
+  teacherId: string,
 ): Promise<PostWithRelations[]> {
   const supabase = await createClient()
 
@@ -269,7 +202,10 @@ export async function getPostsForChannel(
     data: { user },
   } = await supabase.auth.getUser()
   const uid = user?.id ?? null
-  const viewerIsAdmin = await getViewerIsAdmin(supabase, uid)
+  // [MT] Edit/delete affordance = author OR admin OF THIS TEACHER. Resolved via the
+  // same is_teacher_admin RPC the posts *_admin RLS policies use — never a global
+  // is_admin (that column is gone under MT).
+  const viewerIsAdmin = await isTeacherAdmin(teacherId)
 
   const { data, error } = await supabase
     .from('posts')
@@ -311,24 +247,9 @@ export async function getPostsForChannel(
     })
 }
 
-export async function getUnassignedPosts(): Promise<UnassignedPost[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('posts')
-    .select('id, title, body, created_at, author:profiles!author_id(*)')
-    .is('channel_id', null)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    throw new Error(`Failed to load unassigned posts: ${error.message}`)
-  }
-
-  return (data ?? []) as unknown as UnassignedPost[]
-}
-
 export async function getPost(
   id: string,
+  teacherId: string,
 ): Promise<PostWithFullRelations | null> {
   const supabase = await createClient()
 
@@ -336,7 +257,8 @@ export async function getPost(
     data: { user },
   } = await supabase.auth.getUser()
   const uid = user?.id ?? null
-  const viewerIsAdmin = await getViewerIsAdmin(supabase, uid)
+  // [MT] Author OR admin OF THIS TEACHER — same is_teacher_admin RPC as RLS.
+  const viewerIsAdmin = await isTeacherAdmin(teacherId)
 
   const { data, error } = await supabase
     .from('posts')

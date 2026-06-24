@@ -18,7 +18,6 @@ export interface Profile {
   bio: string | null
   avatar_url: string | null
   created_at: string
-  is_admin: boolean
   // Set by delete_my_account() when the account is deleted; the row is kept
   // (tombstoned) so posts/comments still render "[Deleted user]".
   deleted_at: string | null

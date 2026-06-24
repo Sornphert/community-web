@@ -33,7 +33,7 @@ export default async function ChannelPage({
   // Not a channel slug → treat the value as a legacy post id (old /community/[id]
   // links). Redirect to the nested URL if it has a channel, else render as-is.
   if (!channel) {
-    const post = await getPost(channelSlug)
+    const post = await getPost(channelSlug, teacher.id)
     if (!post) {
       notFound()
     }
@@ -57,7 +57,7 @@ export default async function ChannelPage({
 
   const [channels, posts] = await Promise.all([
     getChannels(teacher.id),
-    getPostsForChannel(channel.id),
+    getPostsForChannel(channel.id, teacher.id),
   ])
 
   const canPost = channel.post_permission === 'all' || isAdmin

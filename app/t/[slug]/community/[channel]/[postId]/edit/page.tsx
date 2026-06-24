@@ -20,7 +20,7 @@ export default async function EditPostPage({
     notFound()
   }
 
-  const post = await getPost(postId)
+  const post = await getPost(postId, teacher.id)
   if (!post) {
     notFound()
   }

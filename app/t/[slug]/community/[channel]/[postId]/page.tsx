@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { getPost } from '@/lib/posts'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { SHOW_WEEKLY } from '@/lib/config'
 import { PostDetail } from '../../_components/post-detail'
 
@@ -10,7 +11,12 @@ export default async function PostDetailPage({
 }) {
   const { slug, channel, postId } = await params
   const basePath = `/t/${slug}/community`
-  const post = await getPost(postId)
+  // cache()-deduped with the layout's resolution. Defensive 404 if it's gone.
+  const teacher = await getTeacherBySlug(slug)
+  if (!teacher) {
+    notFound()
+  }
+  const post = await getPost(postId, teacher.id)
 
   if (!post) {
     notFound()
