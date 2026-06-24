@@ -1,6 +1,14 @@
 -- =============================================================================
 -- PROPOSAL — Multi-Tenant Phase 1 foundation schema  (REVIEW ONLY — DO NOT RUN)
 -- =============================================================================
+-- ⚠️ SUPERSEDED: this file is the original (never-run) PLAN. The canonical,
+-- reproducible MT schema is now `supabase/multitenant/schema.sql`, authored
+-- line-by-line from a live dump of community-mt-dev. Keep this file as the
+-- readable design rationale only; run `schema.sql`, never this. Known plan-vs-live
+-- deltas (the live dump is authoritative): table grants follow live's full-grant +
+-- narrowed-memberships/profiles model (not this file's least-privilege grants), and
+-- the trigger / storage policies carry the D4 / D6 deviations documented in schema.sql.
+-- =============================================================================
 -- This is a reviewable proposal for the FRESH multi-tenant build. It has NOT
 -- been run against any database (not even a scratch one). It implements the
 -- locked decision record (D1–D8) for a brand-new project — NOT a migration of
