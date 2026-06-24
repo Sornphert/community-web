@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 
 export default function Error({
@@ -11,6 +12,10 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  // [MT] Boundary components don't receive route params as props — read the slug
+  // from the URL to build the teacher-scoped back link.
+  const { slug } = useParams<{ slug: string }>()
+
   useEffect(() => {
     console.error(error)
   }, [error])
@@ -32,7 +37,7 @@ export default function Error({
           Try again
         </button>
         <Link
-          href="/classroom/recordings"
+          href={`/t/${slug}/classroom/recordings`}
           className="text-sm text-fg-muted hover:text-fg"
         >
           Back to recordings
