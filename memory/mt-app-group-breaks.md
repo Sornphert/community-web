@@ -61,4 +61,43 @@ states that look like bugs but are intentional, with when each resolves.
   switch (needs the teachers.config settings column, same as branding). Building it
   now would mean a global flag + a retrofit later; building it later = one clean pass.
 
-supabase/seed.sql + supabase/bootstrap/schema.sql remain single-tenant shape (no teacher_id, hardcoded 52a53b67 Recordings topic, "Johnson" literal in announcements). MT schema applied to community-mt-dev out-of-band; no MT-shaped reproducible seed exists. Standing up a fresh MT project from files is not yet possible — deferred to the schema-reproducibility pass.
+## MT reproducibility — DONE (verified green 2026-06-24)
+
+community-mt-dev is now reproducible from repo files. Run order on a fresh project:
+`supabase/multitenant/schema.sql` → `supabase/multitenant/seed.sql` → `scripts/dev-seed-personas.ts`
+(see `supabase/multitenant/NEW_PROJECT_SETUP_MT.md`).
+
+- `multitenant/schema.sql` was authored line-by-line from a live dump of community-mt-dev and
+  **supersedes** the never-run `PROPOSAL_schema.sql` (which now carries a superseded header).
+- `multitenant/seed.sql`: 3 teachers (A=prophet-system, B=movement-bootcamp, C=empty-academy
+  [intentionally empty]) + per-teacher channels/topics/content/folders/recordings/events + 5 buckets.
+- `scripts/dev-seed-personas.ts`: dev personas + memberships + demo posts via the auth admin API
+  (auth users can't be plain-INSERTed). Password `devpass123!`.
+- **single-tenant `supabase/bootstrap/schema.sql` + `supabase/seed.sql` are deliberately left
+  untouched** — they still reproduce the `main` prod DBs (single-tenant shape: no teacher_id,
+  hardcoded 52a53b67 Recordings topic, "Johnson" literal). MT gets its own files; the two paths coexist.
+
+**Verified green (2026-06-24) via cloud-confirm** (local `supabase start` unavailable — no Docker on
+the machine): applied the three files to a throwaway Supabase project and diffed all 11 introspection
+blocks (columns, constraints incl. composite + deferrable, indexes incl. partial-unique, RLS flags,
+public + storage policies, function bodies, trigger, table/column/function-EXECUTE grants, buckets,
+extensions) against the live dump → **zero schema deltas**. The only intentional deviations — D4
+(trigger call qualified `public.handle_new_user()`) and D6 (storage policies wrapped in
+`DROP POLICY IF EXISTS`) — render invisibly at the catalog level. Grants confirmed exact, including
+the determinism revokes: `memberships` write-less for authenticated, `profiles` no table UPDATE +
+column-UPDATE only on (display_name, bio, avatar_url, social_links), anon zero. Functional RLS
+isolation also confirmed via a `set request.jwt.claims` persona simulation (member@ A-only; none@
+content-less but sees the teacher directory; dual@ both teachers separated; badmin@ admin scoped to B
+not A — INSERT into A denied 42501, into B allowed).
+
+### GAP — delete_my_account() is ABSENT on live MT
+Dropped out-of-band during the MT build, never rewritten; `multitenant/schema.sql` intentionally omits
+it. **Account deletion is non-functional on MT.** A rewrite must decide global-vs-per-teacher deletion,
+gate on `is_teacher_admin` (not the removed global `is_admin`), and enumerate `{teacher_id}/{uid}/...`
+storage paths across every teacher the user belongs to. Out of scope for this pass.
+
+### CORRECTION — SEVEN dev personas, not six
+Live has `bmember@dev.test` (a B-only member, the B-side analogue of `member@` for A) beyond the
+originally documented six. `badmin@` display_name = "Cross admin", `bmember@` = "B member" (set via
+metadata); the rest use the `handle_new_user` email-split. All seven password `devpass123!`. Full
+mapping in `NEW_PROJECT_SETUP_MT.md`.
