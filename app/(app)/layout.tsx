@@ -1,8 +1,16 @@
+import Link from 'next/link'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getChannelsLegacyUnscoped } from '@/lib/posts'
-import { Sidebar } from './_components/sidebar'
+import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
+// [MT] Global, teacher-AGNOSTIC shell. After the multi-tenant port the only route
+// left under (app) is the global /profile (every teacher-scoped vertical lives under
+// /t/[slug] with its own shell + per-teacher Sidebar). There is no teacher context
+// here, so we render minimal chrome — brand + back-to-/home — and NO teacher Sidebar.
+// Deliberately reads neither is_admin (gone under MT) nor channels (per-teacher); the
+// teacher nav belongs to /t/[slug]/layout.tsx.
 export default async function AppLayout({
   children,
 }: {
@@ -19,23 +27,29 @@ export default async function AppLayout({
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  const isAdmin = profile?.is_admin === true
-
-  const channels = await getChannelsLegacyUnscoped()
-
   return (
-    <div className="flex flex-1 flex-col md:flex-row">
-      <Sidebar
-        userEmail={user.email ?? ''}
-        isAdmin={isAdmin}
-        channels={channels}
-      />
+    <div className="flex flex-1 flex-col">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3">
+        <Link
+          href="/home"
+          className="flex items-center gap-2 text-sm text-fg-soft transition-colors hover:text-fg"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          Home
+        </Link>
+        <div className="ml-auto flex items-center gap-2">
+          <Image
+            src={BRAND_LOGO_URL}
+            alt={APP_NAME}
+            width={28}
+            height={28}
+            className="rounded shrink-0"
+          />
+          <span className="hidden text-sm font-semibold text-fg sm:inline">
+            {APP_NAME}
+          </span>
+        </div>
+      </header>
       <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>
