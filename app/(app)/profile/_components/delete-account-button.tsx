@@ -46,9 +46,13 @@ export function DeleteAccountButton() {
         return
       }
 
-      if (res.error === 'is_admin') {
+      if (res.error === 'last_admin') {
+        const names =
+          res.teachers && res.teachers.length > 0
+            ? res.teachers.join(', ')
+            : 'one of your communities'
         setError(
-          "You're an admin. Please demote yourself first via another admin before deleting.",
+          `You're the last admin of ${names}. Please assign another admin there before deleting your account.`,
         )
       } else if (res.error === 'storage_cleanup_failed') {
         setError(
@@ -100,7 +104,7 @@ export function DeleteAccountButton() {
                 <ul className="mt-2 list-disc pl-5">
                   <li>Your profile, avatar, and bio</li>
                   <li>Your completion progress on recordings and documents</li>
-                  <li>Your uploaded images</li>
+                  <li>Your uploaded images and attachments</li>
                 </ul>
                 <p className="mt-3">
                   Your posts and comments will be kept but shown as{' '}

@@ -90,11 +90,30 @@ isolation also confirmed via a `set request.jwt.claims` persona simulation (memb
 content-less but sees the teacher directory; dual@ both teachers separated; badmin@ admin scoped to B
 not A — INSERT into A denied 42501, into B allowed).
 
-### GAP — delete_my_account() is ABSENT on live MT
-Dropped out-of-band during the MT build, never rewritten; `multitenant/schema.sql` intentionally omits
-it. **Account deletion is non-functional on MT.** A rewrite must decide global-vs-per-teacher deletion,
-gate on `is_teacher_admin` (not the removed global `is_admin`), and enumerate `{teacher_id}/{uid}/...`
-storage paths across every teacher the user belongs to. Out of scope for this pass.
+### RESOLVED — delete_my_account() rewritten for MT (2026-06-25)
+The dump's gap is closed. The MT rewrite lives in `multitenant/schema.sql` Section 10 and the
+standalone hand-run `multitenant/0001_delete_my_account_mt.sql` (identical body, create-or-replace);
+the web caller is `app/(app)/profile/actions.ts` + `_components/delete-account-button.tsx`.
+- **Admin rule = OPTION A (per-teacher last-admin block).** Deletion is blocked ONLY if it would drop
+  some teacher to ZERO active admins (caller is that teacher's LAST active admin). Returns
+  `'last_admin'` + a `teachers` array NAMING the blocking teacher(s); a member, or an admin with a
+  co-admin everywhere, deletes freely. (Replaces 0007's global `is_admin` block — that column is gone.)
+- **Memberships DELETEd explicitly** (the tombstoned profile is KEPT, so the memberships→profiles
+  cascade never fires; without this a dead account keeps active memberships and stays
+  has_membership/is_teacher_admin = true).
+- **Storage** spans every `{teacher_id}/{uid}/...` prefix across avatars + post-images +
+  **post-attachments** (post_attachments is MT-era; 0007 missed it). Caller deletes the returned paths
+  post-commit via the service-role client, now reading each `.remove()` `{error}` (the resolve-not-throw
+  swallow-fix) and surfacing `storage_cleanup_failed`.
+- Verified green on the throwaway (4 cases): A non-admin deletion (real-data avatar parse), D
+  cross-teacher non-interference, B sole-admin block naming the teacher (nothing destroyed), C orphan
+  prevention + negative control proving "last admin" not "any admin".
+
+**INTERIM LIMITATION (sole-admin escape hatch).** The `'last_admin'` block is only actionable
+out-of-band: there is NO in-app "assign another admin" flow yet (admin role is set directly in Supabase /
+`memberships.role`). So a teacher's sole admin cannot self-serve their way to deletable — they must have
+someone promote a co-admin in Supabase first. Acceptable for now (admins are few, hands-on); revisit if
+in-app admin management lands.
 
 ### CORRECTION — SEVEN dev personas, not six
 Live has `bmember@dev.test` (a B-only member, the B-side analogue of `member@` for A) beyond the
