@@ -10,6 +10,7 @@ import {
   CONTENT_FILES_BUCKET,
   MAX_CONTENT_FILE_SIZE_BYTES,
   isAllowedLessonFile,
+  resolveLessonUpload,
 } from '@/lib/content-files'
 import { isAllowedCoverImage } from '@/lib/topic-covers'
 import { uploadTopicCover } from '@/lib/topic-cover-upload'
@@ -47,7 +48,7 @@ export function DocumentLessonForm({
     if (!picked) return
 
     if (!isAllowedLessonFile(picked)) {
-      setError('Only images and PDF files are allowed.')
+      setError('Only images, PDF, and Excel files are allowed.')
       return
     }
     if (picked.size > MAX_CONTENT_FILE_SIZE_BYTES) {
@@ -83,7 +84,7 @@ export function DocumentLessonForm({
       return
     }
     if (!file) {
-      setError('Please choose a PDF or image file.')
+      setError('Please choose a PDF, image, or Excel file.')
       return
     }
 
@@ -120,21 +121,25 @@ export function DocumentLessonForm({
         topicId = result.topic.id
       }
 
-      // Images are converted to JPEG (app-wide convention); PDFs upload as-is.
-      const isImage = file.type.startsWith('image/')
-      const ext = isImage ? 'jpg' : 'pdf'
-      const contentType = isImage ? 'image/jpeg' : 'application/pdf'
-      const body: Blob = isImage ? await convertToJpg(file) : file
+      // Resolve the real extension + content-type per file type. Images are
+      // converted to JPEG (app-wide convention); PDF and Excel upload as-is.
+      // No "else → PDF" default: an unrecognized type is rejected outright so a
+      // spreadsheet is never silently stored as a .pdf.
+      const upload = resolveLessonUpload(file)
+      if (!upload) {
+        throw new Error('Unsupported file type. Use an image, PDF, or Excel file.')
+      }
+      const body: Blob = upload.isImage ? await convertToJpg(file) : file
       // [MT] content-files RLS checks ONLY segment [1] of the path
       // (is_teacher_admin(((storage.foldername(name))[1])::uuid)). Segment [1] MUST be
       // teacherId — load-bearing for the write check. The {uid} segment is COSMETIC
       // (parity with the Community storage path helper); do NOT build a per-uid
       // boundary on it — this bucket has no [2]=auth.uid() check.
-      const path = `${teacherId}/${uid}/lessons/${crypto.randomUUID()}.${ext}`
+      const path = `${teacherId}/${uid}/lessons/${crypto.randomUUID()}.${upload.ext}`
 
       const { error: uploadError } = await supabase.storage
         .from(CONTENT_FILES_BUCKET)
-        .upload(path, body, { contentType })
+        .upload(path, body, { contentType: upload.contentType })
       if (uploadError) {
         throw uploadError
       }
@@ -151,7 +156,7 @@ export function DocumentLessonForm({
         documentUrl: url,
         documentStoragePath: path,
         // For images, reuse the file URL as the thumbnail so it previews inline.
-        thumbnailUrl: isImage ? url : null,
+        thumbnailUrl: upload.isImage ? url : null,
       })
       if (result.error) {
         throw new Error(result.error)
@@ -268,7 +273,7 @@ export function DocumentLessonForm({
       </label>
 
       <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
-        File (PDF or image)
+        File (PDF, image, or Excel)
         {file ? (
           <div className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
             <FileText className="h-4 w-4 shrink-0 text-fg-muted" />
@@ -290,10 +295,10 @@ export function DocumentLessonForm({
         ) : (
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-normal text-fg-secondary hover:bg-hover-subtle">
             <UploadIcon className="h-4 w-4" />
-            Choose a PDF or image
+            Choose a PDF, image, or Excel file
             <input
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               onChange={handleFilePicked}
               className="hidden"
             />
