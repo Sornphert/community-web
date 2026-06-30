@@ -17,6 +17,13 @@
 -- delete_my_account() was ABSENT on the live MT dump (dropped out-of-band during the MT
 -- build). It is RESTORED here in Section 10 as the multi-tenant rewrite (per-teacher admin
 -- rule, MT storage prefixes); see 0001_delete_my_account_mt.sql (standalone create-or-replace).
+-- Migration 0002 (teacher branding cover_url/logo_url/description; teacher-covers +
+-- teacher-logos buckets; avatars own-uid write realign; teacher_member_counts() RPC; anon
+-- teachers directory read) was run on community-mt-dev and is FOLDED IN below; see
+-- 0002_teacher_branding_and_public_directory.sql (standalone, hand-run).
+-- Migration 0003 (teachers admin UPDATE policy — the missing policy that made the
+-- branding UPDATE match 0 rows) was run on community-mt-dev and is FOLDED IN below;
+-- see 0003_teachers_admin_update_policy.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -34,6 +41,9 @@ create table public.teachers (
     slug        text not null,
     name        text not null,
     created_at  timestamptz default now(),
+    cover_url   text,
+    logo_url    text,
+    description text,
     constraint teachers_pkey primary key (id),
     constraint teachers_slug_key unique (slug)
 );
@@ -97,6 +107,21 @@ as $$
                  where m.profile_id = auth.uid() and m.teacher_id = p_teacher_id
                    and m.status = 'active' and m.role = 'admin')
   end;
+$$;
+
+-- Directory aggregate (NOT an authz gate): one row per teacher with >=1 active
+-- member. SECURITY DEFINER so it bypasses the memberships RLS (which hides co-member
+-- rows from non-members/anon), but returns ONLY (teacher_id, count) — never any PII.
+-- Powers the member-count badge on the logged-out + non-member Discover cards.
+-- Teachers with zero active members are simply absent (the app treats missing as 0).
+create or replace function public.teacher_member_counts()
+returns table(teacher_id uuid, member_count bigint)
+language sql stable security definer set search_path to 'public'
+as $$
+  select m.teacher_id, count(*)::bigint as member_count
+  from public.memberships m
+  where m.status = 'active'
+  group by m.teacher_id;
 $$;
 
 
@@ -448,11 +473,16 @@ grant update (display_name, bio, avatar_url, social_links) on public.profiles to
 -- service_role — full on everything (verified all-7 on all 19 tables)
 grant all on all tables in schema public to service_role;
 
--- anon — nothing (explicit revoke; live shows zero anon grants)
+-- anon — zero table grants EXCEPT a narrow directory read on teachers (0002): revoke
+-- everything first (live shows zero anon grants), then grant back only the public
+-- directory columns. created_at and every other table stay closed to anon.
 revoke all on all tables in schema public from anon;
+grant select (id, slug, name, cover_url, logo_url, description) on public.teachers to anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
+  to anon, authenticated, service_role;
+grant execute on function public.teacher_member_counts()
   to anon, authenticated, service_role;
 
 
@@ -460,6 +490,9 @@ grant execute on function public.has_membership(uuid), public.is_teacher_admin(u
 -- SECTION 8 — RLS policies (public)
 -- =============================================================================
 create policy teachers_select_all on public.teachers for select to authenticated using (true);
+create policy teachers_select_anon on public.teachers for select to anon using (true);
+create policy teachers_update_admin on public.teachers for update to authenticated
+  using (is_teacher_admin(id)) with check (is_teacher_admin(id));
 
 create policy memberships_select_self_or_comember on public.memberships
   for select to authenticated
@@ -592,22 +625,25 @@ create policy crp_delete_own on public.classroom_recording_progress for delete t
 -- =============================================================================
 -- SECTION 9 — storage.objects RLS  [D6: DROP IF EXISTS guards for re-run safety]
 -- =============================================================================
--- Path scheme {teacher_id}/{uid}/...  Member buckets (avatars/post-images/post-
--- attachments) gate segment[1] via has_membership AND segment[2] = uid. Admin buckets
--- (topic-covers/content-files) gate segment[1] via is_teacher_admin only.
+-- Path scheme {teacher_id}/{uid}/...  post-images/post-attachments gate segment[1]
+-- via has_membership AND segment[2] = uid. avatars is realigned to OWN-UID ONLY
+-- ({uid}/avatar.jpg → segment[1] = auth.uid(); 0002). Admin buckets (topic-covers/
+-- teacher-covers/teacher-logos/content-files) gate segment[1] via is_teacher_admin only.
 
--- avatars ({teacher_id}/{uid}/avatar.jpg) — public read
+-- avatars ({uid}/avatar.jpg) — public read; OWN-UID write (realigned in 0002, dropping
+-- the old {teacher_id}/{uid}/... has_membership gate so the platform-level profile editor
+-- writes with no teacher context). segment[1] = auth.uid() is the whole write check.
 drop policy if exists avatars_select on storage.objects;
 create policy avatars_select on storage.objects for select to authenticated using (bucket_id = 'avatars');
 drop policy if exists avatars_insert_own on storage.objects;
 create policy avatars_insert_own on storage.objects for insert to authenticated
-  with check (bucket_id = 'avatars' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 drop policy if exists avatars_update_own on storage.objects;
 create policy avatars_update_own on storage.objects for update to authenticated
-  using (bucket_id = 'avatars' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 drop policy if exists avatars_delete_own on storage.objects;
 create policy avatars_delete_own on storage.objects for delete to authenticated
-  using (bucket_id = 'avatars' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- post-images ({teacher_id}/{uid}/{post_id}/{pos}.jpg) — public read
 drop policy if exists post_images_obj_select on storage.objects;
@@ -639,6 +675,32 @@ create policy topic_covers_update_admin on storage.objects for update to authent
 drop policy if exists topic_covers_delete_admin on storage.objects;
 create policy topic_covers_delete_admin on storage.objects for delete to authenticated
   using (bucket_id = 'topic-covers' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+
+-- teacher-covers ({teacher_id}/...) — admin write, member read (0002; copy of topic-covers)
+drop policy if exists teacher_covers_select on storage.objects;
+create policy teacher_covers_select on storage.objects for select to authenticated using (bucket_id = 'teacher-covers');
+drop policy if exists teacher_covers_insert_admin on storage.objects;
+create policy teacher_covers_insert_admin on storage.objects for insert to authenticated
+  with check (bucket_id = 'teacher-covers' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+drop policy if exists teacher_covers_update_admin on storage.objects;
+create policy teacher_covers_update_admin on storage.objects for update to authenticated
+  using (bucket_id = 'teacher-covers' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+drop policy if exists teacher_covers_delete_admin on storage.objects;
+create policy teacher_covers_delete_admin on storage.objects for delete to authenticated
+  using (bucket_id = 'teacher-covers' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+
+-- teacher-logos ({teacher_id}/...) — admin write, member read (0002; copy of topic-covers)
+drop policy if exists teacher_logos_select on storage.objects;
+create policy teacher_logos_select on storage.objects for select to authenticated using (bucket_id = 'teacher-logos');
+drop policy if exists teacher_logos_insert_admin on storage.objects;
+create policy teacher_logos_insert_admin on storage.objects for insert to authenticated
+  with check (bucket_id = 'teacher-logos' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+drop policy if exists teacher_logos_update_admin on storage.objects;
+create policy teacher_logos_update_admin on storage.objects for update to authenticated
+  using (bucket_id = 'teacher-logos' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
+drop policy if exists teacher_logos_delete_admin on storage.objects;
+create policy teacher_logos_delete_admin on storage.objects for delete to authenticated
+  using (bucket_id = 'teacher-logos' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
 
 -- content-files ({teacher_id}/...) — admin write, member read (public-read bucket: v1 gap)
 drop policy if exists content_files_select on storage.objects;

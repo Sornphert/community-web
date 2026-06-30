@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Users,
   CalendarDays,
+  Palette,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -52,6 +53,12 @@ const cards: AdminCard[] = [
     label: 'Events',
     description: 'Add, edit, and delete events on the calendar.',
     icon: CalendarDays,
+  },
+  {
+    to: '/admin/branding',
+    label: 'Branding',
+    description: 'Set the cover, logo, and description for your community card.',
+    icon: Palette,
   },
 ]
 

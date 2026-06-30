@@ -71,7 +71,9 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('content-files',   'content-files',   true, 20971520, null),
   ('post-attachments','post-attachments',true, 26214400, '{application/pdf}'),
   ('post-images',     'post-images',     true, 5242880,  null),
-  ('topic-covers',    'topic-covers',    true, 2097152,  null)
+  ('topic-covers',    'topic-covers',    true, 2097152,  null),
+  ('teacher-covers',  'teacher-covers',  true, 2097152,  null),
+  ('teacher-logos',   'teacher-logos',   true, 2097152,  null)
 on conflict (id) do nothing;
 
 -- =============================================================================

@@ -35,6 +35,11 @@ export interface Teacher {
   slug: string
   name: string
   created_at: string | null
+  // Per-teacher branding for the /home directory cards (migration 0002). All
+  // nullable for now; the directory step picks a fallback on explicit null.
+  cover_url: string | null
+  logo_url: string | null
+  description: string | null
 }
 
 export type MembershipRole = 'member' | 'admin'
