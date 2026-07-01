@@ -13,7 +13,7 @@ import { isTeacherAdmin } from '@/lib/auth'
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
-import { HERO_URL, SHOW_HERO, SHOW_WEEKLY } from '@/lib/config'
+import { HERO_URL, SHOW_HERO } from '@/lib/config'
 
 export default async function ChannelPage({
   params,
@@ -43,13 +43,8 @@ export default async function ChannelPage({
     return <PostDetail post={post} channelSlug="announcements" basePath={basePath} />
   }
 
-  // URL-collision guard: a weekly channel's canonical home is /weekly. Never
-  // render it under /community. Redirect to the canonical URL when the feature is
-  // on; 404 when off (so it stays invisible).
+  // URL-collision guard: weekly channels are never rendered under /community — 404.
   if (channel.section === 'weekly') {
-    if (SHOW_WEEKLY) {
-      redirect(`/t/${slug}/weekly/${channel.slug}`)
-    }
     notFound()
   }
 

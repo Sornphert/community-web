@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react'
 import { getChannelBySlug } from '@/lib/posts'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
-import { SHOW_WEEKLY } from '@/lib/config'
 import { NewPostForm } from '../../_components/new-post-form'
 
 export default async function NewPostPage({
@@ -25,11 +24,8 @@ export default async function NewPostPage({
     notFound()
   }
 
-  // Collision guard: weekly channels compose under /weekly, not /community.
+  // Collision guard: weekly channels are not composable under /community — 404.
   if (channel.section === 'weekly') {
-    if (SHOW_WEEKLY) {
-      redirect(`/t/${slug}/weekly/${channel.slug}/new`)
-    }
     notFound()
   }
 

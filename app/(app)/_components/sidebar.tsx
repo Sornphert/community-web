@@ -6,7 +6,6 @@ import {
   MessageSquare,
   GraduationCap,
   CalendarDays,
-  Newspaper,
   Users,
   Shield,
   UserCircle,
@@ -15,7 +14,7 @@ import {
 import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
-import { APP_NAME, BRAND_LOGO_URL, SHOW_WEEKLY } from '@/lib/config'
+import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
 type NavItem = {
   href: string
@@ -52,9 +51,6 @@ export function Sidebar({
   const navItems: NavItem[] = [
     { href: `${base}/community`, label: 'Community', icon: MessageSquare },
     { href: `${base}/classroom`, label: 'Classroom', icon: GraduationCap },
-    ...(SHOW_WEEKLY
-      ? [{ href: `${base}/weekly`, label: 'Weekly Report', icon: Newspaper }]
-      : []),
     { href: `${base}/events`, label: 'Events', icon: CalendarDays },
     // [MT] Members is a member-visible directory (gated by membership in the layout),
     // so it shows for everyone. Admin stays admin-only.

@@ -96,21 +96,6 @@ export interface Channel {
   created_at: string
 }
 
-// A "month" container grouping weeks. Manually named (free text); ordered by a
-// hidden `position` sort key (DESC = newest month on top). Migration 0014.
-export interface WeekGroup {
-  id: string
-  name: string
-  position: number
-  created_at: string | null
-}
-
-// A month decorated with its week count, for the /weekly hub month grid.
-export type MonthFolder = WeekGroup & { week_count: number }
-
-// A weekly channel decorated with its post count, for a month's week grid.
-export type WeekFolder = Channel & { post_count: number }
-
 export interface Post {
   id: string
   author_id: string

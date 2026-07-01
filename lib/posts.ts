@@ -13,9 +13,6 @@ import type {
   MemberWithPosts,
   PostWithFullRelations,
   PostWithRelations,
-  WeekFolder,
-  WeekGroup,
-  MonthFolder,
 } from '@/lib/types'
 
 // Shapes returned by the Supabase embed queries below. There is no generated
@@ -76,8 +73,7 @@ type LikerRow = { created_at: string; user: Profile | null }
 // member only ever sees their own teacher's channels.
 //
 // LEAK-GUARD: only Community channels (section='community'). Weekly channels must
-// never appear in the Community sidebar / mobile tabs / migrate-posts list — their
-// canonical home is the /weekly tree (see getMonths / getWeeksForMonth).
+// never appear in the Community sidebar / mobile tabs / migrate-posts list.
 export async function getChannels(teacherId: string): Promise<Channel[]> {
   const supabase = await createClient()
 
@@ -93,80 +89,6 @@ export async function getChannels(teacherId: string): Promise<Channel[]> {
   }
 
   return (data ?? []) as Channel[]
-}
-
-// "Months" for the /weekly hub: week_groups newest-first, each with its week
-// count. Only weekly channels carry a group_id, so the embedded channels(count)
-// is exactly the month's week count.
-export async function getMonths(): Promise<MonthFolder[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('week_groups')
-    .select('*, channels(count)')
-    .order('position', { ascending: false })
-
-  if (error) {
-    throw new Error(`Failed to load months: ${error.message}`)
-  }
-
-  type MonthRow = WeekGroup & { channels: { count: number }[] | null }
-
-  return ((data ?? []) as unknown as MonthRow[]).map((row) => {
-    const { channels, ...group } = row
-    return { ...group, week_count: channels?.[0]?.count ?? 0 }
-  })
-}
-
-// A single month (for the month page header). null if the id is unknown.
-export async function getWeekGroup(id: string): Promise<WeekGroup | null> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('week_groups')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(`Failed to load month: ${error.message}`)
-  }
-
-  return (data as WeekGroup | null) ?? null
-}
-
-// The weeks inside one month, newest week first, each with its post count, plus
-// the month itself (for the page header). Returns null when the month id is
-// unknown so the page can 404.
-export async function getWeeksForMonth(
-  groupId: string,
-): Promise<{ group: WeekGroup; weeks: WeekFolder[] } | null> {
-  const supabase = await createClient()
-
-  const group = await getWeekGroup(groupId)
-  if (!group) {
-    return null
-  }
-
-  const { data, error } = await supabase
-    .from('channels')
-    .select('*, posts(count)')
-    .eq('section', 'weekly')
-    .eq('group_id', groupId)
-    .order('week_number', { ascending: false })
-
-  if (error) {
-    throw new Error(`Failed to load weeks: ${error.message}`)
-  }
-
-  type WeekRow = Channel & { posts: { count: number }[] | null }
-
-  const weeks = ((data ?? []) as unknown as WeekRow[]).map((row) => {
-    const { posts, ...channel } = row
-    return { ...channel, post_count: posts?.[0]?.count ?? 0 }
-  })
-
-  return { group, weeks }
 }
 
 // Scoped: a teacher's channel by slug. slug is unique PER TEACHER, so teacher_id

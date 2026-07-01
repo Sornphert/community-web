@@ -1,7 +1,6 @@
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getPost } from '@/lib/posts'
 import { getTeacherBySlug } from '@/lib/teachers'
-import { SHOW_WEEKLY } from '@/lib/config'
 import { PostDetail } from '../../_components/post-detail'
 
 export default async function PostDetailPage({
@@ -22,12 +21,8 @@ export default async function PostDetailPage({
     notFound()
   }
 
-  // Collision guard: a weekly post is canonical under /weekly. When the feature
-  // is on, redirect; when off, 404 (no weekly post reachable via /community).
+  // Collision guard: weekly posts are not reachable via /community — 404.
   if (post.channel?.section === 'weekly') {
-    if (SHOW_WEEKLY) {
-      redirect(`/t/${slug}/weekly/${post.channel.slug}/${post.id}`)
-    }
     notFound()
   }
 
