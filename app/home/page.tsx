@@ -1,19 +1,71 @@
 import Link from 'next/link'
-import { getAllTeachers, getMyMemberships } from '@/lib/teachers'
+import { createClient } from '@/lib/supabase/server'
+import {
+  getAllTeachers,
+  getMyMemberships,
+  getTeacherMemberCounts,
+} from '@/lib/teachers'
+import type { DirectoryTeacher } from '@/lib/types'
 import { TeacherCard } from './_components/teacher-card'
 
-// The multi-tenant shell: the post-login landing. Two sections —
-//   • "Your communities": the teachers you actively belong to (memberships→teachers).
-//   • "Discover": every other teacher in the open directory.
-// Cards link to /t/<slug> (the per-teacher app shell — built separately).
+// The public teacher directory. Branches on auth:
+//   • Logged-out → "Discover" only (every teacher, branded cards + counts), NO Enter,
+//     NO join action. Membership is granted manually, so there is no self-serve path.
+//   • Logged-in  → "Your communities" (joined → Enter, clickable) above "Discover"
+//     (non-joined → disabled "Invite only").
+// Counts come from the teacher_member_counts() RPC ONLY (never a memberships SELECT).
 export default async function HomePage() {
-  const [myCommunities, allTeachers] = await Promise.all([
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // ---- Logged-out: Discover-only, no getUser-required calls, no '*' select ----
+  if (!user) {
+    const [allTeachers, counts] = await Promise.all([
+      getAllTeachers(),
+      getTeacherMemberCounts(),
+    ])
+    const teachers = withCounts(allTeachers, counts)
+
+    return (
+      <div className="mx-auto w-full max-w-6xl">
+        <h1 className="mb-1 text-xl font-semibold text-fg">Communities</h1>
+        <p className="mb-8 text-sm text-fg-muted">
+          Browse the communities on the platform.
+        </p>
+
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+            Discover
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {teachers.map((teacher) => (
+              <TeacherCard
+                key={teacher.id}
+                teacher={teacher}
+                memberCount={teacher.member_count}
+                state="discover_public"
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  // ---- Logged-in: Your communities (Enter) + Discover (Invite only) ----
+  const [myCommunities, allTeachers, counts] = await Promise.all([
     getMyMemberships(),
     getAllTeachers(),
+    getTeacherMemberCounts(),
   ])
 
   const memberTeacherIds = new Set(myCommunities.map((t) => t.id))
-  const discover = allTeachers.filter((t) => !memberTeacherIds.has(t.id))
+  const discover = withCounts(
+    allTeachers.filter((t) => !memberTeacherIds.has(t.id)),
+    counts,
+  )
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -35,8 +87,9 @@ export default async function HomePage() {
             {myCommunities.map((teacher) => (
               <Link key={teacher.id} href={`/t/${teacher.slug}`}>
                 <TeacherCard
-                  name={teacher.name}
-                  slug={teacher.slug}
+                  teacher={teacher}
+                  memberCount={counts.get(teacher.id) ?? 0}
+                  state="enter"
                   role={teacher.role}
                 />
               </Link>
@@ -52,13 +105,24 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {discover.map((teacher) => (
-              <Link key={teacher.id} href={`/t/${teacher.slug}`}>
-                <TeacherCard name={teacher.name} slug={teacher.slug} />
-              </Link>
+              <TeacherCard
+                key={teacher.id}
+                teacher={teacher}
+                memberCount={teacher.member_count}
+                state="invite_only"
+              />
             ))}
           </div>
         </section>
       )}
     </div>
   )
+}
+
+// Overlay the RPC-sourced counts onto the directory rows (missing → 0).
+function withCounts(
+  teachers: DirectoryTeacher[],
+  counts: Map<string, number>,
+): DirectoryTeacher[] {
+  return teachers.map((t) => ({ ...t, member_count: counts.get(t.id) ?? 0 }))
 }

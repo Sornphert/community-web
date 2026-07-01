@@ -1,6 +1,11 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import type { MembershipRole, Teacher, TeacherWithRole } from '@/lib/types'
+import type {
+  DirectoryTeacher,
+  MembershipRole,
+  Teacher,
+  TeacherWithRole,
+} from '@/lib/types'
 
 // Resolve a teacher by its URL slug — the entry point for every /t/[slug] render.
 // cache()-wrapped so the layout (gate + sidebar) and every page underneath share a
@@ -59,20 +64,51 @@ export async function getMyMemberships(): Promise<TeacherWithRole[]> {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// The full teacher directory, for the "Discover" section. RLS opens teachers
-// SELECT to any authenticated user (teachers_select_all), so this returns every
-// teacher; the page filters out the ones the user already belongs to.
-export async function getAllTeachers(): Promise<Teacher[]> {
+// The full teacher directory, for the /home page (anon + authed). RLS opens
+// teachers SELECT to authenticated (teachers_select_all) AND anon (teachers_select_anon),
+// so this returns every teacher on BOTH paths.
+//
+// EXPLICIT column list, NOT select('*'): anon's column grant (migration 0002) covers
+// only (id, slug, name, cover_url, logo_url, description) — a '*' select would try to
+// read created_at and throw for logged-out viewers. The directory needs only these
+// columns, so the explicit list is the single anon-safe code path for both audiences.
+//
+// member_count is a placeholder 0 here; the page overlays the real count from
+// getTeacherMemberCounts() (sourced via RPC, not a memberships SELECT).
+export async function getAllTeachers(): Promise<DirectoryTeacher[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('teachers')
-    .select('*')
+    .select('id, slug, name, cover_url, logo_url, description')
     .order('name', { ascending: true })
 
   if (error) {
     throw new Error(`Failed to load teachers: ${error.message}`)
   }
 
-  return (data ?? []) as Teacher[]
+  type Row = Omit<DirectoryTeacher, 'member_count'>
+
+  return ((data ?? []) as Row[]).map((row) => ({ ...row, member_count: 0 }))
+}
+
+// Per-teacher ACTIVE member counts, from the teacher_member_counts() RPC (a
+// SECURITY DEFINER aggregate granted to anon + authenticated, so it works on both
+// paths). Returns a Map<teacher_id, count> for the page to overlay onto the cards.
+//
+// NEVER throws and never blocks the directory: on RPC error or empty result it
+// returns an EMPTY Map, so cards simply render 0 for any teacher not present.
+export async function getTeacherMemberCounts(): Promise<Map<string, number>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.rpc('teacher_member_counts')
+  if (error || !data) {
+    return new Map()
+  }
+
+  const counts = new Map<string, number>()
+  for (const row of data as { teacher_id: string; member_count: number }[]) {
+    counts.set(row.teacher_id, Number(row.member_count))
+  }
+  return counts
 }

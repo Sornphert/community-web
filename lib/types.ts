@@ -60,6 +60,19 @@ export interface Membership {
 // — the shape the /home "Your communities" cards consume.
 export type TeacherWithRole = Teacher & { role: MembershipRole }
 
+// The directory-card shape: the anon-safe column subset (NO created_at — anon has
+// no grant on it) plus the RPC-sourced active-member count. Kept distinct from
+// Teacher (which carries created_at and is selected in full inside /t/[slug]).
+export type DirectoryTeacher = {
+  id: string
+  slug: string
+  name: string
+  cover_url: string | null
+  logo_url: string | null
+  description: string | null
+  member_count: number
+}
+
 export interface Channel {
   id: string
   slug: string

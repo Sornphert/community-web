@@ -14,7 +14,12 @@ function LoginForm() {
   const message = searchParams.get('message')
   const deleted = searchParams.get('deleted') === '1'
 
-  const [mode, setMode] = useState<Mode>('signin')
+  // The directory header's "Sign up" link opens login directly in signup mode via
+  // ?mode=signup; everything else (no param, or any other value) defaults to signin.
+  // Initial state only — the in-page toggle owns mode after first render.
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get('mode') === 'signup' ? 'signup' : 'signin',
+  )
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()

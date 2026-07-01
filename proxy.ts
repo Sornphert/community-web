@@ -49,10 +49,17 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Routes reachable without a session: login plus the password-reset flow
-  // (the reset page itself and the email-link confirm handler that establishes
-  // the recovery session).
+  // Routes reachable without a session: the public teacher directory ('/' router
+  // + '/home'), login, and the password-reset flow (the reset page itself and the
+  // email-link confirm handler that establishes the recovery session).
+  //
+  // EXACT-EQUALITY membership (PUBLIC_PATHS.includes(pathname)) below — NOT a prefix
+  // match. So only these literal paths are anon-reachable; every /t/[slug] and (app)
+  // route stays gated (anon hitting any of them still redirects to /login, and each
+  // of those route groups re-checks auth in its own layout).
   const PUBLIC_PATHS = [
+    '/',
+    '/home',
     '/login',
     '/reset-password',
     '/auth/confirm',

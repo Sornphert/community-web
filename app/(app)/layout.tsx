@@ -35,7 +35,7 @@ export default async function AppLayout({
           className="flex items-center gap-2 text-sm text-fg-soft transition-colors hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          Home
+          Communities
         </Link>
         <div className="ml-auto flex items-center gap-2">
           <Image

@@ -1,20 +1,10 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 
-// `/` is a router, not a real page: send users to the right place.
-export default async function RootPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // redirect() throws NEXT_REDIRECT — keep these outside any try/catch.
-  if (!user) {
-    redirect('/login')
-  }
-
-  // [Phase 2 multi-tenant] Land on the /home shell (teacher picker), not a single
-  // community. NOTE: shared with main's single-tenant app (which sends to
-  // /community) — mind this when merging across branches.
+// `/` is a pure router. The public teacher directory lives at /home (anon-safe and
+// branches on auth itself), so send EVERYONE there — logged-out included. proxy.ts
+// allows '/' and '/home' for anon; the directory decides what each audience sees.
+//
+// redirect() throws NEXT_REDIRECT — keep it outside any try/catch.
+export default function RootPage() {
   redirect('/home')
 }
