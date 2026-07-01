@@ -43,7 +43,7 @@ export default async function AppLayout({
             alt={APP_NAME}
             width={28}
             height={28}
-            className="rounded shrink-0"
+            className="h-7 w-7 rounded object-cover shrink-0"
           />
           <span className="hidden text-sm font-semibold text-fg sm:inline">
             {APP_NAME}
