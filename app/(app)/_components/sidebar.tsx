@@ -35,7 +35,9 @@ export function Sidebar({
   channels: Channel[]
   // [MT] Present in the teacher shell (/t/[slug]) → all teacher nav is prefixed with
   // `/t/${slug}`. Absent in the not-yet-ported single-tenant (app) layout → legacy
-  // unprefixed hrefs. /profile is GLOBAL and stays unprefixed in both cases.
+  // unprefixed hrefs. Profile is GLOBAL data, but the tab is prefixed too so it stays
+  // in-shell (/t/[slug]/profile) when slug is present; it falls back to the global
+  // /profile in the legacy (app) shell when slug is undefined.
   slug?: string
   // [MT] Per-teacher brand. In the teacher shell the layout passes the teacher's
   // own name; absent in the single-tenant (app) layout, where we fall back to the
@@ -58,7 +60,7 @@ export function Sidebar({
     ...(isAdmin
       ? [{ href: `${base}/admin`, label: 'Admin', icon: Shield }]
       : []),
-    { href: '/profile', label: 'Profile', icon: UserCircle },
+    { href: `${base}/profile`, label: 'Profile', icon: UserCircle },
   ]
 
   const pathname = usePathname()

@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 
@@ -30,13 +28,6 @@ export default async function AppLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3">
-        <Link
-          href="/home"
-          className="flex items-center gap-2 text-sm text-fg-soft transition-colors hover:text-fg"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" />
-          Communities
-        </Link>
         <div className="ml-auto flex items-center gap-2">
           <Image
             src={BRAND_LOGO_URL}
