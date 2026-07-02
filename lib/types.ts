@@ -53,6 +53,33 @@ export interface Category {
   name: string
 }
 
+// A curated link in the category-grouped homepage newsletter (migration 0005). READ is
+// PUBLIC (anon + authenticated). WRITE is admin-only and two-part: an admin of teacher_id
+// may write only when category_id equals that teacher's own category_id — so the category
+// is IMPLIED by the teacher and set server-side, never client-chosen. created_by → the
+// authoring profile ("added by"), nullable (ON DELETE SET NULL). created_at is exposed to
+// anon (a display field for the newest-first feed). NO thumbnails/drafts/issue numbers (v1).
+export interface NewsletterItem {
+  id: string
+  teacher_id: string
+  category_id: string
+  created_by: string | null
+  url: string
+  headline: string
+  blurb: string | null
+  created_at: string
+}
+
+// A newsletter row with its teacher (attribution) and category (grouping) embedded — the
+// shape the public homepage feed consumes. The embeds stay within anon's column grants:
+// teachers anon covers (id, slug, name, logo_url, …); categories anon covers (id, slug,
+// name). created_by is NOT embedded (attribution is the teacher, not the author), which
+// also avoids the profiles PostgREST embed ambiguity — same posture as events.
+export type NewsletterItemWithRefs = NewsletterItem & {
+  teacher: Pick<Teacher, 'id' | 'slug' | 'name' | 'logo_url'> | null
+  category: Category | null
+}
+
 export type MembershipRole = 'member' | 'admin'
 export type MembershipStatus = 'active' | 'revoked'
 

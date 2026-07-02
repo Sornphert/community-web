@@ -79,6 +79,18 @@ insert into public.events (id, teacher_id, title, starts_at, ends_at) values
   ('b2e00000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000','B Strategy Session','2026-07-10T06:00:00+00:00','2026-07-10T07:00:00+00:00')
 on conflict (id) do nothing;
 
+-- Newsletter items (migration 0005) — public homepage feed, grouped by category. Two
+-- teachers in DIFFERENT categories so cross-category write-denial checks are non-vacuous:
+-- A=prophet-system/investing (x2), B=movement-bootcamp/parenting (x1). category_id MUST
+-- match the teacher's category (the write RLS enforces it; here we hand-match). created_by
+-- is left NULL (personas aren't in seed.sql; created_by is nullable, ON DELETE SET NULL).
+-- empty-academy (C) gets NONE: its category_id is NULL, so it cannot own any item.
+insert into public.newsletter_items (id, teacher_id, category_id, url, headline, blurb) values
+  ('a1b00000-0000-0000-0000-000000000001','a1a1a1a1-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000001','https://example.test/a/market-outlook','A: Weekly market outlook','What to watch in the week ahead.'),
+  ('a1b00000-0000-0000-0000-000000000002','a1a1a1a1-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000001','https://example.test/a/risk-basics','A: Position sizing basics','A short primer on managing risk per trade.'),
+  ('b2b00000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000002','https://example.test/b/screen-time','B: Screen-time that works','A practical routine for calmer evenings.')
+on conflict (id) do nothing;
+
 -- Storage buckets (all public-read; gated by storage.objects RLS in schema.sql)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('avatars',         'avatars',         true, 2097152,  '{image/jpeg,image/png,image/webp}'),

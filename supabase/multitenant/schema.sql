@@ -27,6 +27,9 @@
 -- Migration 0004 (categories reference table + teachers.category_id nullable FK; public
 -- read policies + grants) was run on community-mt-dev and is FOLDED IN below; see
 -- 0004_categories.sql (standalone, hand-run).
+-- Migration 0005 (newsletter_items + RLS: public read, two-part admin write rule; grants)
+-- was run on community-mt-dev and is FOLDED IN below; see 0005_newsletter.sql (standalone,
+-- hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -303,6 +306,30 @@ create table public.events (
 create index events_starts_at_idx on public.events (teacher_id, starts_at);
 create index events_series_id_idx on public.events (series_id);
 
+-- newsletter_items (migration 0005) — a running, newest-first feed of curated links,
+-- grouped by category on the public /home homepage. teacher_id + category_id are derived
+-- server-side from the authoring admin's teacher (never client-chosen); category_id is
+-- NOT NULL + ON DELETE CASCADE, which DIVERGES from teachers.category_id (nullable, SET
+-- NULL): every item must live in a category, and a NOT NULL column can't be set null when
+-- its category is deleted, so the item cascades with it. created_by → profiles for "added
+-- by" attribution. No child tables, so no composite (id, teacher_id) unique key.
+create table public.newsletter_items (
+    id          uuid not null default gen_random_uuid(),
+    teacher_id  uuid not null,
+    category_id uuid not null,
+    created_by  uuid,
+    url         text not null,
+    headline    text not null,
+    blurb       text,
+    created_at  timestamptz default now(),
+    constraint newsletter_items_pkey primary key (id),
+    constraint newsletter_items_teacher_id_fkey  foreign key (teacher_id)  references public.teachers(id),
+    constraint newsletter_items_category_id_fkey foreign key (category_id) references public.categories(id) on delete cascade,
+    constraint newsletter_items_created_by_fkey  foreign key (created_by)  references public.profiles(id) on delete set null
+);
+create index newsletter_items_category_created_idx on public.newsletter_items (category_id, created_at desc);
+create index newsletter_items_teacher_idx on public.newsletter_items (teacher_id);
+
 
 -- =============================================================================
 -- SECTION 4 — leaf tables (no teacher_id; RLS joins to the parent)
@@ -424,7 +451,7 @@ create trigger on_auth_user_created
 
 
 -- =============================================================================
--- SECTION 6 — enable RLS (all 20 tables; force_rls = false)
+-- SECTION 6 — enable RLS (all 21 tables; force_rls = false)
 -- =============================================================================
 alter table public.categories                    enable row level security;
 alter table public.teachers                     enable row level security;
@@ -438,6 +465,7 @@ alter table public.content_items                    enable row level security;
 alter table public.classroom_folders                enable row level security;
 alter table public.classroom_recordings             enable row level security;
 alter table public.events                           enable row level security;
+alter table public.newsletter_items                 enable row level security;
 alter table public.comments                         enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
@@ -463,14 +491,14 @@ alter table public.classroom_recording_progress     enable row level security;
 --     privileges cannot leave a stray anon grant (deterministic reproduction).
 --   • service_role: full 7 on every table (RLS-bypassing by design).
 
--- authenticated — full CRUD (the 17 non-narrowed tables):
+-- authenticated — full CRUD (the 18 non-narrowed tables):
 grant select, insert, update, delete, truncate, references, trigger on
   public.channels, public.classroom_folders, public.classroom_recording_progress,
   public.classroom_recordings, public.comment_likes, public.comments,
   public.content_items, public.content_progress, public.events,
-  public.post_attachments, public.post_images, public.post_likes,
-  public.post_videos, public.posts, public.teachers, public.topics,
-  public.week_groups
+  public.newsletter_items, public.post_attachments, public.post_images,
+  public.post_likes, public.post_videos, public.posts, public.teachers,
+  public.topics, public.week_groups
   to authenticated;
 
 -- authenticated — memberships: write-LESS (no INSERT/UPDATE/DELETE). The explicit
@@ -498,6 +526,12 @@ grant select (id, slug, name, cover_url, logo_url, description, category_id) on 
 -- created_at (mirrors the teachers anon-grant invariant). service_role covered by grant all.
 grant select on public.categories to authenticated;
 grant select (id, slug, name) on public.categories to anon;
+
+-- newsletter_items (0005) — public feed. authenticated full CRUD is in the big block
+-- above (RLS is the gate). anon gets a column-scoped SELECT; created_at is INTENTIONALLY
+-- included (it's a display field for the newest-first feed, unlike the teachers/categories
+-- anon grants which exclude it) — do NOT "fix" it out.
+grant select (id, category_id, teacher_id, url, headline, blurb, created_at) on public.newsletter_items to anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -565,6 +599,24 @@ create policy events_select        on public.events for select to authenticated 
 create policy events_insert_admin  on public.events for insert to authenticated with check (is_teacher_admin(teacher_id));
 create policy events_update_admin  on public.events for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
 create policy events_delete_admin  on public.events for delete to authenticated using (is_teacher_admin(teacher_id));
+
+-- newsletter_items (0005): PUBLIC read (anon + authenticated); two-part admin write rule
+-- (admin of the item's teacher AND item.category_id == that teacher's category_id). The
+-- category-match subquery reads teachers (open to authenticated), so no SECURITY DEFINER
+-- helper — mirrors the post_videos cross-table subquery. UPDATE/DELETE USING omit the
+-- category match so an admin can always touch their own teacher's rows (a NULL-category
+-- teacher is denied on write because `category_id = NULL` is never true).
+create policy newsletter_items_select_all  on public.newsletter_items for select to authenticated using (true);
+create policy newsletter_items_select_anon on public.newsletter_items for select to anon using (true);
+create policy newsletter_items_insert_admin on public.newsletter_items for insert to authenticated
+  with check (is_teacher_admin(teacher_id)
+    and category_id = (select t.category_id from public.teachers t where t.id = newsletter_items.teacher_id));
+create policy newsletter_items_update_admin on public.newsletter_items for update to authenticated
+  using (is_teacher_admin(teacher_id))
+  with check (is_teacher_admin(teacher_id)
+    and category_id = (select t.category_id from public.teachers t where t.id = newsletter_items.teacher_id));
+create policy newsletter_items_delete_admin on public.newsletter_items for delete to authenticated
+  using (is_teacher_admin(teacher_id));
 
 -- posts (member-create gated by channel permission OR admin)
 create policy posts_select on public.posts for select to authenticated using (has_membership(teacher_id));
