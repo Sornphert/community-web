@@ -18,6 +18,20 @@ insert into public.teachers (id, slug, name) values
   ('c3c3c3c3-0000-0000-0000-000000000000','empty-academy',    'Empty Academy')
 on conflict (id) do nothing;
 
+-- Categories (platform reference data; managed by SQL/service-role). Stable UUIDs.
+insert into public.categories (id, slug, name) values
+  ('ca700000-0000-0000-0000-000000000001','investing','Investing & Trading'),
+  ('ca700000-0000-0000-0000-000000000002','parenting','Parenting'),
+  ('ca700000-0000-0000-0000-000000000003','business', 'Business & Entrepreneurship')
+on conflict (id) do nothing;
+
+-- Assign dev teachers to categories. empty-academy is intentionally left category_id NULL
+-- to exercise the uncategorized-teacher path in the directory grouping.
+update public.teachers set category_id = 'ca700000-0000-0000-0000-000000000001'
+  where id = 'a1a1a1a1-0000-0000-0000-000000000000';  -- prophet-system   -> investing
+update public.teachers set category_id = 'ca700000-0000-0000-0000-000000000002'
+  where id = 'b2b2b2b2-0000-0000-0000-000000000000';  -- movement-bootcamp -> parenting
+
 -- Channels — A: general(all)+announcements(admin_only); B: +trading-floor; C: none
 insert into public.channels (id, teacher_id, slug, name, description, position, post_permission, section) values
   ('a1c00000-0000-0000-0000-000000000001','a1a1a1a1-0000-0000-0000-000000000000','general',      'General',      'Open discussion for all members',0,'all',       'community'),

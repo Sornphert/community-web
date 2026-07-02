@@ -40,6 +40,17 @@ export interface Teacher {
   cover_url: string | null
   logo_url: string | null
   description: string | null
+  // Platform category (migration 0004; nullable). One category per teacher; managed
+  // by SQL/service-role. Grouping the directory by this is a later step.
+  category_id: string | null
+}
+
+// Platform-controlled reference data for the public directory (migration 0004).
+// Public-read (anon + authenticated); no in-app write UI — managed by SQL/service-role.
+export interface Category {
+  id: string
+  slug: string
+  name: string
 }
 
 export type MembershipRole = 'member' | 'admin'

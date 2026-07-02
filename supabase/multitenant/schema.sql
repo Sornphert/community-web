@@ -24,6 +24,9 @@
 -- Migration 0003 (teachers admin UPDATE policy — the missing policy that made the
 -- branding UPDATE match 0 rows) was run on community-mt-dev and is FOLDED IN below;
 -- see 0003_teachers_admin_update_policy.sql (standalone, hand-run).
+-- Migration 0004 (categories reference table + teachers.category_id nullable FK; public
+-- read policies + grants) was run on community-mt-dev and is FOLDED IN below; see
+-- 0004_categories.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -36,6 +39,15 @@ create extension if not exists "uuid-ossp";
 -- =============================================================================
 -- SECTION 0 — base tables (no outgoing FKs)
 -- =============================================================================
+create table public.categories (
+    id          uuid not null default gen_random_uuid(),
+    slug        text not null,
+    name        text not null,
+    created_at  timestamptz default now(),
+    constraint categories_pkey primary key (id),
+    constraint categories_slug_key unique (slug)
+);
+
 create table public.teachers (
     id          uuid not null default gen_random_uuid(),
     slug        text not null,
@@ -44,8 +56,10 @@ create table public.teachers (
     cover_url   text,
     logo_url    text,
     description text,
+    category_id uuid,
     constraint teachers_pkey primary key (id),
-    constraint teachers_slug_key unique (slug)
+    constraint teachers_slug_key unique (slug),
+    constraint teachers_category_id_fkey foreign key (category_id) references public.categories(id) on delete set null
 );
 
 -- profiles.id == auth.uid() for live users, but has NO FK to auth.users (preserve the
@@ -410,8 +424,9 @@ create trigger on_auth_user_created
 
 
 -- =============================================================================
--- SECTION 6 — enable RLS (all 19 tables; force_rls = false)
+-- SECTION 6 — enable RLS (all 20 tables; force_rls = false)
 -- =============================================================================
+alter table public.categories                    enable row level security;
 alter table public.teachers                     enable row level security;
 alter table public.memberships                   enable row level security;
 alter table public.profiles                       enable row level security;
@@ -477,7 +492,12 @@ grant all on all tables in schema public to service_role;
 -- everything first (live shows zero anon grants), then grant back only the public
 -- directory columns. created_at and every other table stay closed to anon.
 revoke all on all tables in schema public from anon;
-grant select (id, slug, name, cover_url, logo_url, description) on public.teachers to anon;
+grant select (id, slug, name, cover_url, logo_url, description, category_id) on public.teachers to anon;
+
+-- categories (0004) — read-only reference data. authenticated + anon SELECT; anon EXCLUDES
+-- created_at (mirrors the teachers anon-grant invariant). service_role covered by grant all.
+grant select on public.categories to authenticated;
+grant select (id, slug, name) on public.categories to anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -489,6 +509,9 @@ grant execute on function public.teacher_member_counts()
 -- =============================================================================
 -- SECTION 8 — RLS policies (public)
 -- =============================================================================
+create policy categories_select_all on public.categories for select to authenticated using (true);
+create policy categories_select_anon on public.categories for select to anon using (true);
+
 create policy teachers_select_all on public.teachers for select to authenticated using (true);
 create policy teachers_select_anon on public.teachers for select to anon using (true);
 create policy teachers_update_admin on public.teachers for update to authenticated
