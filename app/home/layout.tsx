@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
+import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 import { Avatar } from '@/app/(app)/_components/avatar'
 
 // The multi-tenant directory shell. PUBLIC: this layout no longer gates auth — anon
@@ -38,14 +38,14 @@ export default async function HomeLayout({
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3">
         <Link href="/home" className="flex items-center gap-2">
           <Image
-            src={BRAND_LOGO_URL}
-            alt={APP_NAME}
+            src={PLATFORM_LOGO_URL}
+            alt={PLATFORM_NAME}
             width={28}
             height={28}
-            className="h-7 w-7 rounded object-cover shrink-0"
+            className="h-7 w-7 rounded object-contain shrink-0"
           />
           <span className="hidden text-sm font-semibold text-fg sm:inline">
-            {APP_NAME}
+            {PLATFORM_NAME}
           </span>
         </Link>
 

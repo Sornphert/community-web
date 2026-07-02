@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
+import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 
 // [MT] Global, teacher-AGNOSTIC shell. After the multi-tenant port the only route
 // left under (app) is the global /profile (every teacher-scoped vertical lives under
@@ -28,16 +28,16 @@ export default async function AppLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3">
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Image
-            src={BRAND_LOGO_URL}
-            alt={APP_NAME}
+            src={PLATFORM_LOGO_URL}
+            alt={PLATFORM_NAME}
             width={28}
             height={28}
-            className="h-7 w-7 rounded object-cover shrink-0"
+            className="h-7 w-7 rounded object-contain shrink-0"
           />
           <span className="hidden text-sm font-semibold text-fg sm:inline">
-            {APP_NAME}
+            {PLATFORM_NAME}
           </span>
         </div>
       </header>

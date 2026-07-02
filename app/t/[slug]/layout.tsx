@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { hasMembership, isTeacherAdmin } from '@/lib/auth'
 import { getChannels } from '@/lib/posts'
+import { PLATFORM_LOGO_URL } from '@/lib/config'
 import { Sidebar } from '@/app/(app)/_components/sidebar'
 
 // The per-teacher shell and the SINGLE tenancy seam. Resolution order:
@@ -58,6 +59,11 @@ export default async function TeacherLayout({
         isAdmin={isAdmin}
         channels={channels}
         brandName={teacher.name}
+        // A logo-less teacher must NOT inherit the shared BRAND_LOGO_URL fallback
+        // (teacher #1's /brand.jpg) — that would leak one teacher's logo into another's
+        // shell. Fall back to the neutral PLATFORM logo here at the teacher-shell layer,
+        // leaving the sidebar's single-tenant `?? BRAND_LOGO_URL` fallback intact for main.
+        brandLogoUrl={teacher.logo_url ?? PLATFORM_LOGO_URL}
       />
       <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}

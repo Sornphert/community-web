@@ -39,10 +39,11 @@ export function Sidebar({
   // in-shell (/t/[slug]/profile) when slug is present; it falls back to the global
   // /profile in the legacy (app) shell when slug is undefined.
   slug?: string
-  // [MT] Per-teacher brand. In the teacher shell the layout passes the teacher's
-  // own name; absent in the single-tenant (app) layout, where we fall back to the
-  // per-deployment APP_NAME / BRAND_LOGO_URL config (the `teachers` table has no
-  // logo column yet, so the logo image always uses the config default).
+  // [MT] Per-teacher brand. In the teacher shell (/t/[slug]) the layout passes the
+  // teacher's own name AND logo (brandLogoUrl = teacher.logo_url, falling back to the
+  // platform logo for a logo-less teacher — never another teacher's brand). Both are
+  // absent in the single-tenant (app) shell, where they fall back to the per-deployment
+  // APP_NAME / BRAND_LOGO_URL config below — the path single-tenant `main` relies on.
   brandName?: string
   brandLogoUrl?: string
 }) {

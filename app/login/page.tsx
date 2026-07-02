@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signUp } from './actions'
-import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
+import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 
 type Mode = 'signin' | 'signup'
 
@@ -45,20 +45,20 @@ function LoginForm() {
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
         <div className="flex flex-col items-center gap-4 mb-8">
           <Image
-            src={BRAND_LOGO_URL}
-            alt={APP_NAME}
+            src={PLATFORM_LOGO_URL}
+            alt={PLATFORM_NAME}
             width={120}
             height={120}
-            className="rounded shrink-0"
+            className="h-[120px] w-[120px] rounded object-contain shrink-0"
           />
           <h2 className="font-semibold text-zinc-900 text-xl leading-tight text-center">
-            {APP_NAME}
+            {PLATFORM_NAME}
           </h2>
         </div>
 
         {deleted && (
           <p className="mb-6 rounded-md bg-emerald-50 px-3 py-2 text-center text-sm text-emerald-700">
-            Your account has been deleted. Thank you for using {APP_NAME}.
+            Your account has been deleted. Thank you for using {PLATFORM_NAME}.
           </p>
         )}
 

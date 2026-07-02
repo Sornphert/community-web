@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { APP_NAME, APP_DESCRIPTION, FAVICON_URL } from "@/lib/config";
+import { PLATFORM_NAME, APP_DESCRIPTION, PLATFORM_FAVICON_URL } from "@/lib/config";
 import { ThemeProvider } from "./_components/theme-provider";
 import "./globals.css";
 
@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: PLATFORM_NAME,
   description: APP_DESCRIPTION,
-  icons: { icon: FAVICON_URL },
+  icons: { icon: PLATFORM_FAVICON_URL },
 };
 
 export default function RootLayout({

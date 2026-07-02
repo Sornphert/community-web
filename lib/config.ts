@@ -24,12 +24,30 @@ export const APP_DESCRIPTION =
 export const BRAND_LOGO_URL =
   process.env.NEXT_PUBLIC_BRAND_LOGO_URL ?? '/brand.jpg'
 
+// Platform brand — the MULTI-TENANT surfaces only: the /home directory, the global
+// (app) shell, the pre-auth pages, and the root <title>. Deliberately distinct from
+// APP_NAME/BRAND_LOGO_URL (which remain the single-tenant per-deployment brand and are
+// what single-tenant `main` uses). Teacher shells (/t/[slug]) show the TEACHER's own
+// brand, never this. Asset lives at public/platform-logo.png (transparent PNG).
+export const PLATFORM_NAME =
+  process.env.NEXT_PUBLIC_PLATFORM_NAME ?? 'The Trees'
+
+export const PLATFORM_LOGO_URL =
+  process.env.NEXT_PUBLIC_PLATFORM_LOGO_URL ?? '/platform-logo.png'
+
 export const HERO_URL = process.env.NEXT_PUBLIC_HERO_URL ?? '/hero.jpg'
 
 // Favicon source. Default is teacher #1's icon, moved app/icon.jpg ->
 // public/icon.jpg (same bytes). New teacher sets NEXT_PUBLIC_FAVICON_URL.
 export const FAVICON_URL =
   process.env.NEXT_PUBLIC_FAVICON_URL ?? '/icon.jpg'
+
+// Platform favicon — MT root <title>/tab icon, mirroring PLATFORM_NAME/PLATFORM_LOGO_URL.
+// Distinct from FAVICON_URL (the single-tenant per-deployment favicon that `main` uses).
+// Stopgap: reuses /platform-logo.png; a purpose-made simplified favicon can replace it
+// later via NEXT_PUBLIC_PLATFORM_FAVICON_URL or by swapping the file — no code change.
+export const PLATFORM_FAVICON_URL =
+  process.env.NEXT_PUBLIC_PLATFORM_FAVICON_URL ?? '/platform-logo.png'
 
 // Hero banner visibility. Defaults to true; only an explicit 'false' hides it
 // (reliable on Vercel, unlike an empty NEXT_PUBLIC_HERO_URL).
