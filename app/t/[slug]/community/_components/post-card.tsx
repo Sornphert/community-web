@@ -16,8 +16,7 @@ export function PostCard({
 }: {
   post: PostWithRelations
   channelSlug: string
-  // URL prefix for post links. Defaults to '/community'; the /weekly tree passes
-  // '/weekly' so the same card renders under both segments.
+  // URL prefix for post links. Defaults to '/community'.
   basePath?: string
 }) {
   const firstImage = post.images[0]

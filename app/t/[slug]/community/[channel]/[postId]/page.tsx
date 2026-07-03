@@ -21,7 +21,9 @@ export default async function PostDetailPage({
     notFound()
   }
 
-  // Collision guard: weekly posts are not reachable via /community — 404.
+  // Leak-guard (intentional — do not remove): the Weekly vertical was removed, but
+  // the channels.section column persists. A post whose channel is a stray
+  // section='weekly' row must not render under /community, so 404 it.
   if (post.channel?.section === 'weekly') {
     notFound()
   }

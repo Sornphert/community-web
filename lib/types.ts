@@ -118,10 +118,10 @@ export interface Channel {
   description: string | null
   position: number
   post_permission: 'all' | 'admin_only'
-  // Discriminator (migration 0014). 'community' = a normal Community channel;
-  // 'weekly' = a "Johnson Weekly 市场报告" week folder. Existing rows default to
-  // 'community'. getChannels() filters to 'community'; the weekly fetchers to
-  // 'weekly'.
+  // Discriminator (migration 0014). 'community' = a normal Community channel.
+  // 'weekly' is a legacy value from the removed Weekly vertical; the column
+  // persists, so getChannels() filters to 'community' and the [channel] routes
+  // 404 any stray 'weekly' row so it never renders inside /community.
   section: 'community' | 'weekly'
   // Weekly channels only: the PER-MONTH sort key (restarts at 1 in each month,
   // ordered DESC = newest week on top). null for community channels. Independent
@@ -213,8 +213,8 @@ export type PostWithFullRelations = Post & {
   attachments: PostAttachment[]
   video: PostVideo | null
   comments: CommentWithRelations[]
-  // section drives the /community post-detail collision guard: a weekly post is
-  // redirected to its canonical /weekly URL.
+  // section feeds the /community post-detail leak-guard: a post whose channel is
+  // a stray section='weekly' row is 404'd rather than rendered under /community.
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes_count: number
   liked_by_current_user: boolean

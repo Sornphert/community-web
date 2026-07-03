@@ -17,8 +17,7 @@ export function PostDetail({
 }: {
   post: PostWithFullRelations
   channelSlug: string
-  // URL prefix + back-link label. Default to the Community feed; the /weekly tree
-  // passes '/weekly' and the week's name (e.g. "第 1 周 · Week 1").
+  // URL prefix + back-link label. Default to the Community feed.
   basePath?: string
   backLabel?: string
 }) {

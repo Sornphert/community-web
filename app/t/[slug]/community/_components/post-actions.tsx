@@ -18,8 +18,7 @@ export function PostActions({
   postId: string
   channelSlug: string
   variant: 'card' | 'detail'
-  // URL prefix for edit / post-delete navigation. Defaults to '/community';
-  // '/weekly' under the weekly tree.
+  // URL prefix for edit / post-delete navigation. Defaults to '/community'.
   basePath?: string
 }) {
   const router = useRouter()

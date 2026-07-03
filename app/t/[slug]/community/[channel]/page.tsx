@@ -43,7 +43,9 @@ export default async function ChannelPage({
     return <PostDetail post={post} channelSlug="announcements" basePath={basePath} />
   }
 
-  // URL-collision guard: weekly channels are never rendered under /community — 404.
+  // Leak-guard (intentional — do not remove): the Weekly vertical (its routes and
+  // fetchers) was removed, but the channels.section column persists. A stray row
+  // with section='weekly' must never render inside /community, so 404 it.
   if (channel.section === 'weekly') {
     notFound()
   }

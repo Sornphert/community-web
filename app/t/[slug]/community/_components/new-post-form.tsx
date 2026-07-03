@@ -56,8 +56,7 @@ export function NewPostForm({
   teacherId: string
   isAdmin: boolean
   initialPost?: EditPost
-  // URL prefix for the post-create / post-edit redirect. Defaults to
-  // '/community'; the /weekly tree passes '/weekly'.
+  // URL prefix for the post-create / post-edit redirect. Defaults to '/community'.
   basePath?: string
 }) {
   const router = useRouter()

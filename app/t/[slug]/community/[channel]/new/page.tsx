@@ -24,7 +24,9 @@ export default async function NewPostPage({
     notFound()
   }
 
-  // Collision guard: weekly channels are not composable under /community — 404.
+  // Leak-guard (intentional — do not remove): the Weekly vertical was removed, but
+  // the channels.section column persists. Composing a post under a stray
+  // section='weekly' channel must not be possible via /community, so 404 it.
   if (channel.section === 'weekly') {
     notFound()
   }
