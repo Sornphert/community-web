@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { ContentItem, Topic } from '@/lib/types'
 
@@ -136,4 +137,88 @@ export async function isContentCompleted(
   }
 
   return !!data
+}
+
+// [MT] TIER-TAG PRESENTATION (migration 0006). The RLS wall on content_items already
+// ANDs can_access_topic(topic_id); these fetchers only expose the SAME function to the
+// UI so the lock label can never drift from the wall. can_access_topic is SECURITY
+// DEFINER (reads auth.uid()) — it is the SINGLE source of truth for "is this topic
+// tag-locked for me?". We deliberately do NOT read member_tags/topic_tags to recompute
+// the match in TS (that would be a second gate that can drift). topic_tags/tags are
+// read ONLY for display names (getTopicRequiredTagNames), never to decide access.
+
+// TRUE iff the current member may open this topic: it has NO required tags (ungated =
+// open) OR the member holds >=1 of them. cache()-wrapped so the grid and the topic page
+// dedupe to one RPC per topicId per request (mirrors hasMembership/isTeacherAdmin).
+export const canAccessTopic = cache(
+  async (topicId: string): Promise<boolean> => {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('can_access_topic', {
+      p_topic_id: topicId,
+    })
+    if (error) {
+      throw new Error(`can_access_topic(${topicId}) failed: ${error.message}`)
+    }
+    return data === true
+  },
+)
+
+// Batch form for the classroom grid: given already-teacher-scoped topic ids, return the
+// set the current member CANNOT access (tag-locked). Fans out canAccessTopic per id
+// (cache()-deduped); the RPC is the only added grid query. Mirrors getUserProgress's
+// already-scoped-ids signature (no teacherId — the ids come from getTopics(teacher.id)).
+export async function getInaccessibleTopicIds(
+  topicIds: string[],
+): Promise<Set<string>> {
+  if (topicIds.length === 0) {
+    return new Set<string>()
+  }
+
+  const flags = await Promise.all(
+    topicIds.map(
+      async (id) => [id, await canAccessTopic(id)] as const,
+    ),
+  )
+
+  return new Set(flags.filter(([, canAccess]) => !canAccess).map(([id]) => id))
+}
+
+// DISPLAY ONLY — the names of the tags a topic REQUIRES, for the topic-page locked panel
+// ("Requires the X tag"). NOT an access decision (that is canAccessTopic). Two-step read
+// to avoid PostgREST embed ambiguity (see CLAUDE.md Known Gotchas); both topic_tags and
+// tags carry has_membership member-read RLS, so a member may read them. Never touches
+// member_tags.
+export async function getTopicRequiredTagNames(
+  topicId: string,
+  teacherId: string,
+): Promise<string[]> {
+  const supabase = await createClient()
+
+  const { data: links, error: linksError } = await supabase
+    .from('topic_tags')
+    .select('tag_id')
+    .eq('topic_id', topicId)
+    .eq('teacher_id', teacherId)
+
+  if (linksError) {
+    throw new Error(`Failed to load topic tags: ${linksError.message}`)
+  }
+
+  const tagIds = (links ?? []).map((row) => (row as { tag_id: string }).tag_id)
+  if (tagIds.length === 0) {
+    return []
+  }
+
+  const { data: tags, error: tagsError } = await supabase
+    .from('tags')
+    .select('name')
+    .eq('teacher_id', teacherId)
+    .in('id', tagIds)
+    .order('name', { ascending: true })
+
+  if (tagsError) {
+    throw new Error(`Failed to load tag names: ${tagsError.message}`)
+  }
+
+  return (tags ?? []).map((row) => (row as { name: string }).name)
 }

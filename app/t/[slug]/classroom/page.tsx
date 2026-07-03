@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getTopics } from '@/lib/classroom'
+import { getInaccessibleTopicIds, getTopics } from '@/lib/classroom'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { SHOW_RECORDINGS } from '@/lib/config'
 import { TopicCard } from './_components/topic-card'
@@ -27,6 +27,13 @@ export default async function ClassroomPage({
     ? topics
     : topics.filter((t) => !t.is_recordings)
 
+  // Which topics is THIS member tag-locked out of? Sourced from can_access_topic (the
+  // same fn the content_items RLS gate calls), so the lock label can't drift from the
+  // wall. Recordings render open regardless, so they're excluded from the check.
+  const tagLockedIds = await getInaccessibleTopicIds(
+    visibleTopics.filter((t) => !t.is_recordings).map((t) => t.id),
+  )
+
   return (
     <div className="mx-auto w-full max-w-6xl">
       <h1 className="mb-4 text-xl font-semibold text-fg">Classroom</h1>
@@ -45,11 +52,23 @@ export default async function ClassroomPage({
                 </Link>
               )
             }
-            return topic.is_locked ? (
-              <div key={topic.id}>
-                <TopicCard topic={topic} />
-              </div>
-            ) : (
+            // is_locked (lifecycle "coming soon") wins if both apply.
+            if (topic.is_locked) {
+              return (
+                <div key={topic.id}>
+                  <TopicCard topic={topic} />
+                </div>
+              )
+            }
+            // Tag-locked: visible but non-clickable, distinct "Locked" caption.
+            if (tagLockedIds.has(topic.id)) {
+              return (
+                <div key={topic.id}>
+                  <TopicCard topic={topic} tagLocked />
+                </div>
+              )
+            }
+            return (
               <Link key={topic.id} href={`${basePath}/topic/${topic.id}`}>
                 <TopicCard topic={topic} />
               </Link>
