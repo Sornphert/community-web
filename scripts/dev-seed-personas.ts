@@ -133,6 +133,22 @@ async function main() {
   if (postErr) throw postErr
   console.log(`✓ upserted ${posts.length} demo posts`)
 
+  // Classroom tier tags (migration 0006). The two B tags are seeded in multitenant/seed.sql;
+  // here we ASSIGN them to real personas (member_tags needs runtime profile_ids). The
+  // composite (profile_id, teacher_id) FK requires an existing B membership — bmember@ and
+  // dual@ both have one. bmember@ holds movexercise8 ONLY (must be DENIED the [bootcamp]-gated
+  // B Fundamentals content_items at the API); dual@ holds BOTH (allowed).
+  const MOVEXERCISE8 = 'b2100000-0000-0000-0000-000000000001'
+  const BOOTCAMP = 'b2100000-0000-0000-0000-000000000002'
+  const memberTags = [
+    { profile_id: idByEmail.get('bmember@dev.test')!, tag_id: MOVEXERCISE8, teacher_id: B },
+    { profile_id: idByEmail.get('dual@dev.test')!, tag_id: MOVEXERCISE8, teacher_id: B },
+    { profile_id: idByEmail.get('dual@dev.test')!, tag_id: BOOTCAMP, teacher_id: B },
+  ]
+  const { error: tagErr } = await admin.from('member_tags').upsert(memberTags, { onConflict: 'profile_id,tag_id' })
+  if (tagErr) throw tagErr
+  console.log(`✓ upserted ${memberTags.length} member_tags`)
+
   console.log(`\nDone — ${PERSONAS.length} personas, password: ${PASSWORD}`)
 }
 

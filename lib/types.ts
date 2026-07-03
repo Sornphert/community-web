@@ -281,6 +281,32 @@ export type ContentItem = {
   created_at: string | null
 }
 
+// Classroom tier tags (migration 0006). Per-teacher labels that gate Topics: a member
+// sees a gated topic's content_items only if the topic has no required tags OR the member
+// holds >=1 of them (enforced in RLS via can_access_topic). teacher_id is a scoping column
+// (omitted here, matching Topic/ContentItem — fetchers filter by it).
+export type Tag = {
+  id: string
+  name: string
+  color: string | null
+  created_at: string | null
+}
+
+// Join: a topic REQUIRES a tag. A topic with no TopicTag rows is ungated (open to all).
+export type TopicTag = {
+  topic_id: string
+  tag_id: string
+  created_at: string | null
+}
+
+// Join: a member HOLDS a tag. Same-teacher integrity is enforced structurally by composite
+// FKs (a teacher-A tag can only be assigned to a member of A).
+export type MemberTag = {
+  profile_id: string
+  tag_id: string
+  created_at: string | null
+}
+
 export type ContentProgress = {
   user_id: string
   content_item_id: string

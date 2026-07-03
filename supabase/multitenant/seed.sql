@@ -45,14 +45,14 @@ on conflict (id) do nothing;
 insert into public.topics (id, teacher_id, name, position, is_locked, is_recordings) values
   ('a1700000-0000-0000-0000-000000000001','a1a1a1a1-0000-0000-0000-000000000000','A Fundamentals',0,false,false),
   ('a1700000-0000-0000-0000-000000000002','a1a1a1a1-0000-0000-0000-000000000000','A Recordings',  1,false,true),
-  ('b2700000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','B Fundamentals',0,false,false),
+  ('275342ec-1064-480e-bf31-97a97e743059','b2b2b2b2-0000-0000-0000-000000000000','B Fundamentals',0,false,false),
   ('b2700000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000','B Recordings',  1,false,true)
 on conflict (id) do nothing;
 
 -- Content items (documents) under each Fundamentals topic
 insert into public.content_items (id, teacher_id, topic_id, type, title, position, document_url) values
   ('a1c10000-0000-0000-0000-000000000001','a1a1a1a1-0000-0000-0000-000000000000','a1700000-0000-0000-0000-000000000001','document','A Lesson 1',0,'https://example.test/a/lesson1.pdf'),
-  ('b2c10000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','b2700000-0000-0000-0000-000000000001','document','B Lesson 1',0,'https://example.test/b/lesson1.pdf')
+  ('b2c10000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','275342ec-1064-480e-bf31-97a97e743059','document','B Lesson 1',0,'https://example.test/b/lesson1.pdf')
 on conflict (id) do nothing;
 
 -- Classroom folders (parent → child). The parent↔child composite FK is DEFERRABLE
@@ -90,6 +90,33 @@ insert into public.newsletter_items (id, teacher_id, category_id, url, headline,
   ('a1b00000-0000-0000-0000-000000000002','a1a1a1a1-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000001','https://example.test/a/risk-basics','A: Position sizing basics','A short primer on managing risk per trade.'),
   ('b2b00000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000002','https://example.test/b/screen-time','B: Screen-time that works','A practical routine for calmer evenings.')
 on conflict (id) do nothing;
+
+-- Classroom TIER TAGS (migration 0006) — proves tag-gating end to end on teacher B.
+-- IDs mirror the CORRECT fixture hand-created on community-mt-dev (verbatim, so a fresh
+-- rebuild reproduces it). Add a SECOND, UNGATED B topic (+ content_item) so "ungated
+-- readable by all members" is non-vacuous (B Fundamentals, 275342ec…, is the gated one).
+-- NOTE: B Open Topic's id (b2c00000-…-0001) intentionally equals the B "general" CHANNEL id
+-- (line 39) — this is the live fixture value; topics and channels are separate tables so the
+-- shared UUID is legal and causes NO PK/FK collision.
+insert into public.topics (id, teacher_id, name, position, is_locked, is_recordings) values
+  ('b2c00000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','B Open Topic',2,false,false)
+on conflict (id) do nothing;
+insert into public.content_items (id, teacher_id, topic_id, type, title, position, document_url) values
+  ('b2c00000-0000-0000-0000-0000000000a1','b2b2b2b2-0000-0000-0000-000000000000','b2c00000-0000-0000-0000-000000000001','document','Open Lesson',0,'https://example.test/b/open-lesson.pdf')
+on conflict (id) do nothing;
+
+-- Two B tags. Personas hold these via member_tags, assigned in scripts/dev-seed-personas.ts
+-- (member_tags needs real profile_ids): bmember@ → movexercise8 ONLY (denied the gated topic);
+-- dual@ → movexercise8 + bootcamp (allowed).
+insert into public.tags (id, teacher_id, name, color) values
+  ('b2100000-0000-0000-0000-000000000001','b2b2b2b2-0000-0000-0000-000000000000','movexercise8',null),
+  ('b2100000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000','bootcamp',null)
+on conflict (id) do nothing;
+
+-- Gate B Fundamentals (275342ec…, holds B Lesson 1) on [bootcamp]. B Open Topic stays ungated.
+insert into public.topic_tags (topic_id, tag_id, teacher_id) values
+  ('275342ec-1064-480e-bf31-97a97e743059','b2100000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000')
+on conflict (topic_id, tag_id) do nothing;
 
 -- Storage buckets (all public-read; gated by storage.objects RLS in schema.sql)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values

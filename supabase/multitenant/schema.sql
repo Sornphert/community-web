@@ -30,6 +30,9 @@
 -- Migration 0005 (newsletter_items + RLS: public read, two-part admin write rule; grants)
 -- was run on community-mt-dev and is FOLDED IN below; see 0005_newsletter.sql (standalone,
 -- hand-run).
+-- Migration 0006 (classroom TIER TAGS: tags/topic_tags/member_tags + can_access_topic helper;
+-- content_items_select gains the tag gate; member-read/admin-write RLS; grants) is FOLDED IN
+-- below; see 0006_tags.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -431,6 +434,70 @@ create table public.classroom_recording_progress (
 create index classroom_recording_progress_user_id_idx      on public.classroom_recording_progress (user_id);
 create index classroom_recording_progress_recording_id_idx on public.classroom_recording_progress (recording_id);
 
+-- classroom TIER TAGS (0006) — per-teacher labels that gate Topics. tags carries the
+-- unique (id, teacher_id) that the child composite same-teacher FKs target. member_tags
+-- keys (profile_id, tag_id) + denormalized teacher_id with TWO composite FKs so a
+-- teacher-A tag can only be held by a member of A (structural, all roles — not RLS).
+create table public.tags (
+    id          uuid not null default gen_random_uuid(),
+    teacher_id  uuid not null,
+    name        text not null,
+    color       text,
+    created_at  timestamptz default now(),
+    constraint tags_pkey primary key (id),
+    constraint tags_id_teacher_key unique (id, teacher_id),
+    constraint tags_teacher_name_key unique (teacher_id, name),
+    constraint tags_teacher_id_fkey foreign key (teacher_id) references public.teachers(id) on delete cascade
+);
+create index tags_teacher_id_idx on public.tags (teacher_id);
+
+create table public.topic_tags (
+    topic_id    uuid not null,
+    tag_id      uuid not null,
+    teacher_id  uuid not null,
+    created_at  timestamptz default now(),
+    constraint topic_tags_pkey primary key (topic_id, tag_id),
+    constraint topic_tags_topic_same_teacher_fkey
+      foreign key (topic_id, teacher_id) references public.topics (id, teacher_id) on delete cascade,
+    constraint topic_tags_tag_same_teacher_fkey
+      foreign key (tag_id, teacher_id) references public.tags (id, teacher_id) on delete cascade
+);
+create index topic_tags_topic_id_idx on public.topic_tags (topic_id);
+create index topic_tags_tag_id_idx   on public.topic_tags (tag_id);
+
+create table public.member_tags (
+    profile_id  uuid not null,
+    tag_id      uuid not null,
+    teacher_id  uuid not null,
+    created_at  timestamptz default now(),
+    constraint member_tags_pkey primary key (profile_id, tag_id),
+    constraint member_tags_membership_fkey
+      foreign key (profile_id, teacher_id) references public.memberships (profile_id, teacher_id) on delete cascade,
+    constraint member_tags_tag_same_teacher_fkey
+      foreign key (tag_id, teacher_id) references public.tags (id, teacher_id) on delete cascade
+);
+create index member_tags_profile_idx on public.member_tags (profile_id);
+create index member_tags_tag_id_idx  on public.member_tags (tag_id);
+
+-- can_access_topic (0006) — a SECTION 2-style SECURITY DEFINER authz helper, but DEFINED
+-- HERE because a language-sql function validates its body's table refs at creation, so it
+-- must follow topic_tags/member_tags. Returns true when the topic has NO required tags
+-- (NOT EXISTS → ungated = OPEN, structurally) OR the caller holds >=1 required tag.
+create or replace function public.can_access_topic(p_topic_id uuid)
+returns boolean language sql stable security definer set search_path to 'public'
+as $$
+  select
+    not exists (select 1 from public.topic_tags tt where tt.topic_id = p_topic_id)
+    or exists (
+      select 1
+      from public.topic_tags tt
+      join public.member_tags mt
+        on mt.tag_id = tt.tag_id
+       and mt.profile_id = auth.uid()
+      where tt.topic_id = p_topic_id
+    );
+$$;
+
 
 -- =============================================================================
 -- SECTION 5 — handle_new_user + trigger  [D4: function call qualified to public.]
@@ -451,7 +518,7 @@ create trigger on_auth_user_created
 
 
 -- =============================================================================
--- SECTION 6 — enable RLS (all 21 tables; force_rls = false)
+-- SECTION 6 — enable RLS (all 24 tables; force_rls = false)
 -- =============================================================================
 alter table public.categories                    enable row level security;
 alter table public.teachers                     enable row level security;
@@ -474,6 +541,9 @@ alter table public.post_likes                       enable row level security;
 alter table public.comment_likes                    enable row level security;
 alter table public.content_progress                 enable row level security;
 alter table public.classroom_recording_progress     enable row level security;
+alter table public.tags                              enable row level security;
+alter table public.topic_tags                        enable row level security;
+alter table public.member_tags                       enable row level security;
 
 
 -- =============================================================================
@@ -533,10 +603,19 @@ grant select (id, slug, name) on public.categories to anon;
 -- anon grants which exclude it) — do NOT "fix" it out.
 grant select (id, category_id, teacher_id, url, headline, blurb, created_at) on public.newsletter_items to anon;
 
+-- tags / topic_tags / member_tags (0006) — authenticated full CRUD (RLS is the gate);
+-- NO anon (classroom is member-only). service_role is already covered by the
+-- "grant all on all tables in schema public to service_role" sweep above.
+grant select, insert, update, delete, truncate, references, trigger on public.tags        to authenticated;
+grant select, insert, update, delete, truncate, references, trigger on public.topic_tags  to authenticated;
+grant select, insert, update, delete, truncate, references, trigger on public.member_tags to authenticated;
+
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
   to anon, authenticated, service_role;
 grant execute on function public.teacher_member_counts()
+  to anon, authenticated, service_role;
+grant execute on function public.can_access_topic(uuid)
   to anon, authenticated, service_role;
 
 
@@ -580,10 +659,29 @@ create policy topics_insert_admin  on public.topics for insert to authenticated 
 create policy topics_update_admin  on public.topics for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
 create policy topics_delete_admin  on public.topics for delete to authenticated using (is_teacher_admin(teacher_id));
 
-create policy content_items_select        on public.content_items for select to authenticated using (has_membership(teacher_id));
+-- content_items SELECT gains the tag gate (0006): has_membership AND can_access_topic.
+-- is_locked stays a route/UI lifecycle guard (never in RLS) — byte-identical to before.
+create policy content_items_select        on public.content_items for select to authenticated using (has_membership(teacher_id) and can_access_topic(topic_id));
 create policy content_items_insert_admin  on public.content_items for insert to authenticated with check (is_teacher_admin(teacher_id));
 create policy content_items_update_admin  on public.content_items for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
 create policy content_items_delete_admin  on public.content_items for delete to authenticated using (is_teacher_admin(teacher_id));
+
+-- classroom TIER TAGS (0006) — member-read, admin-write (is_teacher_admin). The
+-- content_items gate (can_access_topic) is SECURITY DEFINER and does NOT depend on
+-- these SELECT policies; member-read exists only to power UI lock labels.
+create policy tags_select        on public.tags for select to authenticated using (has_membership(teacher_id));
+create policy tags_insert_admin  on public.tags for insert to authenticated with check (is_teacher_admin(teacher_id));
+create policy tags_update_admin  on public.tags for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
+create policy tags_delete_admin  on public.tags for delete to authenticated using (is_teacher_admin(teacher_id));
+
+create policy topic_tags_select        on public.topic_tags for select to authenticated using (has_membership(teacher_id));
+create policy topic_tags_insert_admin  on public.topic_tags for insert to authenticated with check (is_teacher_admin(teacher_id));
+create policy topic_tags_delete_admin  on public.topic_tags for delete to authenticated using (is_teacher_admin(teacher_id));
+
+create policy member_tags_select_self_or_admin on public.member_tags for select to authenticated
+  using (profile_id = auth.uid() or is_teacher_admin(teacher_id));
+create policy member_tags_insert_admin on public.member_tags for insert to authenticated with check (is_teacher_admin(teacher_id));
+create policy member_tags_delete_admin on public.member_tags for delete to authenticated using (is_teacher_admin(teacher_id));
 
 create policy classroom_folders_select        on public.classroom_folders for select to authenticated using (has_membership(teacher_id));
 create policy classroom_folders_insert_admin  on public.classroom_folders for insert to authenticated with check (is_teacher_admin(teacher_id));
