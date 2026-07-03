@@ -52,3 +52,30 @@ export async function getTeacherTags(
     memberCount: row.member_tags?.[0]?.count ?? 0,
   }))
 }
+
+// The tag_ids a topic currently REQUIRES, as a Set for O(1) toggle-state lookups in the
+// per-topic gating editor. DISPLAY / TOGGLE-STATE ONLY — this never decides access (that
+// is canAccessTopic in lib/classroom.ts). Scoped by teacher_id: under MT RLS an un-scoped
+// read returns topic_tags rows for EVERY teacher the viewer belongs to, so the .eq is the
+// only guard against cross-tenant bleed for a dual-member admin. An empty Set = ungated
+// (open to all members).
+export async function getTopicTagIds(
+  topicId: string,
+  teacherId: string,
+): Promise<Set<string>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('topic_tags')
+    .select('tag_id')
+    .eq('topic_id', topicId)
+    .eq('teacher_id', teacherId)
+
+  if (error) {
+    throw new Error(`Failed to load topic tags: ${error.message}`)
+  }
+
+  return new Set(
+    (data ?? []).map((row) => (row as { tag_id: string }).tag_id),
+  )
+}

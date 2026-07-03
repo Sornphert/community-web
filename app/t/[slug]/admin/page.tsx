@@ -39,8 +39,8 @@ const cards: AdminCard[] = [
   },
   {
     to: '/admin/classroom/topics',
-    label: 'Topic Covers',
-    description: 'Set or change the cover image on classroom topics.',
+    label: 'Topics',
+    description: 'Set topic cover images and gate topics with tags.',
     icon: ImageIcon,
   },
   {
