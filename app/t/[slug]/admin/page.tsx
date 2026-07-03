@@ -7,6 +7,7 @@ import {
   Users,
   CalendarDays,
   Palette,
+  Tags,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -41,6 +42,12 @@ const cards: AdminCard[] = [
     label: 'Topic Covers',
     description: 'Set or change the cover image on classroom topics.',
     icon: ImageIcon,
+  },
+  {
+    to: '/admin/tags',
+    label: 'Tags',
+    description: 'Create tier tags that gate classroom topics and mark members.',
+    icon: Tags,
   },
   {
     to: '/members',
