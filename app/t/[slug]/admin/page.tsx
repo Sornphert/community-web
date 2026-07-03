@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Palette,
   Tags,
+  UserCog,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -48,6 +49,12 @@ const cards: AdminCard[] = [
     label: 'Tags',
     description: 'Create tier tags that gate classroom topics and mark members.',
     icon: Tags,
+  },
+  {
+    to: '/admin/members',
+    label: 'Member Tags',
+    description: 'Assign or remove tags on members to unlock gated topics.',
+    icon: UserCog,
   },
   {
     to: '/members',

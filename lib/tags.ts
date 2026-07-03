@@ -79,3 +79,30 @@ export async function getTopicTagIds(
     (data ?? []).map((row) => (row as { tag_id: string }).tag_id),
   )
 }
+
+// The tag_ids a member currently HOLDS, as a Set for O(1) toggle-state lookups in the
+// assign-to-member editor. Admin read is permitted by member_tags_select_self_or_admin
+// (a member sees only their own rows; an admin of teacherId sees all). Scoped by
+// teacher_id: the .eq is the tenant boundary — an admin of teacher X must never read
+// teacher Y's member_tags, and (id, teacher_id) uniqueness keeps the two orthogonal.
+// An empty Set = holds none of this teacher's tags.
+export async function getMemberTagIds(
+  profileId: string,
+  teacherId: string,
+): Promise<Set<string>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('member_tags')
+    .select('tag_id')
+    .eq('profile_id', profileId)
+    .eq('teacher_id', teacherId)
+
+  if (error) {
+    throw new Error(`Failed to load member tags: ${error.message}`)
+  }
+
+  return new Set(
+    (data ?? []).map((row) => (row as { tag_id: string }).tag_id),
+  )
+}
