@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Palette,
   Tags,
+  Hash,
   UserCog,
   ShieldCheck,
   type LucideIcon,
@@ -67,6 +68,12 @@ const cards: AdminCard[] = [
     label: 'Events',
     description: 'Add, edit, and delete events on the calendar.',
     icon: CalendarDays,
+  },
+  {
+    to: '/admin/channels',
+    label: 'Channels',
+    description: 'Create, rename, reorder, and delete community channels.',
+    icon: Hash,
   },
   {
     to: '/admin/branding',

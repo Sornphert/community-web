@@ -91,6 +91,38 @@ export async function getChannels(teacherId: string): Promise<Channel[]> {
   return (data ?? []) as Channel[]
 }
 
+// Per-channel post counts for ONE teacher's community channels, as a
+// { [channelId]: count } map. Powers the admin delete-UX only ("has N posts, move or
+// delete first") — it is NOT the authorization guard: DELETE is blocked at the DB by the
+// posts→channels FK (NO ACTION → 23503), so a stale count can never let an unsafe delete
+// through. Same section='community' hard-scope as getChannels.
+export async function getChannelPostCounts(
+  teacherId: string,
+): Promise<Record<string, number>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('channels')
+    .select('id, posts(count)')
+    .eq('teacher_id', teacherId)
+    .eq('section', 'community')
+
+  if (error) {
+    throw new Error(`Failed to load channel post counts: ${error.message}`)
+  }
+
+  const rows = (data ?? []) as unknown as {
+    id: string
+    posts: { count: number }[] | null
+  }[]
+
+  const counts: Record<string, number> = {}
+  for (const row of rows) {
+    counts[row.id] = row.posts?.[0]?.count ?? 0
+  }
+  return counts
+}
+
 // Scoped: a teacher's channel by slug. slug is unique PER TEACHER, so teacher_id
 // is required to disambiguate (without it, a multi-membership viewer matching the
 // same slug across teachers would make .maybeSingle() throw).
