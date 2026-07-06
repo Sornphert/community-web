@@ -6,6 +6,7 @@ import { Upload as UploadIcon } from 'lucide-react'
 import {
   isAllowedBrandingImage,
   MAX_TEACHER_DESCRIPTION_LEN,
+  MAX_TEACHER_NAME_LEN,
 } from '@/lib/teacher-branding'
 import { uploadTeacherCover } from '@/lib/teacher-cover-upload'
 import { uploadTeacherLogo } from '@/lib/teacher-logo-upload'
@@ -13,22 +14,29 @@ import {
   updateTeacherCover,
   updateTeacherLogo,
   updateTeacherDescription,
+  updateTeacherName,
 } from '../actions'
 
 type Message = { type: 'success' | 'error'; text: string }
 
 export function BrandingForm({
   teacherId,
+  name,
   coverUrl,
   logoUrl,
   description,
 }: {
   teacherId: string
+  name: string
   coverUrl: string | null
   logoUrl: string | null
   description: string | null
 }) {
   const router = useRouter()
+
+  const [communityName, setCommunityName] = useState(name)
+  const [savingName, setSavingName] = useState(false)
+  const [nameMessage, setNameMessage] = useState<Message | null>(null)
 
   const [savingCover, setSavingCover] = useState(false)
   const [coverError, setCoverError] = useState<string | null>(null)
@@ -108,6 +116,30 @@ export function BrandingForm({
     }
   }
 
+  // Community name — explicit Save button.
+  async function handleSaveName() {
+    setNameMessage(null)
+    setSavingName(true)
+    try {
+      const result = await updateTeacherName({ teacherId, name: communityName })
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      // Reflect the trimmed value the server actually stored.
+      setCommunityName(result.teacher?.name ?? communityName)
+      router.refresh()
+      setNameMessage({ type: 'success', text: 'Saved' })
+    } catch (err) {
+      console.error('Failed to update teacher name:', err)
+      setNameMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Something went wrong. Try again.',
+      })
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   // Description — explicit Save button.
   async function handleSaveDescription() {
     setDescMessage(null)
@@ -134,6 +166,51 @@ export function BrandingForm({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Community name */}
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-fg">Community name</h2>
+          <p className="text-xs text-fg-muted">
+            The name shown in your community and on your directory card.
+          </p>
+        </div>
+
+        <input
+          type="text"
+          value={communityName}
+          onChange={(e) => setCommunityName(e.target.value)}
+          maxLength={MAX_TEACHER_NAME_LEN}
+          placeholder="Your community name"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        />
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-fg-faint">
+            {communityName.length}/{MAX_TEACHER_NAME_LEN}
+          </span>
+          {nameMessage && (
+            <span
+              className={`text-sm ${
+                nameMessage.type === 'success' ? 'text-success' : 'text-danger'
+              }`}
+            >
+              {nameMessage.text}
+            </span>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleSaveName}
+            disabled={savingName}
+            className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
+          >
+            {savingName ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </section>
+
       {/* Cover (hero) */}
       <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
         <div>

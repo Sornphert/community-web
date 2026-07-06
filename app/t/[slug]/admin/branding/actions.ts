@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import {
   MAX_TEACHER_DESCRIPTION_LEN,
+  MAX_TEACHER_NAME_LEN,
   TEACHER_COVERS_BUCKET,
   TEACHER_LOGOS_BUCKET,
 } from '@/lib/teacher-branding'
@@ -126,6 +127,42 @@ export async function updateTeacherLogo(input: {
   const oldPath = parseStoragePath(existing?.logo_url ?? null, TEACHER_LOGOS_BUCKET)
   if (oldPath && oldPath !== input.logoStoragePath) {
     await auth.supabase.storage.from(TEACHER_LOGOS_BUCKET).remove([oldPath])
+  }
+
+  revalidatePath('/', 'layout')
+  return { teacher: data as Teacher }
+}
+
+export async function updateTeacherName(input: {
+  teacherId: string
+  name: string
+}): Promise<{ error?: string; teacher?: Teacher }> {
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  // TRIM first. teachers.name is NOT NULL — reject empty/whitespace-only in the app
+  // BEFORE the DB so we never surface a raw 23502. Then the app-chosen length cap.
+  const trimmed = input.name.trim()
+  if (trimmed === '') {
+    return { error: 'Community name is required.' }
+  }
+  if (trimmed.length > MAX_TEACHER_NAME_LEN) {
+    return { error: `Community name is too long (max ${MAX_TEACHER_NAME_LEN} characters).` }
+  }
+
+  // COLUMN DISCIPLINE: this payload is ONLY { name }. The teachers UPDATE policy is
+  // row-gated (is_teacher_admin), NOT column-gated, and authenticated holds a
+  // table-level UPDATE grant — so slug is writable at the DB layer. App discipline is
+  // what protects it: never spread, never passthrough, never add slug here.
+  const { data, error } = await auth.supabase
+    .from('teachers')
+    .update({ name: trimmed })
+    .eq('id', input.teacherId)
+    .select('*')
+    .single()
+
+  if (error) {
+    return { error: error.message }
   }
 
   revalidatePath('/', 'layout')

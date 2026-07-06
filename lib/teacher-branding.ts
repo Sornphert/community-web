@@ -16,6 +16,10 @@ export const TEACHER_LOGOS_BUCKET = 'teacher-logos'
 // NULL is deferred to a later migration).
 export const MAX_TEACHER_DESCRIPTION_LEN = 500
 
+// Community name cap (chars). UI + action enforced; teachers.name is NOT NULL with
+// no DB length constraint, so this is the only length gate.
+export const MAX_TEACHER_NAME_LEN = 80
+
 // Branding images are images only (no PDF). MIME is the declared file.type —
 // best-effort, not byte-sniffed (matches topic covers / lesson files).
 export function isAllowedBrandingImage(file: File): boolean {

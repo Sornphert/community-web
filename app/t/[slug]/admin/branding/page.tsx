@@ -35,12 +35,13 @@ export default async function AdminBrandingPage({
     <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-1 text-xl font-semibold text-fg">Branding</h1>
       <p className="mb-6 text-sm text-fg-muted">
-        Set the cover image, logo, and description shown on your community card in
-        the directory.
+        Set the community name, cover image, logo, and description shown on your
+        community card in the directory.
       </p>
 
       <BrandingForm
         teacherId={teacher.id}
+        name={teacher.name}
         coverUrl={teacher.cover_url}
         logoUrl={teacher.logo_url}
         description={teacher.description}
