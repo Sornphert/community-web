@@ -40,9 +40,9 @@ export default async function AdminMembersPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <h1 className="mb-1 text-xl font-semibold text-fg">Member Tags</h1>
+      <h1 className="mb-1 text-xl font-semibold text-fg">Member Roles & Tags</h1>
       <p className="mb-6 text-sm text-fg-muted">
-        Choose a member to assign or remove their tags.
+        Choose a member to change their role or assign tags.
       </p>
 
       {members.length === 0 ? (

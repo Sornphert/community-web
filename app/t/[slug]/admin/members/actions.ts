@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import type { MembershipRole } from '@/lib/types'
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -103,6 +104,69 @@ export async function removeMemberTag(input: {
     return { error: mapWriteError(error.code, error.message) }
   }
 
+  revalidatePath('/t/[slug]/admin/members/[id]', 'page')
+  return { success: true }
+}
+
+// Map the set_membership_role RPC envelope's error codes to clean admin-facing copy.
+// The RPC ({success:false, error:<code>}) is THE authority for the last-admin invariant
+// and the authz/target-scoping gates; this only translates its verdict.
+function mapRoleError(code: string | undefined): string {
+  switch (code) {
+    case 'last_admin':
+      return "You can't demote the last admin. Promote another member to admin first."
+    case 'forbidden':
+      return 'Admins only.'
+    case 'not_a_member':
+      return 'That member is no longer available.'
+    case 'not_authenticated':
+      return 'You must be signed in.'
+    case 'invalid_role':
+    default:
+      return 'Could not change the role. Please try again.'
+  }
+}
+
+// Promote a member to admin or demote an admin to member. memberships is write-less to
+// authenticated, so the flip goes through the set_membership_role SECURITY DEFINER RPC —
+// which re-derives the caller from auth.uid(), re-checks is_teacher_admin(teacherId), and
+// enforces the last-admin invariant transactionally. requireTeacherAdmin here is
+// belt-and-suspenders (the layout render-guard never runs for an action POST); the RPC is
+// the real gate. teacherId/profileId are attacker-controllable POST input — never trusted.
+export async function setMembershipRole(input: {
+  teacherId: string
+  profileId: string
+  newRole: MembershipRole
+}): Promise<{ error?: string; success?: true }> {
+  if (!input.profileId) {
+    return { error: 'Missing member.' }
+  }
+  if (input.newRole !== 'member' && input.newRole !== 'admin') {
+    return { error: 'Invalid role.' }
+  }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { data, error } = await auth.supabase.rpc('set_membership_role', {
+    p_teacher_id: input.teacherId,
+    p_profile_id: input.profileId,
+    p_new_role: input.newRole,
+  })
+
+  // A transport/SQL error (function missing, etc.) is a hard failure, distinct from the
+  // RPC's own {success:false} verdict envelope.
+  if (error) {
+    return { error: 'Could not change the role. Please try again.' }
+  }
+
+  const result = data as { success: boolean; error?: string } | null
+  if (!result?.success) {
+    return { error: mapRoleError(result?.error) }
+  }
+
+  // Both the roster (Admin pill) and the detail header reflect role.
+  revalidatePath('/t/[slug]/admin/members', 'page')
   revalidatePath('/t/[slug]/admin/members/[id]', 'page')
   return { success: true }
 }

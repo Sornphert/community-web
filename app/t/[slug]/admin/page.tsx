@@ -10,7 +10,6 @@ import {
   Tags,
   Hash,
   UserCog,
-  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
@@ -53,8 +52,8 @@ const cards: AdminCard[] = [
   },
   {
     to: '/admin/members',
-    label: 'Member Tags',
-    description: 'Assign or remove tags on members to unlock gated topics.',
+    label: 'Member Roles & Tags',
+    description: 'Promote or demote admins and assign tags to members.',
     icon: UserCog,
   },
   {
@@ -126,19 +125,6 @@ export default async function AdminPage({
             </div>
           </Link>
         ))}
-
-        {/* Phase 2 — not yet built */}
-        <div className="flex items-start gap-3 rounded-lg border border-dashed border-line bg-surface p-4 opacity-60">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-fg-faint">
-            <ShieldCheck className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="font-medium text-fg-muted">User Roles</div>
-            <p className="text-sm text-fg-faint">
-              Promote or demote admins. Coming soon.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   )

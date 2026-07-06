@@ -8,13 +8,15 @@ import { isTeacherAdmin } from '@/lib/auth'
 import { getMemberProfile } from '@/lib/posts'
 import { getTeacherTags, getMemberTagIds } from '@/lib/tags'
 import { MemberTagsEditor } from '../_components/member-tags-editor'
+import { RoleToggle } from './_components/role-toggle'
 
-// [MT] The sensitive surface: assign/unassign an EXISTING member's tags. Defensive
-// in-page isTeacherAdmin guard on top of admin/layout.tsx. The target is confirmed an
-// ACTIVE member of THIS teacher via getMemberProfile (reused, unmodified) — a null result
-// (non-member / revoked / tombstoned / other teacher) is notFound(), so the editor never
-// renders for a non-member. This assigns member_tags ONLY — no add/remove-member, no role
-// change, no invite.
+// [MT] The sensitive surface: manage an EXISTING member's ROLE (promote/demote) and their
+// tags. Defensive in-page isTeacherAdmin guard on top of admin/layout.tsx. The target is
+// confirmed an ACTIVE member of THIS teacher via getMemberProfile (reused, unmodified) — a
+// null result (non-member / revoked / tombstoned / other teacher) is notFound(), so neither
+// control renders for a non-member. The role flip goes through the set_membership_role RPC
+// (the last-admin invariant is enforced there, transactionally); tags go through member_tags
+// under admin RLS. No add/remove-member, no invite.
 export default async function AdminMemberTagsPage({
   params,
 }: {
@@ -56,7 +58,7 @@ export default async function AdminMemberTagsPage({
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to member tags
+        Back to members
       </Link>
 
       {/* Read-only identity header */}
@@ -78,6 +80,14 @@ export default async function AdminMemberTagsPage({
           )}
         </div>
       </section>
+
+      <div className="mb-4 rounded-lg border border-line bg-surface p-4">
+        <RoleToggle
+          teacherId={teacher.id}
+          profileId={member.id}
+          currentRole={member.role}
+        />
+      </div>
 
       <div className="rounded-lg border border-line bg-surface p-4">
         <MemberTagsEditor
