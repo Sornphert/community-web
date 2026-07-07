@@ -170,3 +170,69 @@ export async function setMembershipRole(input: {
   revalidatePath('/t/[slug]/admin/members/[id]', 'page')
   return { success: true }
 }
+
+// Map the set_membership_status RPC envelope's error codes to admin-facing copy. NOTE:
+// 'not_pending' is deliberately NOT handled here — it signals a benign concurrent-resolution
+// race (another admin already approved/denied this request), which the caller surfaces as a
+// quiet refresh via { alreadyHandled }, not a red error. Only the hard-denial codes flow
+// through this map.
+function mapStatusError(code: string | undefined): string {
+  switch (code) {
+    case 'forbidden':
+      return 'Admins only.'
+    case 'not_authenticated':
+      return 'You must be signed in.'
+    case 'invalid_status':
+    default:
+      return 'Could not update the request. Please try again.'
+  }
+}
+
+// Approve (newStatus 'active') or deny (newStatus 'revoked') a PENDING join request.
+// memberships is write-less to authenticated, so the transition goes through the
+// set_membership_status SECURITY DEFINER RPC (0008) — which re-derives the caller from
+// auth.uid(), re-checks is_teacher_admin(teacherId), whitelists the target status, and only
+// ever transitions rows OUT of pending, transactionally. requireTeacherAdmin here is
+// belt-and-suspenders (the layout render-guard never runs for an action POST); the RPC is the
+// real gate. teacherId/profileId/newStatus are attacker-controllable POST input — never trusted.
+export async function setPendingMembershipStatus(input: {
+  teacherId: string
+  profileId: string
+  newStatus: 'active' | 'revoked'
+}): Promise<{ error?: string; success?: true; alreadyHandled?: true }> {
+  if (!input.profileId) {
+    return { error: 'Missing member.' }
+  }
+  if (input.newStatus !== 'active' && input.newStatus !== 'revoked') {
+    return { error: 'Invalid status.' }
+  }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { data, error } = await auth.supabase.rpc('set_membership_status', {
+    p_teacher_id: input.teacherId,
+    p_profile_id: input.profileId,
+    p_new_status: input.newStatus,
+  })
+
+  // A transport/SQL error (function missing, etc.) is a hard failure, distinct from the
+  // RPC's own {success:false} verdict envelope.
+  if (error) {
+    return { error: 'Could not update the request. Please try again.' }
+  }
+
+  const result = data as { success: boolean; error?: string } | null
+  if (!result?.success) {
+    // Benign race: the row was already resolved by another admin. Signal the caller to drop
+    // the stale row with a quiet refresh instead of showing an alarming error.
+    if (result?.error === 'not_pending') {
+      return { alreadyHandled: true }
+    }
+    return { error: mapStatusError(result?.error) }
+  }
+
+  // The queue (pending section) and the active roster both live on the members list page.
+  revalidatePath('/t/[slug]/admin/members', 'page')
+  return { success: true }
+}

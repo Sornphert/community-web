@@ -49,6 +49,24 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Anon bounce to /login, stamping the originally-requested path as ?returnTo so the login
+  // action can send the user back after auth (the login handler VALIDATES it — open-redirect
+  // guard — and defaults to /home). ADDITIVE: only the anon-bounce path gains the param; the
+  // authenticated → /home branch below is unchanged, and a DIRECT /login visit (never bounced)
+  // gets no param — byte-identical to today, so single-tenant `main`'s default path is unchanged.
+  const redirectToLogin = () => {
+    const url = request.nextUrl.clone()
+    const returnTo = pathname + request.nextUrl.search
+    url.pathname = '/login'
+    url.search = ''
+    url.searchParams.set('returnTo', returnTo)
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((cookie) => redirectResponse.cookies.set(cookie))
+    return redirectResponse
+  }
+
   // Routes reachable without a session: the public teacher directory ('/' router
   // + '/home'), login, and the password-reset flow (the reset page itself and the
   // email-link confirm handler that establishes the recovery session).
@@ -67,7 +85,7 @@ export async function proxy(request: NextRequest) {
   ]
 
   if (!user && !PUBLIC_PATHS.includes(pathname)) {
-    return redirectPreservingCookies('/login')
+    return redirectToLogin()
   }
 
   if (user && pathname === '/login') {

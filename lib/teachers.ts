@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type {
   DirectoryTeacher,
   MembershipRole,
+  MembershipStatus,
   Teacher,
   TeacherWithRole,
 } from '@/lib/types'
@@ -62,6 +63,36 @@ export async function getMyMemberships(): Promise<TeacherWithRole[]> {
     .filter((row): row is Row & { teacher: Teacher } => row.teacher !== null)
     .map((row) => ({ ...row.teacher, role: row.role }))
     .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// The current user's RAW membership status for one teacher — active | pending | revoked,
+// or null when no row exists (never applied). UNLIKE hasMembership() (active-only boolean)
+// and getMyMemberships() (filters status='active'), this deliberately applies NO status
+// filter, so the join page can distinguish the four states it branches on. The self-branch
+// of the memberships SELECT RLS (profile_id = auth.uid()) makes a user's own pending/revoked
+// row readable. Returns null when signed out (the outer /t/[slug] layout already gates auth).
+export async function getMyMembershipStatus(
+  teacherId: string,
+): Promise<MembershipStatus | null> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('memberships')
+    .select('status')
+    .eq('profile_id', user.id)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load membership status: ${error.message}`)
+  }
+
+  return ((data as { status: MembershipStatus } | null)?.status) ?? null
 }
 
 // The full teacher directory, for the /home page (anon + authed). RLS opens

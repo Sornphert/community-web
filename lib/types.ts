@@ -81,7 +81,7 @@ export type NewsletterItemWithRefs = NewsletterItem & {
 }
 
 export type MembershipRole = 'member' | 'admin'
-export type MembershipStatus = 'active' | 'revoked'
+export type MembershipStatus = 'active' | 'pending' | 'revoked'
 
 // The profile↔teacher join. A row exists only when an admin grants access; role
 // and status live here (is_admin is gone from profiles in the MT schema).
@@ -92,6 +92,9 @@ export interface Membership {
   role: MembershipRole
   status: MembershipStatus
   created_at: string | null
+  // Attribution for how the membership was requested (migration 0008). Nullable;
+  // null = organic / no join link. e.g. 'join_link'.
+  source: string | null
 }
 
 // A teacher the current user actively belongs to, decorated with their role in it
@@ -234,6 +237,16 @@ export type Liker = {
 // role IN THIS TEACHER (memberships.role) — never the global is_admin, never the
 // viewer's role. Drives the per-member "Admin" badge.
 export type MemberListItem = Profile & { role: MembershipRole }
+
+// [MT] A pending join request in a teacher's admin queue: the requester's identity
+// plus when/how they applied. Distinct from MemberListItem — pending rows carry no
+// role of interest (always 'member' until approved) and the queue needs `created_at`
+// (FIFO order + "requested Nh ago") and `source` (attribution), which the active
+// roster omits.
+export type PendingMember = Pick<
+  Profile,
+  'id' | 'display_name' | 'avatar_url'
+> & { created_at: string | null; source: string | null }
 
 // A member's post as shown on their profile. `channel_slug` is the post's channel
 // (null = unassigned) — needed to build the MT post URL /t/{slug}/community/{channel}/{id}.

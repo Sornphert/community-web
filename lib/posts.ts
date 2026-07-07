@@ -10,6 +10,7 @@ import type {
   Profile,
   MembershipRole,
   MemberListItem,
+  PendingMember,
   MemberWithPosts,
   PostWithFullRelations,
   PostWithRelations,
@@ -315,6 +316,50 @@ export async function getAllMembers(
     )
     .map((row) => ({ ...row.profile, role: row.role }))
     .sort((a, b) => a.display_name.localeCompare(b.display_name))
+}
+
+// [MT] The admin pending-join queue for THIS teacher. Same memberships-driven shape as
+// getAllMembers (same `profile:profiles!profile_id(*)` FK-hinted embed), differing only in
+// the status filter (`pending`) and by also selecting `created_at`/`source` for the queue
+// UI. teacherId is REQUIRED — policy #4's admin-branch (`is_teacher_admin(teacher_id)`, 0008)
+// is what makes pending rows readable at all (co-members can't see them post-0008), and
+// `.eq('teacher_id', teacherId)` is the tenant boundary. Ordered created_at ASC (oldest
+// first = FIFO queue). Tombstoned profiles (deleted_at) dropped client-side, mirroring
+// getAllMembers.
+export async function getPendingMembers(
+  teacherId: string,
+): Promise<PendingMember[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('memberships')
+    .select('created_at, source, profile:profiles!profile_id(*)')
+    .eq('teacher_id', teacherId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    throw new Error(`Failed to load pending members: ${error.message}`)
+  }
+
+  type Row = {
+    created_at: string | null
+    source: string | null
+    profile: Profile | null
+  }
+
+  return ((data ?? []) as unknown as Row[])
+    .filter(
+      (row): row is Row & { profile: Profile } =>
+        row.profile !== null && row.profile.deleted_at === null,
+    )
+    .map((row) => ({
+      id: row.profile.id,
+      display_name: row.profile.display_name,
+      avatar_url: row.profile.avatar_url,
+      created_at: row.created_at,
+      source: row.source,
+    }))
 }
 
 // [MT] A single member's profile within THIS teacher's directory. Returns null

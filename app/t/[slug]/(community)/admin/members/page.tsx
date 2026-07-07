@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
-import { getAllMembers } from '@/lib/posts'
+import { getAllMembers, getPendingMembers } from '@/lib/posts'
+import { PendingMemberRow } from './_components/pending-member-row'
 
 // [MT] Admin roster for tag assignment. Distinct from the member-visible /members
 // directory: this lives UNDER /admin (guarded by admin/layout.tsx) and links to the
@@ -36,7 +37,11 @@ export default async function AdminMembersPage({
   }
 
   // Active members of THIS teacher (reused, unmodified) — the assignment target set.
-  const members = await getAllMembers(teacher.id)
+  // Pending join-requests are a separate queue rendered above the roster.
+  const [members, pending] = await Promise.all([
+    getAllMembers(teacher.id),
+    getPendingMembers(teacher.id),
+  ])
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -44,6 +49,28 @@ export default async function AdminMembersPage({
       <p className="mb-6 text-sm text-fg-muted">
         Choose a member to change their role or assign tags.
       </p>
+
+      {/* Pending-join queue. Rendered ONLY when non-empty — an empty queue shows nothing,
+          keeping the roster uncluttered. Each row triages inline (Approve/Deny), breaking
+          the roster's navigation-only convention on purpose (see PendingMemberRow). */}
+      {pending.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-1 text-sm font-semibold text-fg">
+            Pending requests
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-fg-soft">
+              {pending.length}
+            </span>
+          </h2>
+          <p className="mb-3 text-xs text-fg-muted">
+            Approve to grant access, or deny to reject the request.
+          </p>
+          <div className="flex flex-col gap-2">
+            {pending.map((p) => (
+              <PendingMemberRow key={p.id} teacherId={teacher.id} member={p} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {members.length === 0 ? (
         <p className="text-sm text-fg-muted">No members yet.</p>

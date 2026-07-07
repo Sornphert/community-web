@@ -4,6 +4,20 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+// Open-redirect guard — the SINGLE point where a post-login returnTo is validated before it
+// is honored. Accept ONLY a same-origin, path-ONLY value: must start with exactly one '/',
+// must NOT be protocol-relative ('//' or '/\', which browsers resolve to an external host)
+// and must not contain a traversal ('..'). Anything failing → null, so the caller defaults
+// to '/'. A missing/empty param (the common case, incl. every single-tenant login) → null →
+// '/', byte-identical to the previous fixed redirect('/').
+function safeReturnPath(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== 'string' || value.length === 0) return null
+  if (!value.startsWith('/')) return null
+  if (value.startsWith('//') || value.startsWith('/\\')) return null
+  if (value.includes('..')) return null
+  return value
+}
+
 export async function signIn(formData: FormData) {
   const email = formData.get('email') as string | null
   const password = formData.get('password') as string | null
@@ -20,8 +34,9 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  // redirect() throws NEXT_REDIRECT — must stay outside any try/catch.
-  redirect('/')
+  // redirect() throws NEXT_REDIRECT — must stay outside any try/catch. Honor a validated
+  // returnTo (set by proxy.ts on an anon bounce); default to '/' when absent/invalid.
+  redirect(safeReturnPath(formData.get('returnTo')) ?? '/')
 }
 
 export async function signUp(formData: FormData) {
@@ -58,7 +73,9 @@ export async function signUp(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  // Honor a validated returnTo so a non-member who signs up from a join link lands back on it;
+  // default to '/' when absent/invalid. The email-confirmation branch above is unchanged.
+  redirect(safeReturnPath(formData.get('returnTo')) ?? '/')
 }
 
 export async function signOut() {

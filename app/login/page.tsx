@@ -13,6 +13,10 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const message = searchParams.get('message')
   const deleted = searchParams.get('deleted') === '1'
+  // Set by proxy.ts when it bounces an anon user off a protected path. Carried through the
+  // form so the sign-in/sign-up action can return the user there after auth — the action
+  // VALIDATES it (open-redirect guard) and falls back to /home. Absent on a direct visit.
+  const returnTo = searchParams.get('returnTo')
 
   // The directory header's "Sign up" link opens login directly in signup mode via
   // ?mode=signup; everything else (no param, or any other value) defaults to signin.
@@ -69,6 +73,9 @@ function LoginForm() {
         </div>
 
         <form action={handleSubmit} className="flex flex-col gap-4">
+          {returnTo && (
+            <input type="hidden" name="returnTo" value={returnTo} />
+          )}
           <p className="text-sm font-medium text-zinc-500 -mb-2">
             {mode === 'signin' ? 'Sign in' : 'Sign up'}
           </p>

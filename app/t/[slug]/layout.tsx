@@ -1,17 +1,13 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
-import { hasMembership, isTeacherAdmin } from '@/lib/auth'
-import { getChannels } from '@/lib/posts'
-import { PLATFORM_LOGO_URL } from '@/lib/config'
-import { Sidebar } from '@/app/(app)/_components/sidebar'
 
-// The per-teacher shell and the SINGLE tenancy seam. Resolution order:
-//   slug → teacher (404 if unknown) → ACTIVE-membership gate (else → /home)
-//        → admin role for THIS teacher → scoped channels → teacher-scoped Sidebar.
-// Everything under /t/[slug] renders inside this; pages re-resolve teacherId via the
-// cache()-wrapped getTeacherBySlug (one DB hit/request). Mirrors (app)/layout.tsx's
-// auth posture; replaces its role for teacher-scoped routes.
+// Outer teacher shell: auth + teacher RESOLUTION only. The membership gate and the
+// member nav/shell live in the (community)/ route group's layout — kept OUT of here so
+// a future sibling (e.g. /t/[slug]/join, outside the group) can render for authenticated
+// NON-members. Route groups are invisible in the URL, so every /t/[slug]/* path is
+// unchanged. Resolution is cache()-deduped (getTeacherBySlug), so re-resolving in the
+// (community) layout + each page is a single DB hit/request.
 export default async function TeacherLayout({
   children,
   params,
@@ -33,41 +29,11 @@ export default async function TeacherLayout({
   }
 
   // Unknown slug → 404. Open-directory RLS (teachers_select_all) lets any
-  // authenticated user resolve the teacher row; membership is gated separately below.
+  // authenticated user resolve the teacher row; membership is gated in (community)/.
   const teacher = await getTeacherBySlug(slug)
   if (!teacher) {
     notFound()
   }
 
-  // Membership gate: ACTIVE membership only — has_membership filters status='active',
-  // so a revoked member is treated as a non-member and bounced. Non-members → /home.
-  const isMember = await hasMembership(teacher.id)
-  if (!isMember) {
-    redirect('/home')
-  }
-
-  // Role + channels resolved for THIS teacher (never global, never stale). isTeacherAdmin
-  // uses the same RPC as the RLS, so the UI cannot surface more than the DB permits.
-  const isAdmin = await isTeacherAdmin(teacher.id)
-  const channels = await getChannels(teacher.id)
-
-  return (
-    <div className="flex flex-1 flex-col md:flex-row">
-      <Sidebar
-        slug={slug}
-        userEmail={user.email ?? ''}
-        isAdmin={isAdmin}
-        channels={channels}
-        brandName={teacher.name}
-        // A logo-less teacher must NOT inherit the shared BRAND_LOGO_URL fallback
-        // (teacher #1's /brand.jpg) — that would leak one teacher's logo into another's
-        // shell. Fall back to the neutral PLATFORM logo here at the teacher-shell layer,
-        // leaving the sidebar's single-tenant `?? BRAND_LOGO_URL` fallback intact for main.
-        brandLogoUrl={teacher.logo_url ?? PLATFORM_LOGO_URL}
-      />
-      <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
-        {children}
-      </main>
-    </div>
-  )
+  return <>{children}</>
 }
