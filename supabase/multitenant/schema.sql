@@ -93,11 +93,12 @@ create table public.memberships (
     teacher_id  uuid not null,
     role        text not null default 'member',
     status      text not null default 'active',
+    source      text,
     created_at  timestamptz default now(),
     constraint memberships_pkey primary key (id),
     constraint memberships_profile_teacher_key unique (profile_id, teacher_id),
     constraint memberships_role_check   check (role   = any (array['member','admin'])),
-    constraint memberships_status_check check (status = any (array['active','revoked'])),
+    constraint memberships_status_check check (status = any (array['active','revoked','pending'])),
     constraint memberships_profile_id_fkey foreign key (profile_id) references public.profiles(id) on delete cascade,
     constraint memberships_teacher_id_fkey foreign key (teacher_id) references public.teachers(id) on delete cascade
 );
@@ -632,7 +633,7 @@ create policy teachers_update_admin on public.teachers for update to authenticat
 
 create policy memberships_select_self_or_comember on public.memberships
   for select to authenticated
-  using (profile_id = auth.uid() or is_teacher_admin(teacher_id) or has_membership(teacher_id));
+  using (profile_id = auth.uid() or is_teacher_admin(teacher_id) or (has_membership(teacher_id) and status = 'active'));
 
 create policy profiles_select_self_or_comember on public.profiles
   for select to authenticated
@@ -1130,6 +1131,101 @@ $$;
 
 grant execute on function public.set_membership_role(uuid, uuid, text) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- request_membership — any logged-in user, self-only. Idempotent via
+-- memberships_profile_teacher_key. Revoked re-applications flip to pending.
+-- ---------------------------------------------------------------------
+create or replace function public.request_membership(
+  p_teacher_id uuid,
+  p_source     text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_caller uuid := auth.uid();
+  v_status text;
+begin
+  if v_caller is null then
+    return jsonb_build_object('success', false, 'error', 'not_authenticated');
+  end if;
+
+  if not exists (select 1 from public.teachers t where t.id = p_teacher_id) then
+    return jsonb_build_object('success', false, 'error', 'unknown_teacher');
+  end if;
+
+  insert into public.memberships (profile_id, teacher_id, role, status, source)
+  values (v_caller, p_teacher_id, 'member', 'pending', p_source)
+  on conflict on constraint memberships_profile_teacher_key do nothing;
+
+  select status into v_status
+  from public.memberships
+  where profile_id = v_caller and teacher_id = p_teacher_id
+  for update;
+
+  if v_status = 'revoked' then
+    update public.memberships
+      set status = 'pending', source = p_source
+      where profile_id = v_caller and teacher_id = p_teacher_id;
+    v_status := 'pending';
+  end if;
+
+  return jsonb_build_object('success', true, 'status', v_status);
+end;
+$$;
+
+grant execute on function public.request_membership(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- set_membership_status — admin approve/deny. Mirrors set_membership_role.
+-- authz-before-observation; only ever transitions OUT of pending.
+-- ---------------------------------------------------------------------
+create or replace function public.set_membership_status(
+  p_teacher_id  uuid,
+  p_profile_id  uuid,
+  p_new_status  text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_exists boolean;
+begin
+  if not public.is_teacher_admin(p_teacher_id) then
+    return jsonb_build_object('success', false, 'error', 'forbidden');
+  end if;
+
+  if p_new_status not in ('active','revoked') then
+    return jsonb_build_object('success', false, 'error', 'invalid_status');
+  end if;
+
+  select exists (
+    select 1 from public.memberships
+    where profile_id = p_profile_id
+      and teacher_id = p_teacher_id
+      and status = 'pending'
+    for update
+  ) into v_exists;
+
+  if not v_exists then
+    return jsonb_build_object('success', false, 'error', 'not_pending');
+  end if;
+
+  update public.memberships
+    set status = p_new_status
+    where profile_id = p_profile_id
+      and teacher_id = p_teacher_id
+      and status = 'pending';
+
+  return jsonb_build_object('success', true, 'status', p_new_status);
+end;
+$$;
+
+grant execute on function public.set_membership_status(uuid, uuid, text) to authenticated;
 
 -- =============================================================================
 -- End of multitenant/schema.sql. Run multitenant/seed.sql next.
