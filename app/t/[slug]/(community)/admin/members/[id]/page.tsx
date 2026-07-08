@@ -9,6 +9,7 @@ import { getMemberProfile } from '@/lib/posts'
 import { getTeacherTags, getMemberTagIds } from '@/lib/tags'
 import { MemberTagsEditor } from '../_components/member-tags-editor'
 import { RoleToggle } from './_components/role-toggle'
+import { RevokeMember } from './_components/revoke-member'
 
 // [MT] The sensitive surface: manage an EXISTING member's ROLE (promote/demote) and their
 // tags. Defensive in-page isTeacherAdmin guard on top of admin/layout.tsx. The target is
@@ -89,13 +90,18 @@ export default async function AdminMemberTagsPage({
         />
       </div>
 
-      <div className="rounded-lg border border-line bg-surface p-4">
+      <div className="mb-4 rounded-lg border border-line bg-surface p-4">
         <MemberTagsEditor
           teacherId={teacher.id}
           profileId={member.id}
           tags={tags}
           heldTagIds={heldTagIds}
         />
+      </div>
+
+      {/* Destructive action last: revoke removes the member's access (active -> revoked). */}
+      <div className="rounded-lg border border-line bg-surface p-4">
+        <RevokeMember slug={slug} teacherId={teacher.id} profileId={member.id} />
       </div>
     </div>
   )

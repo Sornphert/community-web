@@ -236,3 +236,62 @@ export async function setPendingMembershipStatus(input: {
   revalidatePath('/t/[slug]/admin/members', 'page')
   return { success: true }
 }
+
+// Map the revoke_membership RPC envelope's error codes to clean admin-facing copy. Same
+// shape as mapRoleError — the RPC ({success:false, error:<code>}) is THE authority for the
+// last-admin invariant and the authz/target-scoping gates; this only translates its verdict.
+function mapRevokeError(code: string | undefined): string {
+  switch (code) {
+    case 'last_admin':
+      return "You can't revoke the last admin. Promote another member to admin first."
+    case 'forbidden':
+      return 'Admins only.'
+    case 'not_a_member':
+      return 'That member is no longer available.'
+    case 'not_authenticated':
+      return 'You must be signed in.'
+    default:
+      return 'Could not revoke this member. Please try again.'
+  }
+}
+
+// Revoke an ACTIVE member (active -> revoked, and demote to member in the same UPDATE).
+// memberships is write-less to authenticated, so this goes through the revoke_membership
+// SECURITY DEFINER RPC (0009) — which re-derives the caller from auth.uid(), re-checks
+// is_teacher_admin(teacherId), and enforces the last-admin invariant transactionally (a
+// revoke that would empty a teacher's active-admin set is rejected). requireTeacherAdmin here
+// is belt-and-suspenders (the layout render-guard never runs for an action POST); the RPC is
+// the real gate. teacherId/profileId are attacker-controllable POST input — never trusted.
+export async function revokeMembership(input: {
+  teacherId: string
+  profileId: string
+}): Promise<{ error?: string; success?: true }> {
+  if (!input.profileId) {
+    return { error: 'Missing member.' }
+  }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { data, error } = await auth.supabase.rpc('revoke_membership', {
+    p_teacher_id: input.teacherId,
+    p_profile_id: input.profileId,
+  })
+
+  // A transport/SQL error (function missing, etc.) is a hard failure, distinct from the
+  // RPC's own {success:false} verdict envelope.
+  if (error) {
+    return { error: 'Could not revoke this member. Please try again.' }
+  }
+
+  const result = data as { success: boolean; error?: string } | null
+  if (!result?.success) {
+    return { error: mapRevokeError(result?.error) }
+  }
+
+  // The roster loses the now-revoked member; the detail page will 404 (getMemberProfile
+  // returns null for a non-active member), so the caller navigates away to the roster.
+  revalidatePath('/t/[slug]/admin/members', 'page')
+  revalidatePath('/t/[slug]/admin/members/[id]', 'page')
+  return { success: true }
+}
