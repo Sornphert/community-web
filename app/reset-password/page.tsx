@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
         type: 'success',
         text: 'Password updated successfully. Redirecting…',
       })
-      setTimeout(() => router.push('/community'), 2000)
+      setTimeout(() => router.push('/'), 2000)
     })
   }
 
