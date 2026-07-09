@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 // Handles the link in Supabase recovery / confirmation emails. The email
 // template points here with token_hash + type + next; we verify the token
 // (which sets the session cookies via the server client) and forward the user
-// on. On any failure we still land on /reset-password, which detects the
-// missing session and shows an "invalid or expired" message.
+// on to `next` (default '/'). A recovery link passes next=/reset-password,
+// which detects a missing session and shows an "invalid or expired" message.
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
@@ -14,10 +14,12 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next')
 
   // Resolve `next` (the template passes the full RedirectTo URL) to a
-  // same-origin path; default to /reset-password. Guards against open-redirect.
+  // same-origin path; default to '/' (deployment-neutral: the root router
+  // self-resolves — MT '/'→'/home', main '/'→'/community'). Guards against
+  // open-redirect. A recovery link passes next=/reset-password explicitly.
   const dest = request.nextUrl.clone()
   dest.search = ''
-  dest.pathname = '/reset-password'
+  dest.pathname = '/'
   if (next) {
     try {
       const url = new URL(next, request.nextUrl.origin)
