@@ -480,15 +480,21 @@ create table public.member_tags (
 create index member_tags_profile_idx on public.member_tags (profile_id);
 create index member_tags_tag_id_idx  on public.member_tags (tag_id);
 
--- can_access_topic (0006) — a SECTION 2-style SECURITY DEFINER authz helper, but DEFINED
--- HERE because a language-sql function validates its body's table refs at creation, so it
--- must follow topic_tags/member_tags. Returns true when the topic has NO required tags
--- (NOT EXISTS → ungated = OPEN, structurally) OR the caller holds >=1 required tag.
+-- can_access_topic (0006; admin bypass added in 0010) — a SECTION 2-style SECURITY DEFINER
+-- authz helper, but DEFINED HERE because a language-sql function validates its body's table
+-- refs at creation, so it must follow topic_tags/member_tags. Returns true when the caller
+-- is the topic's teacher-admin (0010: tags gate MEMBERS into tiers, never an admin out of
+-- their OWN content) OR the topic has NO required tags (NOT EXISTS → ungated = OPEN,
+-- structurally) OR the caller holds >=1 required tag. 0010 SUPERSEDES 0006's body; the two
+-- tag disjuncts are byte-identical to 0006, so the non-admin path is unchanged.
 create or replace function public.can_access_topic(p_topic_id uuid)
 returns boolean language sql stable security definer set search_path to 'public'
 as $$
   select
-    not exists (select 1 from public.topic_tags tt where tt.topic_id = p_topic_id)
+    -- ADMIN BYPASS (0010): teacher_id derived from the topic; is_teacher_admin(null)=false
+    -- makes a bogus topic_id safe (falls through to the unchanged tag logic below).
+    is_teacher_admin((select t.teacher_id from public.topics t where t.id = p_topic_id))
+    or not exists (select 1 from public.topic_tags tt where tt.topic_id = p_topic_id)
     or exists (
       select 1
       from public.topic_tags tt
