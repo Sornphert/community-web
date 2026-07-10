@@ -198,7 +198,7 @@ create table public.posts (
     -- Public visibility (0011). Private default: every row starts members-only.
     -- is_public = author consent; hidden_from_public = admin kill switch;
     -- featured = admin prominence. Written ONLY via the set_post_* RPCs (the
-    -- authenticated UPDATE grant in SECTION 7 excludes these three columns).
+    -- authenticated INSERT and UPDATE grants in SECTION 7 exclude these three columns).
     is_public          boolean not null default false,
     hidden_from_public boolean not null default false,
     featured           boolean not null default false,
@@ -608,6 +608,18 @@ grant update (display_name, bio, avatar_url, social_links) on public.profiles to
 -- is still governed by the unchanged posts_update_owner_or_admin policy.
 revoke update on public.posts from authenticated;
 grant  update (title, body, edited_at) on public.posts to authenticated;
+
+-- authenticated — posts: column-restricted INSERT (0012). The blanket combined grant
+-- above conferred INSERT on posts; REVOKE it and re-grant INSERT on the six CONTENT
+-- columns the composer sets, so is_public/hidden_from_public/featured are un-nameable
+-- by a direct client INSERT (they take DEFAULT false and move ONLY through the
+-- set_post_* RPCs). edited_at/created_at are also excluded — edited_at is never set on
+-- create, and dropping created_at stops a member backdating a post via raw INSERT. MUST
+-- stay AFTER the blanket grant (a fresh rebuild would otherwise silently re-open the
+-- columns). Row eligibility is still governed by the unchanged
+-- posts_insert_channel_permitted policy.
+revoke insert on public.posts from authenticated;
+grant  insert (id, author_id, teacher_id, title, body, channel_id) on public.posts to authenticated;
 
 -- service_role — full on everything (verified all-7 on all 19 tables)
 grant all on all tables in schema public to service_role;
