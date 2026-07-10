@@ -39,6 +39,9 @@ type FeedRow = {
   created_at: string
   edited_at: string | null
   channel_id: string | null
+  is_public: boolean
+  hidden_from_public: boolean
+  featured: boolean
   author: Profile | null
   images: PostImage[] | null
   attachments: PostAttachment[] | null
@@ -55,6 +58,9 @@ type PostRow = {
   created_at: string
   edited_at: string | null
   channel_id: string | null
+  is_public: boolean
+  hidden_from_public: boolean
+  featured: boolean
   author: Profile | null
   images: PostImage[] | null
   attachments: PostAttachment[] | null
@@ -198,6 +204,11 @@ export async function getPostsForChannel(
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
         can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
+        is_public: row.is_public,
+        hidden_from_public: row.hidden_from_public,
+        featured: row.featured,
+        viewerIsAdmin: viewerIsAdmin,
+        isAuthor: !!uid && row.author_id === uid,
       }
     })
 }
@@ -258,6 +269,11 @@ export async function getPost(
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
     can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
+    is_public: row.is_public,
+    hidden_from_public: row.hidden_from_public,
+    featured: row.featured,
+    viewerIsAdmin: viewerIsAdmin,
+    isAuthor: !!uid && row.author_id === uid,
     comments: (row.comments ?? [])
       .filter(
         (

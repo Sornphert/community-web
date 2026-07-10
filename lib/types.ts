@@ -202,6 +202,14 @@ export type PostWithRelations = Post & {
   liked_by_current_user: boolean
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
+  // [MT] Public-visibility flags (0011) + the UNCONFLATED viewer signals that
+  // feed can_edit, re-exposed for the surface 2/3 UI. is_public = author consent;
+  // hidden_from_public = admin kill switch; featured = admin prominence.
+  is_public: boolean
+  hidden_from_public: boolean
+  featured: boolean
+  viewerIsAdmin: boolean
+  isAuthor: boolean
 }
 
 export type CommentWithRelations = Comment & {
@@ -223,6 +231,13 @@ export type PostWithFullRelations = Post & {
   liked_by_current_user: boolean
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
+  // [MT] Same visibility + viewer signals as PostWithRelations, kept symmetric so
+  // the detail page can adopt the surface 2/3 UI in a later pass (no UI this pass).
+  is_public: boolean
+  hidden_from_public: boolean
+  featured: boolean
+  viewerIsAdmin: boolean
+  isAuthor: boolean
 }
 
 // A single user who liked a post or comment, for the likers modal.
