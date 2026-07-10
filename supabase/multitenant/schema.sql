@@ -195,6 +195,13 @@ create table public.posts (
     channel_id  uuid,
     edited_at   timestamptz,
     created_at  timestamptz default now(),
+    -- Public visibility (0011). Private default: every row starts members-only.
+    -- is_public = author consent; hidden_from_public = admin kill switch;
+    -- featured = admin prominence. Written ONLY via the set_post_* RPCs (the
+    -- authenticated UPDATE grant in SECTION 7 excludes these three columns).
+    is_public          boolean not null default false,
+    hidden_from_public boolean not null default false,
+    featured           boolean not null default false,
     constraint posts_pkey primary key (id),
     constraint posts_teacher_id_fkey foreign key (teacher_id) references public.teachers(id),
     constraint posts_author_id_fkey  foreign key (author_id)  references public.profiles(id) on delete cascade,
@@ -204,6 +211,9 @@ create table public.posts (
 create index posts_created_at_idx on public.posts (teacher_id, created_at desc);
 create index posts_channel_id_idx on public.posts (channel_id);
 create index posts_author_id_idx  on public.posts (author_id);
+-- Public feed (0011): partial index matching public_posts_feed()'s hard WHERE.
+create index posts_public_feed_idx on public.posts (teacher_id, created_at desc)
+  where is_public and not hidden_from_public;
 
 create table public.topics (
     id                 uuid not null default gen_random_uuid(),
@@ -590,6 +600,15 @@ grant select, insert, delete, truncate, references, trigger on public.profiles t
 revoke update on public.profiles from authenticated;
 grant update (display_name, bio, avatar_url, social_links) on public.profiles to authenticated;
 
+-- authenticated — posts: column-restricted UPDATE (0011). The blanket combined grant
+-- above conferred UPDATE on posts; REVOKE it and re-grant UPDATE on CONTENT columns
+-- only, so is_public/hidden_from_public/featured are unreachable by a direct client
+-- UPDATE and move ONLY through the set_post_* RPCs. MUST stay AFTER the blanket grant
+-- (a fresh rebuild would otherwise silently re-open the flag columns). Row eligibility
+-- is still governed by the unchanged posts_update_owner_or_admin policy.
+revoke update on public.posts from authenticated;
+grant  update (title, body, edited_at) on public.posts to authenticated;
+
 -- service_role — full on everything (verified all-7 on all 19 tables)
 grant all on all tables in schema public to service_role;
 
@@ -624,6 +643,12 @@ grant execute on function public.teacher_member_counts()
   to anon, authenticated, service_role;
 grant execute on function public.can_access_topic(uuid)
   to anon, authenticated, service_role;
+-- Public posts (0011): flag RPCs authenticated-only (internal authz gates them);
+-- the read feed is the ONLY anon path into public posts.
+grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
+grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
+grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid) to anon, authenticated;
 
 
 -- =============================================================================
@@ -998,6 +1023,11 @@ begin
          deleted_at   = now()
    where id = v_user_id;
 
+  -- (1b) Un-publish the leaving user's posts (0011): drop them from the public
+  --      feed at the source. Belt-and-suspenders — public_posts_feed also filters
+  --      on the author's deleted_at is null.
+  update public.posts set is_public = false where author_id = v_user_id;
+
   -- (2) Remove post media ROWS for this user's posts (files removed by caller).
   delete from public.post_images
    where post_id in (select id from public.posts where author_id = v_user_id);
@@ -1331,6 +1361,144 @@ end;
 $$;
 
 grant execute on function public.revoke_membership(uuid, uuid) to authenticated;
+
+
+-- =============================================================================
+-- SECTION 12 — public posts (0011: opt-in public visibility)
+-- =============================================================================
+-- A post is publicly visible iff is_public AND NOT hidden_from_public AND the
+-- author is NOT tombstoned. Flag writes go ONLY through these SECURITY DEFINER
+-- RPCs (authenticated has no direct UPDATE on the flag columns — SECTION 7).
+-- Each flag RPC checks authz from the post's teacher/author BEFORE acting and
+-- collapses not-found into an opaque 'not_authorized' (no cross-tenant existence
+-- oracle). public_posts_feed is the ONLY anon read path into public posts.
+
+-- set_post_public — AUTHOR consent toggle (author AND active member).
+create or replace function public.set_post_public(p_post_id uuid, p_value boolean)
+returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  v_author  uuid;
+  v_teacher uuid;
+begin
+  select author_id, teacher_id into v_author, v_teacher
+    from public.posts where id = p_post_id;
+
+  -- authz gate: not-found, not-author, and not-active-member are indistinguishable.
+  if v_author is null
+     or v_author <> auth.uid()
+     or not public.has_membership(v_teacher) then
+    return jsonb_build_object('success', false, 'error', 'not_authorized');
+  end if;
+
+  update public.posts set is_public = p_value where id = p_post_id;
+  return jsonb_build_object('success', true, 'is_public', p_value);
+end;
+$$;
+
+-- set_post_hidden — ADMIN kill switch (is_teacher_admin of the post's teacher).
+create or replace function public.set_post_hidden(p_post_id uuid, p_value boolean)
+returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  v_teacher uuid;
+begin
+  select teacher_id into v_teacher
+    from public.posts where id = p_post_id;
+
+  if v_teacher is null or not public.is_teacher_admin(v_teacher) then
+    return jsonb_build_object('success', false, 'error', 'not_authorized');
+  end if;
+
+  update public.posts set hidden_from_public = p_value where id = p_post_id;
+  return jsonb_build_object('success', true, 'hidden_from_public', p_value);
+end;
+$$;
+
+-- set_post_featured — ADMIN prominence flag. p_value=true REJECTED ('not_public')
+-- unless the post is CURRENTLY is_public AND NOT hidden_from_public. The not_public
+-- branch is reachable only after authz passes, so it leaks nothing to a stranger.
+create or replace function public.set_post_featured(p_post_id uuid, p_value boolean)
+returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  v_teacher   uuid;
+  v_is_public boolean;
+  v_hidden    boolean;
+begin
+  select teacher_id, is_public, hidden_from_public
+    into v_teacher, v_is_public, v_hidden
+    from public.posts where id = p_post_id;
+
+  if v_teacher is null or not public.is_teacher_admin(v_teacher) then
+    return jsonb_build_object('success', false, 'error', 'not_authorized');
+  end if;
+
+  if p_value and not (v_is_public and not v_hidden) then
+    return jsonb_build_object('success', false, 'error', 'not_public');
+  end if;
+
+  update public.posts set featured = p_value where id = p_post_id;
+  return jsonb_build_object('success', true, 'featured', p_value);
+end;
+$$;
+
+-- public_posts_feed — the ONLY anon read path. SECURITY DEFINER (bypasses
+-- posts/profiles/post_likes RLS), but the hard WHERE + fixed 9-column return cap
+-- exactly what leaves: NO post id / author id / channel_id / comments. p_teacher_id
+-- null => all teachers; set => that teacher. Order featured-first, then created_at
+-- desc. limit defaults to 20 (NULL => 20, NOT 0 rows), hard ceiling 100.
+create or replace function public.public_posts_feed(
+  p_limit      int,
+  p_offset     int,
+  p_teacher_id uuid default null
+)
+returns table (
+  display_name text,
+  avatar_url   text,
+  body         text,
+  image_path   text,
+  like_count   bigint,
+  teacher_slug text,
+  teacher_name text,
+  featured     boolean,
+  created_at   timestamptz
+)
+language sql stable security definer set search_path to 'public'
+as $$
+  select
+    pr.display_name,
+    pr.avatar_url,
+    p.body,
+    (select pi.storage_path
+       from public.post_images pi
+      where pi.post_id = p.id
+      order by pi."position" asc
+      limit 1)                                              as image_path,
+    (select count(*)
+       from public.post_likes pl
+      where pl.post_id = p.id)                              as like_count,
+    t.slug                                                  as teacher_slug,
+    t.name                                                  as teacher_name,
+    p.featured,
+    p.created_at
+  from public.posts p
+  join public.profiles pr on pr.id = p.author_id
+  join public.teachers t  on t.id  = p.teacher_id
+  where p.is_public
+    and not p.hidden_from_public
+    and pr.deleted_at is null
+    and (p_teacher_id is null or p.teacher_id = p_teacher_id)
+  order by p.featured desc, p.created_at desc
+  limit  least(greatest(coalesce(p_limit, 20), 0), 100)
+  offset greatest(coalesce(p_offset, 0), 0);
+$$;
+
+grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
+grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
+grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid) to anon, authenticated;
+
 
 -- =============================================================================
 -- End of multitenant/schema.sql. Run multitenant/seed.sql next.
