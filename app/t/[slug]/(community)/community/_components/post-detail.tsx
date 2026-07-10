@@ -7,6 +7,7 @@ import type { PostWithFullRelations } from '@/lib/types'
 import { CommentForm } from './comment-form'
 import { LikeButton } from './like-button'
 import { PostActions } from './post-actions'
+import { PublicToggle } from './public-toggle'
 import { PostVideoPlayer } from './post-video-player'
 
 export function PostDetail({
@@ -45,6 +46,13 @@ export function PostDetail({
             {formatRelativeTime(post.created_at)}
             {post.edited_at && <span className="ml-1">(edited)</span>}
           </span>
+          {post.isAuthor && (
+            <PublicToggle
+              postId={post.id}
+              isPublic={post.is_public}
+              hiddenFromPublic={post.hidden_from_public}
+            />
+          )}
           {post.can_edit && (
             <div className="ml-auto">
               <PostActions

@@ -262,3 +262,36 @@ export async function deletePost({ postId }: { postId: string }): Promise<Action
   revalidatePath('/', 'layout')
   return { data: true }
 }
+
+// [Surface 2] Author public-consent toggle. Moves ONLY is_public, via the
+// set_post_public RPC (0011) whose SECURITY DEFINER body enforces author +
+// active-membership; hidden_from_public is the admin kill switch and is NEVER
+// touched here. The RPC signals failure TWO ways: a transport error, OR a
+// { success:false } JSON payload (authz denials return this WITHOUT throwing) —
+// treat either as failure. Revocable in both directions (p_value true|false).
+export async function setPostPublic({
+  postId,
+  isPublic,
+}: {
+  postId: string
+  isPublic: boolean
+}): Promise<{ data: { is_public: boolean } } | { error: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not signed in.' }
+  }
+
+  const { data, error } = await supabase.rpc('set_post_public', {
+    p_post_id: postId,
+    p_value: isPublic,
+  })
+  if (error || (data as { success?: boolean } | null)?.success === false) {
+    return { error: 'Failed to update post visibility.' }
+  }
+
+  revalidatePath('/', 'layout')
+  return { data: { is_public: isPublic } }
+}
