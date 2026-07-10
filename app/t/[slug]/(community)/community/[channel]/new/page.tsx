@@ -60,6 +60,7 @@ export default async function NewPostPage({
         channelId={channel.id}
         channelSlug={channel.slug}
         teacherId={teacher.id}
+        teacherName={teacher.name}
         isAdmin={isAdmin}
         basePath={basePath}
       />

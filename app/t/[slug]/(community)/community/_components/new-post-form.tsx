@@ -44,6 +44,7 @@ export function NewPostForm({
   channelId,
   channelSlug,
   teacherId,
+  teacherName,
   isAdmin,
   initialPost,
   basePath = '/community',
@@ -54,6 +55,9 @@ export function NewPostForm({
   // is NOT NULL + RLS has_membership(teacher_id)) and used as the first storage path
   // segment ({teacher_id}/{uid}/{post_id}/...), which storage RLS requires.
   teacherId: string
+  // Community display name, for the public-share checkbox label. Optional: only the
+  // create route threads it in; the edit route (no checkbox) omits it.
+  teacherName?: string
   isAdmin: boolean
   initialPost?: EditPost
   // URL prefix for the post-create / post-edit redirect. Defaults to '/community'.
@@ -62,8 +66,19 @@ export function NewPostForm({
   const router = useRouter()
   const isEdit = !!initialPost
 
+  // Opt-in public-share label. Prefer the community's display name; fall back to a
+  // generic phrasing if it wasn't threaded in (e.g. the edit route, where the
+  // checkbox is not rendered anyway).
+  const communityName = teacherName?.trim() || ''
+  const publicShareLabel = communityName
+    ? `Also share on ${communityName}'s public page`
+    : "Also share on the community's public page"
+
   const [title, setTitle] = useState(initialPost?.title ?? '')
   const [body, setBody] = useState(initialPost?.body ?? '')
+  // Public share is opt-in: default OFF, so publishing to the public page is an
+  // explicit choice. The flag itself moves via set_post_public after the insert.
+  const [isPublic, setIsPublic] = useState(false)
 
   // Newly picked files (both modes).
   const [images, setImages] = useState<SelectedImage[]>([])
@@ -256,6 +271,35 @@ export function NewPostForm({
     }
 
     const postUrl = `${basePath}/${channelSlug}/${postId}`
+
+    // Opt-in public share: flip is_public via set_post_public AFTER the post
+    // exists (0012 blocks naming the flag on insert; it moves ONLY through this
+    // author-consent RPC). Mirror the video-attach precedent below — the post is
+    // already saved, so on failure never roll back: surface a non-blocking notice
+    // + a link to the post (where the author can retry the share) rather than
+    // navigating away silently. The RPC signals failure in its return payload
+    // ({ success: false }) as well as via a transport error, so check both.
+    if (isPublic) {
+      const { data: shareResult, error: shareError } = await supabase.rpc(
+        'set_post_public',
+        { p_post_id: postId, p_value: true },
+      )
+      const shareFailed =
+        !!shareError ||
+        (shareResult as { success?: boolean } | null)?.success === false
+      if (shareFailed) {
+        console.error(
+          'Post saved, but sharing it publicly failed:',
+          shareError ?? shareResult,
+        )
+        setError(
+          "Post created — couldn't share it publicly. You can share it from the post.",
+        )
+        setCreatedPostUrl(postUrl)
+        setIsSubmitting(false)
+        return
+      }
+    }
 
     // Attach the optional video LAST, and never let its failure break the post:
     // the post is already saved at this point. On failure, log it, keep the
@@ -578,6 +622,23 @@ export function NewPostForm({
             />
           )}
         </div>
+      )}
+
+      {/* Opt-in public share (create only). Default OFF — publishing to the
+          community's public page is an explicit choice. The post is created
+          private, then set_post_public flips is_public after the insert (0012
+          blocks naming the flag on insert). Shown regardless of the channel's
+          tag-gating / post_permission. */}
+      {!isEdit && (
+        <label className="flex items-start gap-2 text-sm font-medium text-fg-secondary">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong focus:ring-1 focus:ring-ring"
+          />
+          <span className="font-normal text-fg-secondary">{publicShareLabel}</span>
+        </label>
       )}
 
       {error && (
