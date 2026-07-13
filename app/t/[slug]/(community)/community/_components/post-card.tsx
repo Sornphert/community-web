@@ -5,6 +5,7 @@ import { Avatar } from '@/app/(app)/_components/avatar'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatRelativeTime } from '@/lib/format'
 import type { PostWithRelations } from '@/lib/types'
+import { AdminPostControls } from './admin-post-controls'
 import { LikeButton } from './like-button'
 import { PostActions } from './post-actions'
 import { PublicToggle } from './public-toggle'
@@ -51,14 +52,24 @@ export function PostCard({
             hiddenFromPublic={post.hidden_from_public}
           />
         )}
-        {post.can_edit && (
-          <div className="ml-auto">
-            <PostActions
-              postId={post.id}
-              channelSlug={channelSlug}
-              basePath={basePath}
-              variant="card"
-            />
+        {(post.viewerIsAdmin || post.can_edit) && (
+          <div className="ml-auto flex items-center gap-2">
+            {post.viewerIsAdmin && (
+              <AdminPostControls
+                postId={post.id}
+                isPublic={post.is_public}
+                hiddenFromPublic={post.hidden_from_public}
+                featured={post.featured}
+              />
+            )}
+            {post.can_edit && (
+              <PostActions
+                postId={post.id}
+                channelSlug={channelSlug}
+                basePath={basePath}
+                variant="card"
+              />
+            )}
           </div>
         )}
       </div>

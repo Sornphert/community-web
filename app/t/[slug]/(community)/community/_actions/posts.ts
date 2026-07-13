@@ -295,3 +295,73 @@ export async function setPostPublic({
   revalidatePath('/', 'layout')
   return { data: { is_public: isPublic } }
 }
+
+// [Surface 3] Admin kill switch. Moves ONLY hidden_from_public, via set_post_hidden (0011)
+// whose SECURITY DEFINER body enforces is_teacher_admin OF THE POST'S TEACHER (never the
+// caller's other memberships) — so viewerIsAdmin is never trusted server-side. Same
+// dual-failure convention as setPostPublic (transport error OR { success:false }). Both
+// directions (p_value true|false); admin-gated only, no public-state precondition.
+export async function setPostHidden({
+  postId,
+  hidden,
+}: {
+  postId: string
+  hidden: boolean
+}): Promise<{ data: { hidden_from_public: boolean } } | { error: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not signed in.' }
+  }
+
+  const { data, error } = await supabase.rpc('set_post_hidden', {
+    p_post_id: postId,
+    p_value: hidden,
+  })
+  if (error || (data as { success?: boolean } | null)?.success === false) {
+    return { error: 'Failed to update post visibility.' }
+  }
+
+  revalidatePath('/', 'layout')
+  return { data: { hidden_from_public: hidden } }
+}
+
+// [Surface 3] Admin prominence flag. Moves ONLY featured, via set_post_featured (0011).
+// The RPC REJECTS featuring (p_value=true) a not-currently-public post with error
+// 'not_public' (predicate: is_public AND NOT hidden_from_public); unfeature is always
+// allowed once admin. We PROPAGATE not_public distinctly so the client can show a
+// race-specific message (the UI already disables Feature when !canFeature, so this only
+// fires on a concurrent public/hidden change). not_authorized + transport collapse to the
+// generic message.
+export async function setPostFeatured({
+  postId,
+  featured,
+}: {
+  postId: string
+  featured: boolean
+}): Promise<{ data: { featured: boolean } } | { error: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not signed in.' }
+  }
+
+  const { data, error } = await supabase.rpc('set_post_featured', {
+    p_post_id: postId,
+    p_value: featured,
+  })
+  const payload = data as { success?: boolean; error?: string } | null
+  if (error || payload?.success === false) {
+    if (!error && payload?.error === 'not_public') {
+      return { error: 'not_public' }
+    }
+    return { error: 'Failed to update featured state.' }
+  }
+
+  revalidatePath('/', 'layout')
+  return { data: { featured } }
+}

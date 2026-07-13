@@ -232,6 +232,11 @@ export async function getPost(
       '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
     )
     .eq('id', id)
+    // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
+    // this, a dual-member (admin of A, member of B) could load a B-post under /t/A and it
+    // would carry viewerIsAdmin=isTeacherAdmin(A)=true — a spoofed cross-tenant moderation
+    // affordance. Mismatched teacher => maybeSingle() returns null => caller 404s.
+    .eq('teacher_id', teacherId)
     .order('position', { referencedTable: 'post_images', ascending: true })
     .order('position', { referencedTable: 'post_attachments', ascending: true })
     .order('created_at', { referencedTable: 'comments', ascending: true })
