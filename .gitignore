@@ -16,6 +16,11 @@
 # next.js
 /.next/
 /out/
+/tmp/
+
+# local tooling artifacts
+/.claude/
+/.playwright-mcp/
 
 # production
 /build

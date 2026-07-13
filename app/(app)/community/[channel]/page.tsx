@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
+  getAllMembers,
   getChannelBySlug,
   getChannels,
   getPost,
@@ -32,7 +33,30 @@ export default async function ChannelPage({
     if (post.channel) {
       redirect(`/community/${post.channel.slug}/${post.id}`)
     }
-    return <PostDetail post={post} channelSlug="announcements" />
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const [members, { data: profile }] = await Promise.all([
+      getAllMembers(),
+      supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user?.id ?? '')
+        .maybeSingle(),
+    ])
+    return (
+      <PostDetail
+        post={post}
+        channelSlug="announcements"
+        members={members.map((m) => ({
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+        }))}
+        canMentionAll={profile?.is_admin === true}
+      />
+    )
   }
 
   // URL-collision guard: a weekly channel's canonical home is /weekly. Never

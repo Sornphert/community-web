@@ -11,6 +11,10 @@ import { formatFileSize } from '@/lib/format'
 import { updatePost } from '../_actions/posts'
 import { PostVideoUpload } from './post-video-upload'
 import { PostVideoPlayer } from './post-video-player'
+import {
+  MentionTextarea,
+  type MentionMember,
+} from '@/app/(app)/_components/mention-textarea'
 
 type SelectedImage = { file: File; url: string }
 
@@ -44,12 +48,19 @@ export function NewPostForm({
   channelId,
   channelSlug,
   isAdmin,
+  members = [],
+  canMentionAll = false,
   initialPost,
   basePath = '/community',
 }: {
   channelId: string
   channelSlug: string
   isAdmin: boolean
+  // Mention-picker data: the roster + whether the composer may offer @all
+  // (admins only — the DB also enforces this). Optional so non-community
+  // callers keep working without threading it.
+  members?: MentionMember[]
+  canMentionAll?: boolean
   initialPost?: EditPost
   // URL prefix for the post-create / post-edit redirect. Defaults to
   // '/community'; the /weekly tree passes '/weekly'.
@@ -403,16 +414,19 @@ export function NewPostForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
+      <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Body *
-        <textarea
+        <MentionTextarea
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
+          members={members}
+          canMentionAll={canMentionAll}
           required
           rows={5}
-          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+          placeholder="Write your post… use @ to mention"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
         />
-      </label>
+      </div>
 
       <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
         Images

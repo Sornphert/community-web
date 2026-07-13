@@ -165,6 +165,33 @@ export type ProfileWithPosts = Profile & {
   posts: Pick<Post, 'id' | 'title' | 'body' | 'created_at' | 'author_id'>[]
 }
 
+// In-app notification kinds. Mirror the DB CHECK on notifications.type (0015).
+export type NotificationType =
+  | 'mention'
+  | 'mention_all'
+  | 'post_comment'
+  | 'post_like'
+  | 'comment_like'
+
+// A notification row decorated for display: the actor's identity plus enough of
+// the target (post title, channel slug) to build a deep link. Rows are created
+// only by DB triggers; the client never inserts them.
+export type NotificationItem = {
+  id: string
+  type: NotificationType
+  read_at: string | null
+  created_at: string
+  post_id: string | null
+  comment_id: string | null
+  post_title: string | null
+  channel_slug: string | null
+  actor: {
+    id: string
+    display_name: string
+    avatar_url: string | null
+  } | null
+}
+
 export type Topic = {
   id: string
   name: string
