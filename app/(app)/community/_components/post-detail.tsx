@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { MentionText } from '@/app/(app)/_components/mention-text'
+import type { MentionMember } from '@/app/(app)/_components/mention-textarea'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
@@ -12,11 +14,17 @@ import { PostVideoPlayer } from './post-video-player'
 export function PostDetail({
   post,
   channelSlug,
+  members = [],
+  canMentionAll = false,
   basePath = '/community',
   backLabel = 'Back to community',
 }: {
   post: PostWithFullRelations
   channelSlug: string
+  // Mention-picker data threaded to the comment composer. Optional so the
+  // /weekly tree can render without it.
+  members?: MentionMember[]
+  canMentionAll?: boolean
   // URL prefix + back-link label. Default to the Community feed; the /weekly tree
   // passes '/weekly' and the week's name (e.g. "第 1 周 · Week 1").
   basePath?: string
@@ -65,7 +73,10 @@ export function PostDetail({
         )}
 
         {post.body && (
-          <p className="mt-2 whitespace-pre-wrap text-fg-secondary">{post.body}</p>
+          <MentionText
+            body={post.body}
+            className="mt-2 block whitespace-pre-wrap text-fg-secondary"
+          />
         )}
 
         {post.images.length > 0 && (
@@ -158,9 +169,10 @@ export function PostDetail({
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-fg-secondary">
-                  {comment.body}
-                </p>
+                <MentionText
+                  body={comment.body}
+                  className="block whitespace-pre-wrap text-sm text-fg-secondary"
+                />
                 <div className="mt-1">
                   <LikeButton
                     targetType="comment"
@@ -176,7 +188,11 @@ export function PostDetail({
       )}
 
       <div className="mt-6">
-        <CommentForm postId={post.id} />
+        <CommentForm
+          postId={post.id}
+          members={members}
+          canMentionAll={canMentionAll}
+        />
       </div>
     </div>
   )

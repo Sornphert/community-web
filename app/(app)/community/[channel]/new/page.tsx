@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getChannelBySlug } from '@/lib/posts'
+import { getAllMembers, getChannelBySlug } from '@/lib/posts'
 import { SHOW_WEEKLY } from '@/lib/config'
 import { NewPostForm } from '../../_components/new-post-form'
 
@@ -49,6 +49,8 @@ export default async function NewPostPage({
     redirect(`/community/${channel.slug}`)
   }
 
+  const members = await getAllMembers()
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
@@ -67,6 +69,12 @@ export default async function NewPostPage({
         channelId={channel.id}
         channelSlug={channel.slug}
         isAdmin={isAdmin}
+        members={members.map((m) => ({
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+        }))}
+        canMentionAll={isAdmin}
       />
     </div>
   )

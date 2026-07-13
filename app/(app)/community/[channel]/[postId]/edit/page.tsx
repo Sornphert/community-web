@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getPost } from '@/lib/posts'
+import { getAllMembers, getPost } from '@/lib/posts'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { NewPostForm, type EditPost } from '../../../_components/new-post-form'
 
@@ -37,6 +37,7 @@ export default async function EditPostPage({
     .eq('id', user!.id)
     .maybeSingle()
   const isAdmin = profile?.is_admin === true
+  const members = await getAllMembers()
 
   const initialPost: EditPost = {
     id: post.id,
@@ -76,7 +77,14 @@ export default async function EditPostPage({
         channelId={post.channel_id ?? ''}
         channelSlug={channel}
         isAdmin={isAdmin}
+        members={members.map((m) => ({
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+        }))}
+        canMentionAll={isAdmin}
         initialPost={initialPost}
+        basePath="/community"
       />
     </div>
   )

@@ -16,6 +16,7 @@ import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
 import { APP_NAME, BRAND_LOGO_URL, SHOW_WEEKLY } from '@/lib/config'
+import { NotificationBell } from './notification-bell'
 
 type NavItem = {
   href: string
@@ -67,6 +68,9 @@ export function Sidebar({
           <h1 className="font-semibold text-fg text-sm leading-tight">
             {APP_NAME}
           </h1>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-2">
@@ -154,6 +158,9 @@ export function Sidebar({
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {APP_NAME}
         </h1>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </header>
 
       {/* Mobile: bottom tab bar */}
