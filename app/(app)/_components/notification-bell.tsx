@@ -169,7 +169,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-lg border border-line-strong bg-surface shadow-lg">
+        <div className="absolute right-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-line-strong bg-surface shadow-lg md:left-0 md:right-auto">
           <div className="flex items-center justify-between border-b border-line px-4 py-2">
             <p className="text-sm font-semibold text-fg">Notifications</p>
             <PushToggle />
