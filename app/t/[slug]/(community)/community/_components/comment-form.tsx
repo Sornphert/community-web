@@ -3,8 +3,20 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import {
+  MentionTextarea,
+  type MentionMember,
+} from '@/app/(app)/_components/mention-textarea'
 
-export function CommentForm({ postId }: { postId: string }) {
+export function CommentForm({
+  postId,
+  members,
+  canMentionAll,
+}: {
+  postId: string
+  members: MentionMember[]
+  canMentionAll: boolean
+}) {
   const router = useRouter()
   const [body, setBody] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -56,12 +68,14 @@ export function CommentForm({ postId }: { postId: string }) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4"
     >
-      <textarea
+      <MentionTextarea
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={setBody}
+        members={members}
+        canMentionAll={canMentionAll}
         required
         rows={3}
-        placeholder="Write a comment…"
+        placeholder="Write a comment… use @ to mention"
         className="w-full rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
 

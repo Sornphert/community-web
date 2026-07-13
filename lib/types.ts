@@ -278,6 +278,39 @@ export type MemberWithPosts = Profile & {
   posts: MemberPost[]
 }
 
+// In-app notification kinds. Mirror the DB CHECK on notifications.type.
+//   mention       — someone @-mentioned you in a post or comment
+//   mention_all   — an admin @all'd everyone (you're one of them)
+//   post_comment  — someone commented on your post
+//   post_like     — someone liked your post
+//   comment_like  — someone liked your comment
+export type NotificationType =
+  | 'mention'
+  | 'mention_all'
+  | 'post_comment'
+  | 'post_like'
+  | 'comment_like'
+
+// A notification row decorated for display: the actor's identity plus enough of
+// the target (post title, channel slug) to build a deep link. Rows are created
+// only by DB triggers (0013); the client never inserts them.
+export type NotificationItem = {
+  id: string
+  type: NotificationType
+  read_at: string | null
+  created_at: string
+  post_id: string | null
+  comment_id: string | null
+  // Denormalized for the dropdown link + snippet.
+  post_title: string | null
+  channel_slug: string | null
+  actor: {
+    id: string
+    display_name: string
+    avatar_url: string | null
+  } | null
+}
+
 export type Topic = {
   id: string
   name: string

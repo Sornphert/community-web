@@ -15,6 +15,7 @@ import { signOut } from '@/app/login/actions'
 import Image from 'next/image'
 import type { Channel } from '@/lib/types'
 import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
+import { NotificationBell } from './notification-bell'
 
 type NavItem = {
   href: string
@@ -27,12 +28,17 @@ export function Sidebar({
   isAdmin,
   channels,
   slug,
+  teacherId,
   brandName,
   brandLogoUrl,
 }: {
   userEmail: string
   isAdmin: boolean
   channels: Channel[]
+  // [MT] The teacher whose shell this is. Present in /t/[slug]; drives the
+  // notification bell (scopes its query + realtime to this teacher). Absent in
+  // the legacy single-tenant (app) shell — the bell is then not rendered.
+  teacherId?: string
   // [MT] Present in the teacher shell (/t/[slug]) → all teacher nav is prefixed with
   // `/t/${slug}`. Absent in the not-yet-ported single-tenant (app) layout → legacy
   // unprefixed hrefs. Profile is GLOBAL data, but the tab is prefixed too so it stays
@@ -83,6 +89,11 @@ export function Sidebar({
           <h1 className="font-semibold text-fg text-sm leading-tight">
             {appName}
           </h1>
+          {teacherId && slug && (
+            <div className="ml-auto">
+              <NotificationBell teacherId={teacherId} slug={slug} />
+            </div>
+          )}
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-2">
@@ -170,6 +181,11 @@ export function Sidebar({
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {appName}
         </h1>
+        {teacherId && slug && (
+          <div className="ml-auto">
+            <NotificationBell teacherId={teacherId} slug={slug} />
+          </div>
+        )}
       </header>
 
       {/* Mobile: bottom tab bar */}

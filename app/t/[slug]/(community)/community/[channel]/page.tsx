@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import {
+  getAllMembers,
   getChannelBySlug,
   getChannels,
   getPost,
@@ -40,7 +41,24 @@ export default async function ChannelPage({
     if (post.channel) {
       redirect(`${basePath}/${post.channel.slug}/${post.id}`)
     }
-    return <PostDetail post={post} channelSlug="announcements" basePath={basePath} />
+    const [members, canMentionAll] = await Promise.all([
+      getAllMembers(teacher.id),
+      isTeacherAdmin(teacher.id),
+    ])
+    return (
+      <PostDetail
+        post={post}
+        channelSlug="announcements"
+        slug={slug}
+        members={members.map((m) => ({
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+        }))}
+        canMentionAll={canMentionAll}
+        basePath={basePath}
+      />
+    )
   }
 
   // Leak-guard (intentional — do not remove): the Weekly vertical (its routes and

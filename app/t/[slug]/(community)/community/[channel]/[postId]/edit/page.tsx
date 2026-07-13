@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { getPost } from '@/lib/posts'
+import { getAllMembers, getPost } from '@/lib/posts'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
@@ -35,6 +35,7 @@ export default async function EditPostPage({
   // Video controls are admin-only (matches create). A non-admin author sees the
   // existing video read-only. [MT] admin is per-teacher via is_teacher_admin.
   const isAdmin = await isTeacherAdmin(teacher.id)
+  const members = await getAllMembers(teacher.id)
 
   const initialPost: EditPost = {
     id: post.id,
@@ -75,6 +76,12 @@ export default async function EditPostPage({
         channelSlug={channel}
         teacherId={teacher.id}
         isAdmin={isAdmin}
+        members={members.map((m) => ({
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+        }))}
+        canMentionAll={isAdmin}
         initialPost={initialPost}
         basePath={basePath}
       />

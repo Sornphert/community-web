@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { MentionText } from '@/app/(app)/_components/mention-text'
+import type { MentionMember } from '@/app/(app)/_components/mention-textarea'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
@@ -14,11 +16,19 @@ import { PostVideoPlayer } from './post-video-player'
 export function PostDetail({
   post,
   channelSlug,
+  slug,
+  members,
+  canMentionAll,
   basePath = '/community',
   backLabel = 'Back to community',
 }: {
   post: PostWithFullRelations
   channelSlug: string
+  // [MT] Teacher slug — builds mention member links + threads to the comment
+  // composer. Members + canMentionAll drive the @-mention picker.
+  slug: string
+  members: MentionMember[]
+  canMentionAll: boolean
   // URL prefix + back-link label. Default to the Community feed.
   basePath?: string
   backLabel?: string
@@ -83,7 +93,11 @@ export function PostDetail({
         )}
 
         {post.body && (
-          <p className="mt-2 whitespace-pre-wrap text-fg-secondary">{post.body}</p>
+          <MentionText
+            body={post.body}
+            slug={slug}
+            className="mt-2 block whitespace-pre-wrap text-fg-secondary"
+          />
         )}
 
         {post.images.length > 0 && (
@@ -176,9 +190,11 @@ export function PostDetail({
                     {formatRelativeTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-fg-secondary">
-                  {comment.body}
-                </p>
+                <MentionText
+                  body={comment.body}
+                  slug={slug}
+                  className="block whitespace-pre-wrap text-sm text-fg-secondary"
+                />
                 <div className="mt-1">
                   <LikeButton
                     targetType="comment"
@@ -194,7 +210,11 @@ export function PostDetail({
       )}
 
       <div className="mt-6">
-        <CommentForm postId={post.id} />
+        <CommentForm
+          postId={post.id}
+          members={members}
+          canMentionAll={canMentionAll}
+        />
       </div>
     </div>
   )

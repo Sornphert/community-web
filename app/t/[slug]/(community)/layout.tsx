@@ -57,6 +57,7 @@ export default async function TeacherCommunityLayout({
     <div className="flex flex-1 flex-col md:flex-row">
       <Sidebar
         slug={slug}
+        teacherId={teacher.id}
         userEmail={user.email ?? ''}
         isAdmin={isAdmin}
         channels={channels}

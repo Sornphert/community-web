@@ -4,6 +4,7 @@ import { MessageSquare, Paperclip } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatRelativeTime } from '@/lib/format'
+import { bodyToPlainText } from '@/lib/mentions'
 import type { PostWithRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { LikeButton } from './like-button'
@@ -81,7 +82,9 @@ export function PostCard({
       )}
 
       {post.body && (
-        <p className="mt-1 line-clamp-3 text-fg-secondary">{post.body}</p>
+        <p className="mt-1 line-clamp-3 text-fg-secondary">
+          {bodyToPlainText(post.body)}
+        </p>
       )}
 
       {video ? (

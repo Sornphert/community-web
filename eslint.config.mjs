@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Stray Next build output can land here when distDir is overridden; never lint it.
+    "tmp/**",
   ]),
 ]);
 

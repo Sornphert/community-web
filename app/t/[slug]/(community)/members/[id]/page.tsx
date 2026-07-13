@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { SOCIAL_ICON } from '@/app/(app)/_components/social-icons'
 import { formatRelativeTime } from '@/lib/format'
+import { bodyToPlainText } from '@/lib/mentions'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { getMemberProfile } from '@/lib/posts'
 import { SOCIAL_PLATFORMS, socialUrl } from '@/lib/social'
@@ -114,7 +115,7 @@ export default async function MemberProfilePage({
                 )}
                 {post.body && (
                   <p className="mt-1 line-clamp-1 text-sm text-fg-soft">
-                    {post.body}
+                    {bodyToPlainText(post.body)}
                   </p>
                 )}
               </>
