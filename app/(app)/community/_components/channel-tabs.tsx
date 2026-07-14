@@ -9,7 +9,7 @@ export function ChannelTabs({ channels }: { channels: Channel[] }) {
   const pathname = usePathname()
 
   return (
-    <div className="sticky top-[57px] z-10 -mx-4 mb-2 border-b border-line bg-canvas px-4 pt-4 pb-2 md:hidden">
+    <div className="sticky top-[57px] z-10 -mx-4 -mt-4 border-b border-line bg-canvas px-4 py-3 md:hidden">
       <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {channels.map((channel) => {
           const href = `/community/${channel.slug}`
