@@ -56,24 +56,27 @@ export function Sidebar({
   return (
     <>
       {/* Desktop: vertical sidebar */}
-      <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
+      {/* Note: no overflow on the aside itself — that would clip the notification
+          dropdown, which is wider than the rail and hangs into the content area.
+          The nav scrolls instead. */}
+      <aside className="sticky top-0 hidden h-screen md:flex md:w-72 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-line">
-          <Image 
-            src={BRAND_LOGO_URL} 
+          <Image
+            src={BRAND_LOGO_URL}
             alt={APP_NAME}
-            width={40} 
-            height={40} 
+            width={40}
+            height={40}
             className="rounded shrink-0"
           />
-          <h1 className="font-semibold text-fg text-sm leading-tight">
+          <h1 className="min-w-0 font-semibold text-fg text-sm leading-tight">
             {APP_NAME}
           </h1>
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <NotificationBell />
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-2">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2">
           {navItems.map(({ href, label, icon: Icon }) => {
             if (href === '/community') {
               return (
@@ -147,7 +150,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile: sticky top brand bar */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
+      <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
           src={BRAND_LOGO_URL}
           alt={APP_NAME}
