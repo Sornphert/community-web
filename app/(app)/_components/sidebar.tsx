@@ -105,7 +105,7 @@ export function Sidebar({
                               : 'text-fg-soft hover:bg-muted'
                           }`}
                         >
-                          {channel.name}
+                          {channel.name.trim()}
                         </Link>
                       )
                     })}
