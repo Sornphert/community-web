@@ -19,10 +19,10 @@ export function ChannelTabs({ channels }: { channels: Channel[] }) {
             <Link
               key={channel.id}
               href={href}
-              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-inverse text-inverse-fg'
-                  : 'border border-line bg-surface text-fg-secondary'
+                  ? 'border-transparent bg-inverse text-inverse-fg'
+                  : 'border-line bg-surface text-fg-secondary'
               }`}
             >
               {channel.name}

@@ -59,7 +59,7 @@ export function Sidebar({
       {/* Note: no overflow on the aside itself — that would clip the notification
           dropdown, which is wider than the rail and hangs into the content area.
           The nav scrolls instead. */}
-      <aside className="sticky top-0 hidden h-screen md:flex md:w-72 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
+      <aside className="sticky top-0 hidden h-screen md:z-40 md:flex md:w-72 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-line">
           <Image
             src={BRAND_LOGO_URL}
