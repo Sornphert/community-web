@@ -7,7 +7,6 @@ import { formatRelativeTime } from '@/lib/format'
 import { bodyToPlainText } from '@/lib/mentions'
 import type { PostWithRelations } from '@/lib/types'
 import { LikeButton } from './like-button'
-import { PostActions } from './post-actions'
 import { PostVideoPlayer } from './post-video-player'
 
 export function PostCard({
@@ -43,18 +42,7 @@ export function PostCard({
         </span>
         <span className="text-sm text-fg-muted">
           {formatRelativeTime(post.created_at)}
-          {post.edited_at && <span className="ml-1">(edited)</span>}
         </span>
-        {post.can_edit && (
-          <div className="ml-auto">
-            <PostActions
-              postId={post.id}
-              channelSlug={channelSlug}
-              basePath={basePath}
-              variant="card"
-            />
-          </div>
-        )}
       </div>
 
       {post.title && (

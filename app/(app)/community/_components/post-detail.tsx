@@ -52,7 +52,6 @@ export function PostDetail({
           </span>
           <span className="text-sm text-fg-muted">
             {formatRelativeTime(post.created_at)}
-            {post.edited_at && <span className="ml-1">(edited)</span>}
           </span>
           {post.can_edit && (
             <div className="ml-auto">
