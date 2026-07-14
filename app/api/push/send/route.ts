@@ -117,10 +117,20 @@ export async function POST(request: NextRequest) {
     url = `${origin}/community/${postRow.channel.slug}/${record.post_id}`
   }
 
+  // Per-site notification icon. Each deployment sets its own brand logo via
+  // NEXT_PUBLIC_BRAND_LOGO_URL; without this the service worker falls back to
+  // the shared /brand.jpg committed in the repo (one teacher's logo shown on
+  // every site). Resolve relative paths against this site's origin so the push
+  // service can fetch it.
+  const brand = process.env.NEXT_PUBLIC_BRAND_LOGO_URL || '/brand.jpg'
+  const iconUrl = /^https?:\/\//.test(brand) ? brand : `${origin}${brand}`
+
   const payload = JSON.stringify({
     title: `${actorName} ${verbFor(record.type)}`,
     body: postRow?.title ?? '',
     url,
+    icon: iconUrl,
+    badge: iconUrl,
     tag: record.id,
   })
 

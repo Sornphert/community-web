@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { APP_NAME, APP_DESCRIPTION, FAVICON_URL } from "@/lib/config";
+import { APP_NAME, APP_DESCRIPTION, FAVICON_URL, BRAND_LOGO_URL } from "@/lib/config";
 import { ThemeProvider } from "./_components/theme-provider";
 import "./globals.css";
 
@@ -17,7 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: APP_DESCRIPTION,
-  icons: { icon: FAVICON_URL },
+  // `apple` = the Home Screen (PWA) icon iOS uses — and, for iOS web push, the
+  // icon shown on the notification. Env-driven so each site uses its own logo
+  // instead of an auto-generated letter tile.
+  icons: { icon: FAVICON_URL, apple: BRAND_LOGO_URL },
 };
 
 export default function RootLayout({
