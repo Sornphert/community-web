@@ -150,7 +150,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile: sticky top brand bar */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
+      <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
           src={BRAND_LOGO_URL}
           alt={APP_NAME}
