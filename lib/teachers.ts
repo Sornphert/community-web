@@ -99,10 +99,11 @@ export async function getMyMembershipStatus(
 // teachers SELECT to authenticated (teachers_select_all) AND anon (teachers_select_anon),
 // so this returns every teacher on BOTH paths.
 //
-// EXPLICIT column list, NOT select('*'): anon's column grant (migration 0002) covers
-// only (id, slug, name, cover_url, logo_url, description) — a '*' select would try to
-// read created_at and throw for logged-out viewers. The directory needs only these
-// columns, so the explicit list is the single anon-safe code path for both audiences.
+// EXPLICIT column list, NOT select('*'): anon's column grant (migrations 0002 + 0015)
+// covers only (id, slug, name, cover_url, logo_url, description, website_url, category_id)
+// — a '*' select would try to read created_at and throw for logged-out viewers. The
+// directory needs only these columns, so the explicit list is the single anon-safe
+// code path for both audiences. website_url feeds the locked-community modal CTA.
 //
 // member_count is a placeholder 0 here; the page overlays the real count from
 // getTeacherMemberCounts() (sourced via RPC, not a memberships SELECT).
@@ -111,7 +112,7 @@ export async function getAllTeachers(): Promise<DirectoryTeacher[]> {
 
   const { data, error } = await supabase
     .from('teachers')
-    .select('id, slug, name, cover_url, logo_url, description')
+    .select('id, slug, name, cover_url, logo_url, description, website_url')
     .order('name', { ascending: true })
 
   if (error) {

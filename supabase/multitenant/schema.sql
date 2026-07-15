@@ -62,6 +62,7 @@ create table public.teachers (
     cover_url   text,
     logo_url    text,
     description text,
+    website_url text,
     category_id uuid,
     constraint teachers_pkey primary key (id),
     constraint teachers_slug_key unique (slug),
@@ -628,7 +629,7 @@ grant all on all tables in schema public to service_role;
 -- everything first (live shows zero anon grants), then grant back only the public
 -- directory columns. created_at and every other table stay closed to anon.
 revoke all on all tables in schema public from anon;
-grant select (id, slug, name, cover_url, logo_url, description, category_id) on public.teachers to anon;
+grant select (id, slug, name, cover_url, logo_url, description, website_url, category_id) on public.teachers to anon;
 
 -- categories (0004) — read-only reference data. authenticated + anon SELECT; anon EXCLUDES
 -- created_at (mirrors the teachers anon-grant invariant). service_role covered by grant all.

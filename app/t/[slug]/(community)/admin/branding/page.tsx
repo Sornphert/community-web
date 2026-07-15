@@ -45,6 +45,7 @@ export default async function AdminBrandingPage({
         coverUrl={teacher.cover_url}
         logoUrl={teacher.logo_url}
         description={teacher.description}
+        websiteUrl={teacher.website_url}
       />
     </div>
   )

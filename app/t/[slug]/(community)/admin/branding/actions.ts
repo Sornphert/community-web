@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   MAX_TEACHER_DESCRIPTION_LEN,
   MAX_TEACHER_NAME_LEN,
+  MAX_TEACHER_WEBSITE_URL_LEN,
   TEACHER_COVERS_BUCKET,
   TEACHER_LOGOS_BUCKET,
 } from '@/lib/teacher-branding'
@@ -188,6 +189,39 @@ export async function updateTeacherDescription(input: {
   const { data, error } = await auth.supabase
     .from('teachers')
     .update({ description: trimmed === '' ? null : trimmed })
+    .eq('id', input.teacherId)
+    .select('*')
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return { teacher: data as Teacher }
+}
+
+export async function updateTeacherWebsite(input: {
+  teacherId: string
+  websiteUrl: string
+}): Promise<{ error?: string; teacher?: Teacher }> {
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  // TRIM, length-check, THEN empty-string → null (a cleared link reads back as null,
+  // which the locked-community modal uses to hide the "Visit website" button). We do
+  // NOT hard-validate the URL shape here — the modal normalizes a bare host to https://
+  // — but we cap length so the column can't be abused.
+  const trimmed = input.websiteUrl.trim()
+  if (trimmed.length > MAX_TEACHER_WEBSITE_URL_LEN) {
+    return {
+      error: `Website URL is too long (max ${MAX_TEACHER_WEBSITE_URL_LEN} characters).`,
+    }
+  }
+
+  const { data, error } = await auth.supabase
+    .from('teachers')
+    .update({ website_url: trimmed === '' ? null : trimmed })
     .eq('id', input.teacherId)
     .select('*')
     .single()

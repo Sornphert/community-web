@@ -7,6 +7,7 @@ import {
   isAllowedBrandingImage,
   MAX_TEACHER_DESCRIPTION_LEN,
   MAX_TEACHER_NAME_LEN,
+  MAX_TEACHER_WEBSITE_URL_LEN,
 } from '@/lib/teacher-branding'
 import { uploadTeacherCover } from '@/lib/teacher-cover-upload'
 import { uploadTeacherLogo } from '@/lib/teacher-logo-upload'
@@ -15,6 +16,7 @@ import {
   updateTeacherLogo,
   updateTeacherDescription,
   updateTeacherName,
+  updateTeacherWebsite,
 } from '../actions'
 
 type Message = { type: 'success' | 'error'; text: string }
@@ -25,12 +27,14 @@ export function BrandingForm({
   coverUrl,
   logoUrl,
   description,
+  websiteUrl,
 }: {
   teacherId: string
   name: string
   coverUrl: string | null
   logoUrl: string | null
   description: string | null
+  websiteUrl: string | null
 }) {
   const router = useRouter()
 
@@ -47,6 +51,10 @@ export function BrandingForm({
   const [desc, setDesc] = useState(description ?? '')
   const [savingDesc, setSavingDesc] = useState(false)
   const [descMessage, setDescMessage] = useState<Message | null>(null)
+
+  const [website, setWebsite] = useState(websiteUrl ?? '')
+  const [savingWebsite, setSavingWebsite] = useState(false)
+  const [websiteMessage, setWebsiteMessage] = useState<Message | null>(null)
 
   // Cover (hero) — auto-save on pick (topic-cover-row flow).
   async function handleCoverPicked(e: React.ChangeEvent<HTMLInputElement>) {
@@ -161,6 +169,30 @@ export function BrandingForm({
       })
     } finally {
       setSavingDesc(false)
+    }
+  }
+
+  // Website URL — explicit Save button.
+  async function handleSaveWebsite() {
+    setWebsiteMessage(null)
+    setSavingWebsite(true)
+    try {
+      const result = await updateTeacherWebsite({ teacherId, websiteUrl: website })
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      // Reflect the trimmed/null-normalized value the server actually stored.
+      setWebsite(result.teacher?.website_url ?? '')
+      router.refresh()
+      setWebsiteMessage({ type: 'success', text: 'Saved' })
+    } catch (err) {
+      console.error('Failed to update teacher website:', err)
+      setWebsiteMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Something went wrong. Try again.',
+      })
+    } finally {
+      setSavingWebsite(false)
     }
   }
 
@@ -338,6 +370,53 @@ export function BrandingForm({
             className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
           >
             {savingDesc ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </section>
+
+      {/* Website */}
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-fg">Website</h2>
+          <p className="text-xs text-fg-muted">
+            The &ldquo;Visit website&rdquo; link shown to non-members who tap your
+            community card. Leave blank to hide the button.
+          </p>
+        </div>
+
+        <input
+          type="url"
+          inputMode="url"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+          maxLength={MAX_TEACHER_WEBSITE_URL_LEN}
+          placeholder="https://your-site.com"
+          className="rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        />
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-fg-faint">
+            {website.length}/{MAX_TEACHER_WEBSITE_URL_LEN}
+          </span>
+          {websiteMessage && (
+            <span
+              className={`text-sm ${
+                websiteMessage.type === 'success' ? 'text-success' : 'text-danger'
+              }`}
+            >
+              {websiteMessage.text}
+            </span>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleSaveWebsite}
+            disabled={savingWebsite}
+            className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
+          >
+            {savingWebsite ? 'Saving…' : 'Save'}
           </button>
         </div>
       </section>

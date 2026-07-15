@@ -40,6 +40,9 @@ export interface Teacher {
   cover_url: string | null
   logo_url: string | null
   description: string | null
+  // Optional outbound marketing link (migration 0015). Shown as the "Visit website"
+  // CTA on the /home locked-community modal; anon-readable. null = no button.
+  website_url: string | null
   // Platform category (migration 0004; nullable). One category per teacher; managed
   // by SQL/service-role. Grouping the directory by this is a later step.
   category_id: string | null
@@ -111,6 +114,8 @@ export type DirectoryTeacher = {
   cover_url: string | null
   logo_url: string | null
   description: string | null
+  // Outbound marketing link (migration 0015) for the locked-community modal CTA.
+  website_url: string | null
   member_count: number
 }
 
@@ -238,6 +243,24 @@ export type PostWithFullRelations = Post & {
   featured: boolean
   viewerIsAdmin: boolean
   isAuthor: boolean
+}
+
+// [Surface 4] One row of the anon-safe public posts feed (public_posts_feed RPC).
+// DELIBERATELY carries NO post id / author id / channel id — the RPC whitelists only
+// these display fields, so a feed card is a NON-clickable showcase item (there is no
+// auth-gated detail to deep-link into). `image_url` is derived in the fetcher from the
+// RPC's `image_path` (first post image, or null). `like_count` is the RPC's bigint,
+// narrowed to number.
+export type PublicFeedPost = {
+  display_name: string
+  avatar_url: string | null
+  body: string
+  image_url: string | null
+  like_count: number
+  teacher_slug: string
+  teacher_name: string
+  featured: boolean
+  created_at: string
 }
 
 // A single user who liked a post or comment, for the likers modal.

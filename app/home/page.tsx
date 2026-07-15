@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getPublicFeed, PUBLIC_FEED_PAGE_SIZE } from '@/lib/public-feed'
 import { createClient } from '@/lib/supabase/server'
 import {
   getAllTeachers,
@@ -6,6 +7,8 @@ import {
   getTeacherMemberCounts,
 } from '@/lib/teachers'
 import type { DirectoryTeacher } from '@/lib/types'
+import { LockedCommunityCard } from './_components/locked-community-card'
+import { PublicFeed } from './_components/public-feed'
 import { TeacherCard } from './_components/teacher-card'
 
 // The public teacher directory. Branches on auth:
@@ -19,6 +22,26 @@ export default async function HomePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // [Surface 4] Global public feed, shown to BOTH audiences below the directory.
+  // Page 0 is rendered server-side; <PublicFeed> pages the rest via "Load more".
+  // getPublicFeed never throws, so a feed hiccup can't break the directory. The
+  // section is omitted entirely when the corpus is empty (no sad empty heading).
+  const feed = await getPublicFeed(supabase, 0)
+  const feedSection =
+    feed.length > 0 ? (
+      <section className="mt-10">
+        <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+          Latest from the communities
+        </h2>
+        <div className="mx-auto max-w-2xl">
+          <PublicFeed
+            initial={feed}
+            initialHasMore={feed.length === PUBLIC_FEED_PAGE_SIZE}
+          />
+        </div>
+      </section>
+    ) : null
 
   // ---- Logged-out: Discover-only, no getUser-required calls, no '*' select ----
   if (!user) {
@@ -41,7 +64,7 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teachers.map((teacher) => (
-              <TeacherCard
+              <LockedCommunityCard
                 key={teacher.id}
                 teacher={teacher}
                 memberCount={teacher.member_count}
@@ -50,6 +73,8 @@ export default async function HomePage() {
             ))}
           </div>
         </section>
+
+        {feedSection}
       </div>
     )
   }
@@ -105,7 +130,7 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {discover.map((teacher) => (
-              <TeacherCard
+              <LockedCommunityCard
                 key={teacher.id}
                 teacher={teacher}
                 memberCount={teacher.member_count}
@@ -115,6 +140,8 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {feedSection}
     </div>
   )
 }

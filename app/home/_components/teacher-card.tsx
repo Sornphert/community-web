@@ -34,6 +34,7 @@ type CardTeacher = {
   cover_url: string | null
   logo_url: string | null
   description: string | null
+  website_url: string | null
 }
 
 // 'enter'           → joined; the PAGE wraps this card in a <Link> to /t/[slug].

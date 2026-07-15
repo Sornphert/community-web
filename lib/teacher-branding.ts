@@ -20,6 +20,10 @@ export const MAX_TEACHER_DESCRIPTION_LEN = 500
 // no DB length constraint, so this is the only length gate.
 export const MAX_TEACHER_NAME_LEN = 80
 
+// Website URL cap (chars). UI + action enforced; teachers.website_url is nullable
+// (migration 0015) — an empty field clears to null (no "Visit website" button).
+export const MAX_TEACHER_WEBSITE_URL_LEN = 300
+
 // Branding images are images only (no PDF). MIME is the declared file.type —
 // best-effort, not byte-sniffed (matches topic covers / lesson files).
 export function isAllowedBrandingImage(file: File): boolean {
