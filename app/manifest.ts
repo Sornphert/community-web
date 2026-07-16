@@ -5,6 +5,13 @@ import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 // icon + standalone display) instead of a bare Safari shortcut. All values are
 // env-driven, so each site (shared repo, separate deployments) gets its own
 // brand. On iOS 16.4+ this icon is also used for web-push notifications.
+//
+// Android Home Screen: unlike iOS (which reads the `apple` icon from layout
+// metadata), Android pulls its launcher icon from THIS manifest. The `any` icons
+// below are the plain launcher icon; the `maskable` duplicates opt into Android's
+// adaptive-icon system so the logo fills the launcher's mask shape (circle /
+// squircle / teardrop) instead of being letterboxed on a white tile. Same asset
+// is reused — brand logos already carry padding, so the mask has safe zone.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: APP_NAME,
@@ -25,6 +32,18 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: '512x512',
         type: 'image/jpeg',
         purpose: 'any',
+      },
+      {
+        src: BRAND_LOGO_URL,
+        sizes: '192x192',
+        type: 'image/jpeg',
+        purpose: 'maskable',
+      },
+      {
+        src: BRAND_LOGO_URL,
+        sizes: '512x512',
+        type: 'image/jpeg',
+        purpose: 'maskable',
       },
     ],
   }
