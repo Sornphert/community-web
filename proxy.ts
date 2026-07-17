@@ -51,12 +51,16 @@ export async function proxy(request: NextRequest) {
 
   // Routes reachable without a session: login plus the password-reset flow
   // (the reset page itself and the email-link confirm handler that establishes
-  // the recovery session).
+  // the recovery session), and the PWA manifest. The manifest MUST stay public:
+  // the browser fetches /manifest.webmanifest (often WITHOUT the session cookie)
+  // when adding to the Home Screen — if it's redirected to /login, Chrome gets
+  // HTML instead of the icon list and falls back to a letter icon on Android.
   const PUBLIC_PATHS = [
     '/login',
     '/reset-password',
     '/auth/confirm',
     '/forgot-password',
+    '/manifest.webmanifest',
   ]
 
   if (!user && !PUBLIC_PATHS.includes(pathname)) {
