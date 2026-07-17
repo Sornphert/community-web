@@ -78,9 +78,14 @@ export const config = {
      * - api/push/send (Supabase notifications webhook; self-auths via ?secret=)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - favicon.ico, sitemap.xml, robots.txt, manifest.webmanifest (metadata files)
      * - common image extensions
+     *
+     * manifest.webmanifest MUST stay public: the browser fetches it (often
+     * without the session cookie) when installing the PWA / adding to the Home
+     * Screen. If the gate redirects it to /login, Chrome gets HTML instead of the
+     * icon list and falls back to a generated letter icon on Android.
      */
-    '/((?!api/bunny/webhook|api/push/send|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/bunny/webhook|api/push/send|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
