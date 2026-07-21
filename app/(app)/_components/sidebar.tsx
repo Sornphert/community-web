@@ -77,7 +77,12 @@ export function Sidebar({
   return (
     <>
       {/* Desktop: vertical sidebar */}
-      <aside className="sticky top-0 hidden h-screen overflow-y-auto md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
+      {/* NOTE: the aside must NOT scroll. overflow-y-auto here makes it a clipping
+          boundary, which cuts off the NotificationBell dropdown below. The scroll
+          lives on the <nav> instead (it's flex-1, so it takes the leftover height),
+          keeping the brand row and the sign-out footer pinned. md:z-40 matches main
+          so the sticky sidebar stacks above page content. */}
+      <aside className="sticky top-0 hidden h-screen md:z-40 md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-line md:bg-canvas">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-line">
           <Image
             src={logoUrl}
@@ -96,7 +101,7 @@ export function Sidebar({
           )}
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-2">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             if (href === `${base}/community`) {
               return (
@@ -170,7 +175,10 @@ export function Sidebar({
       </aside>
 
       {/* Mobile: sticky top brand bar */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
+      {/* z-40, matching main. At z-10 this sticky header creates a stacking context
+          that traps the NotificationBell dropdown (z-30 is scoped INSIDE it), so
+          page content like the channel tab bar paints over the panel. */}
+      <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
           src={logoUrl}
           alt={appName}
