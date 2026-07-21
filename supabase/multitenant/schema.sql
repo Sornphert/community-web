@@ -33,6 +33,33 @@
 -- Migration 0006 (classroom TIER TAGS: tags/topic_tags/member_tags + can_access_topic helper;
 -- content_items_select gains the tag gate; member-read/admin-write RLS; grants) is FOLDED IN
 -- below; see 0006_tags.sql (standalone, hand-run).
+-- Migration 0007 (set_membership_role RPC — promote/demote with last-active-admin guard)
+-- is FOLDED IN below as SECTION 11; see 0007_membership_roles.sql (standalone, hand-run).
+-- Migration 0008 (memberships 'pending' status + source column; tightened co-member
+-- policy; request_membership + set_membership_status RPCs) is FOLDED IN below; see
+-- 0008_membership_onboarding.sql (standalone, hand-run).
+-- Migration 0009 (revoke_membership RPC — active->revoked + demote-to-member atomically,
+-- last-admin guard) is FOLDED IN below; see 0009_membership_revoke.sql (standalone).
+-- Migration 0010 (can_access_topic SUPERSEDED — is_teacher_admin bypass as first
+-- disjunct) is FOLDED IN below at the SECTION 4 definition; see 0010_topic_admin_bypass.sql.
+-- Migration 0011 (opt-in public posts: is_public/hidden_from_public/featured columns,
+-- public_posts_feed SECURITY DEFINER RPC as the SOLE anon read path, column-scoped
+-- authenticated UPDATE) is FOLDED IN below as SECTION 12; see 0011_public_posts.sql.
+-- Migration 0012 (posts INSERT narrowed to six content columns — closes self-feature/
+-- self-publish and created_at backdating via raw PostgREST) is FOLDED IN below in
+-- SECTION 7; see 0012_posts_insert_grant.sql (standalone, hand-run).
+-- Migration 0013 (in-app notifications: notifications table + own-only RLS + the
+-- SECURITY DEFINER mention/comment/like triggers that are its only writers + realtime
+-- publication) is FOLDED IN below — table in SECTION 4, machinery in SECTION 13; see
+-- 0013_notifications.sql (standalone, hand-run).
+-- Migration 0014 (push_subscriptions — web-push endpoints, own-only RLS) is FOLDED IN
+-- below in SECTION 4; see 0014_push_subscriptions.sql (standalone, hand-run).
+-- Migration 0015 (teachers.website_url + anon column grant, for the locked-community
+-- info modal) is FOLDED IN below; see 0015_teacher_website.sql (standalone, hand-run).
+-- Migration 0016 (delete_my_account now purges notifications + push_subscriptions — the
+-- profiles cascade never fires because the profile is TOMBSTONED; plus explicit grants
+-- for both tables, which 0013/0014 shipped without) is FOLDED IN below across SECTIONS
+-- 7 and 10; see 0016_notifications_deletion_and_grants.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -491,6 +518,63 @@ create table public.member_tags (
 create index member_tags_profile_idx on public.member_tags (profile_id);
 create index member_tags_tag_id_idx  on public.member_tags (tag_id);
 
+-- notifications (0013) — one row per (recipient, event). Carries teacher_id like a
+-- SECTION 3 spine table, but DEFINED HERE because it FKs comments, a SECTION 4 leaf.
+-- Rows are written ONLY by the SECURITY DEFINER triggers in SECTION 13 — there is no
+-- authenticated INSERT policy AND no INSERT grant (0016), so a client holding the anon
+-- key cannot forge a notification for anyone. Recipients are always resolved through
+-- active, non-tombstoned memberships of teacher_id, so a row never crosses a tenant.
+create table public.notifications (
+    id           uuid not null default gen_random_uuid(),
+    teacher_id   uuid not null,
+    recipient_id uuid not null,
+    actor_id     uuid,
+    type         text not null,
+    post_id      uuid,
+    comment_id   uuid,
+    read_at      timestamptz,
+    created_at   timestamptz not null default now(),
+    constraint notifications_pkey primary key (id),
+    constraint notifications_type_check check (
+      type = any (array['mention','mention_all','post_comment','post_like','comment_like'])
+    ),
+    constraint notifications_teacher_fkey
+      foreign key (teacher_id)   references public.teachers(id) on delete cascade,
+    constraint notifications_recipient_fkey
+      foreign key (recipient_id) references public.profiles(id) on delete cascade,
+    constraint notifications_actor_fkey
+      foreign key (actor_id)     references public.profiles(id) on delete set null,
+    constraint notifications_post_fkey
+      foreign key (post_id)      references public.posts(id)    on delete cascade,
+    constraint notifications_comment_fkey
+      foreign key (comment_id)   references public.comments(id) on delete cascade
+);
+create index notifications_recipient_idx on public.notifications (recipient_id, created_at desc);
+create index notifications_unread_idx    on public.notifications (recipient_id) where read_at is null;
+
+-- push_subscriptions (0014) — one row per browser push endpoint; a user may hold
+-- several (phone, laptop, …). No teacher_id: a subscription is per-DEVICE, not per-
+-- community, and the send path resolves tenancy from the notifications row it is
+-- delivering. RLS is own-only; the send path (app/api/push/send) reads and prunes
+-- dead endpoints with the RLS-bypassing service_role client.
+-- NOTE (0016): the profiles FK below is ON DELETE CASCADE but delete_my_account
+-- TOMBSTONES the profile rather than deleting it, so this cascade never fires —
+-- SECTION 10 deletes these rows explicitly. Do not "simplify" that away.
+create table public.push_subscriptions (
+    id         uuid not null default gen_random_uuid(),
+    user_id    uuid not null,
+    endpoint   text not null,
+    p256dh     text not null,
+    auth       text not null,
+    user_agent text,
+    created_at timestamptz not null default now(),
+    constraint push_subscriptions_pkey primary key (id),
+    constraint push_subscriptions_endpoint_key unique (endpoint),
+    constraint push_subscriptions_user_fkey
+      foreign key (user_id) references public.profiles(id) on delete cascade
+);
+create index push_subscriptions_user_idx on public.push_subscriptions (user_id);
+
 -- can_access_topic (0006; admin bypass added in 0010) — a SECTION 2-style SECURITY DEFINER
 -- authz helper, but DEFINED HERE because a language-sql function validates its body's table
 -- refs at creation, so it must follow topic_tags/member_tags. Returns true when the caller
@@ -536,7 +620,7 @@ create trigger on_auth_user_created
 
 
 -- =============================================================================
--- SECTION 6 — enable RLS (all 24 tables; force_rls = false)
+-- SECTION 6 — enable RLS (all 26 tables; force_rls = false)
 -- =============================================================================
 alter table public.categories                    enable row level security;
 alter table public.teachers                     enable row level security;
@@ -562,6 +646,8 @@ alter table public.classroom_recording_progress     enable row level security;
 alter table public.tags                              enable row level security;
 alter table public.topic_tags                        enable row level security;
 alter table public.member_tags                       enable row level security;
+alter table public.notifications                     enable row level security;
+alter table public.push_subscriptions                enable row level security;
 
 
 -- =============================================================================
@@ -648,6 +734,29 @@ grant select (id, category_id, teacher_id, url, headline, blurb, created_at) on 
 grant select, insert, update, delete, truncate, references, trigger on public.tags        to authenticated;
 grant select, insert, update, delete, truncate, references, trigger on public.topic_tags  to authenticated;
 grant select, insert, update, delete, truncate, references, trigger on public.member_tags to authenticated;
+
+-- notifications (0013; grants pinned in 0016) — SELECT / UPDATE (mark read) / DELETE
+-- for the recipient, RLS own-only is the gate. INSERT is REVOKED: rows are written
+-- ONLY by the SECTION 13 SECURITY DEFINER triggers. The absence of an INSERT *policy*
+-- already blocks a client insert; the REVOKE also closes it at the privilege layer and
+-- survives a rebuild where default privileges grant CRUD on new tables (same reasoning
+-- as the memberships write-less grant above). MUST stay AFTER any blanket grant.
+grant select, update, delete, truncate, references, trigger
+  on public.notifications to authenticated;
+revoke insert on public.notifications from authenticated;
+
+-- push_subscriptions (0014; grants pinned in 0016) — full CRUD for the owner:
+-- lib/push/client.ts upserts (INSERT+UPDATE) on subscribe and DELETEs by endpoint on
+-- unsubscribe. RLS own-only is the gate. The send path uses service_role, covered by
+-- the grant-all sweep above.
+grant select, insert, update, delete, truncate, references, trigger
+  on public.push_subscriptions to authenticated;
+
+-- anon — zero on both (signed-in surfaces only; neither is in the public-feed path).
+-- Redundant with the wholesale anon revoke above but stated explicitly so the intent
+-- survives a future reordering of this section.
+revoke all on public.notifications      from anon;
+revoke all on public.push_subscriptions from anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -839,6 +948,28 @@ create policy crp_insert_own on public.classroom_recording_progress for insert t
   with check (user_id = auth.uid() and has_membership((select r.teacher_id from public.classroom_recordings r where r.id = classroom_recording_progress.recording_id)));
 create policy crp_delete_own on public.classroom_recording_progress for delete to authenticated using (user_id = auth.uid());
 
+-- notifications (0013) — own rows only, keyed on recipient_id. There is deliberately
+-- NO INSERT policy: rows come only from the SECTION 13 SECURITY DEFINER triggers, so a
+-- client cannot forge one (0016 also REVOKEs the INSERT privilege). No has_membership()
+-- term is needed — the triggers only ever address active, non-tombstoned members of the
+-- row's teacher_id, so recipient_id = auth.uid() is already tenant-safe.
+create policy notifications_select_own on public.notifications for select to authenticated
+  using (recipient_id = auth.uid());
+create policy notifications_update_own on public.notifications for update to authenticated
+  using (recipient_id = auth.uid()) with check (recipient_id = auth.uid());
+create policy notifications_delete_own on public.notifications for delete to authenticated
+  using (recipient_id = auth.uid());
+
+-- push_subscriptions (0014) — own rows only. Device-scoped, no teacher term.
+create policy push_subscriptions_select_own on public.push_subscriptions for select to authenticated
+  using (user_id = auth.uid());
+create policy push_subscriptions_insert_own on public.push_subscriptions for insert to authenticated
+  with check (user_id = auth.uid());
+create policy push_subscriptions_update_own on public.push_subscriptions for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy push_subscriptions_delete_own on public.push_subscriptions for delete to authenticated
+  using (user_id = auth.uid());
+
 
 -- =============================================================================
 -- SECTION 9 — storage.objects RLS  [D6: DROP IF EXISTS guards for re-run safety]
@@ -942,7 +1073,8 @@ create policy content_files_delete_admin on storage.objects for delete to authen
 --   • Admin rule OPTION A: block ONLY if deletion drops a teacher to zero active
 --     admins (caller is its LAST active admin) -> 'last_admin' + teacher names.
 --   • Memberships DELETEd explicitly (tombstoned profile is kept, so the
---     memberships -> profiles cascade never fires).
+--     memberships -> profiles cascade never fires). Same for notifications
+--     (recipient side) and push_subscriptions — 0016.
 --   • Tombstone clears social_links (PII); no is_admin column under MT.
 --   • Storage paths span every {teacher_id}/{uid}/... prefix (avatars parsed from
 --     avatar_url; post-images + post-attachments from their storage_path columns).
@@ -1050,6 +1182,20 @@ begin
   -- (3) Progress tables.
   delete from public.content_progress where user_id = v_user_id;
   delete from public.classroom_recording_progress where user_id = v_user_id;
+
+  -- (3b) Notifications ADDRESSED TO this user (0013/0016). The FK to profiles is
+  --      ON DELETE CASCADE, but the profile is TOMBSTONED not deleted, so the
+  --      cascade never fires — delete explicitly, same reasoning as memberships
+  --      in (4). Rows where the leaving user is the ACTOR are deliberately KEPT:
+  --      the tombstoned profile still joins, so they render "[Deleted user] …",
+  --      matching how their posts and comments behave.
+  delete from public.notifications where recipient_id = v_user_id;
+
+  -- (3c) Web-push endpoints (0014/0016). Same tombstone/cascade reasoning. This
+  --      one is not merely hygiene: leaving the row behind means a deleted
+  --      account's browser subscription stays live and the service-role send
+  --      path would keep delivering OS-level pushes to it.
+  delete from public.push_subscriptions where user_id = v_user_id;
 
   -- (4) Memberships: DELETE explicitly (the tombstoned profile is kept, so the
   --     memberships -> profiles cascade never fires).
@@ -1511,6 +1657,283 @@ grant execute on function public.set_post_public(uuid, boolean)   to authenticat
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
 grant execute on function public.public_posts_feed(int, int, uuid) to anon, authenticated;
+
+
+-- =============================================================================
+-- SECTION 13 — notifications machinery (0013: mentions, in-app; 0014: web push)
+-- =============================================================================
+-- The notifications and push_subscriptions TABLES are in SECTION 4 (notifications
+-- FKs comments, a leaf); RLS enable in 6, grants in 7, policies in 8, account-deletion
+-- cleanup in 10. What lives here is the write path: the SECURITY DEFINER helpers and
+-- the AFTER INSERT triggers that are the ONLY producers of notification rows.
+--
+-- MENTIONS: the composer stores mentions inline in the post/comment body as tokens
+-- `@[Display Name](<uuid>)`, and @all as `@[everyone](all)`. The triggers parse the
+-- uuids out of the body — plain @-text a user types is NOT parsed, so a typo like
+-- "@bob" pings nobody. @all is ADMIN-ONLY, enforced in-trigger by a memberships role
+-- check; a non-admin whose body contains `](all)` simply generates no @all rows.
+--
+-- TENANCY: every recipient is resolved through an ACTIVE, non-tombstoned membership of
+-- the post's teacher_id, so a notification never crosses a tenant boundary and
+-- tombstoned users get none. This is why the SECTION 8 policies need no membership term.
+
+-- (1) Helper — extract picker-token uuids from a body string.
+create or replace function public._extract_mention_ids(p_body text)
+returns uuid[]
+language sql
+immutable
+as $$
+  select coalesce(array_agg(distinct (m[1])::uuid), '{}'::uuid[])
+  from regexp_matches(
+    coalesce(p_body, ''),
+    '\]\(([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\)',
+    'g'
+  ) as m;
+$$;
+
+-- (2) Helper — create mention + @all notifications for a body. Shared by the post and
+--     comment triggers. Runs as owner (definer), bypassing the no-insert RLS.
+create or replace function public._notify_mentions(
+  p_teacher uuid,
+  p_actor   uuid,
+  p_post    uuid,
+  p_comment uuid,
+  p_body    text
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ids      uuid[] := public._extract_mention_ids(p_body);
+  v_is_admin boolean;
+begin
+  -- Individual @mentions — one row per mentioned, active, non-tombstoned member
+  -- of this teacher (never the actor themselves).
+  if array_length(v_ids, 1) is not null then
+    insert into public.notifications
+      (teacher_id, recipient_id, actor_id, type, post_id, comment_id)
+    select p_teacher, mem.profile_id, p_actor, 'mention', p_post, p_comment
+    from public.memberships mem
+    join public.profiles pr on pr.id = mem.profile_id
+    where mem.teacher_id = p_teacher
+      and mem.status = 'active'
+      and pr.deleted_at is null
+      and mem.profile_id = any(v_ids)
+      and mem.profile_id <> p_actor;
+  end if;
+
+  -- @all — ADMIN-ONLY. Skip anyone already covered by an individual mention.
+  if p_body like '%](all)%' then
+    select exists (
+      select 1 from public.memberships
+      where teacher_id = p_teacher
+        and profile_id = p_actor
+        and role = 'admin'
+        and status = 'active'
+    ) into v_is_admin;
+
+    if v_is_admin then
+      insert into public.notifications
+        (teacher_id, recipient_id, actor_id, type, post_id, comment_id)
+      select p_teacher, mem.profile_id, p_actor, 'mention_all', p_post, p_comment
+      from public.memberships mem
+      join public.profiles pr on pr.id = mem.profile_id
+      where mem.teacher_id = p_teacher
+        and mem.status = 'active'
+        and pr.deleted_at is null
+        and mem.profile_id <> p_actor
+        and mem.profile_id <> all(v_ids);
+    end if;
+  end if;
+end;
+$$;
+
+-- (3) Trigger — new post: parse mentions / @all in the body.
+create or replace function public.notify_on_post()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public._notify_mentions(new.teacher_id, new.author_id, new.id, null, new.body);
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_on_post_insert on public.posts;
+create trigger notify_on_post_insert
+  after insert on public.posts
+  for each row execute function public.notify_on_post();
+
+-- (4) Trigger — new comment: mentions/@all + notify the POST author.
+create or replace function public.notify_on_comment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher     uuid;
+  v_post_author uuid;
+begin
+  select p.teacher_id, p.author_id
+    into v_teacher, v_post_author
+  from public.posts p
+  where p.id = new.post_id;
+
+  if v_teacher is null then
+    return new;
+  end if;
+
+  -- Mentions / @all inside the comment body.
+  perform public._notify_mentions(v_teacher, new.author_id, new.post_id, new.id, new.body);
+
+  -- Notify the post author of the new comment — unless they wrote it, or a
+  -- mention/@all for this same comment already covered them (mention wins).
+  if v_post_author is not null
+     and v_post_author <> new.author_id
+     and exists (
+       select 1 from public.memberships mem
+       join public.profiles pr on pr.id = mem.profile_id
+       where mem.teacher_id = v_teacher
+         and mem.profile_id = v_post_author
+         and mem.status = 'active'
+         and pr.deleted_at is null
+     )
+     and not exists (
+       select 1 from public.notifications
+       where comment_id = new.id and recipient_id = v_post_author
+     )
+  then
+    insert into public.notifications
+      (teacher_id, recipient_id, actor_id, type, post_id, comment_id)
+    values (v_teacher, v_post_author, new.author_id, 'post_comment', new.post_id, new.id);
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_on_comment_insert on public.comments;
+create trigger notify_on_comment_insert
+  after insert on public.comments
+  for each row execute function public.notify_on_comment();
+
+-- (5) Trigger — like on a post: notify the post author. Deduped on
+--     (recipient, actor, post, type) so like/unlike/like churn doesn't re-notify.
+create or replace function public.notify_on_post_like()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher uuid;
+  v_author  uuid;
+begin
+  select p.teacher_id, p.author_id
+    into v_teacher, v_author
+  from public.posts p
+  where p.id = new.post_id;
+
+  if v_author is null or v_author = new.user_id then
+    return new;
+  end if;
+
+  if exists (
+       select 1 from public.memberships mem
+       join public.profiles pr on pr.id = mem.profile_id
+       where mem.teacher_id = v_teacher
+         and mem.profile_id = v_author
+         and mem.status = 'active'
+         and pr.deleted_at is null
+     )
+     and not exists (
+       select 1 from public.notifications
+       where recipient_id = v_author
+         and actor_id = new.user_id
+         and post_id = new.post_id
+         and type = 'post_like'
+     )
+  then
+    insert into public.notifications
+      (teacher_id, recipient_id, actor_id, type, post_id)
+    values (v_teacher, v_author, new.user_id, 'post_like', new.post_id);
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_on_post_like_insert on public.post_likes;
+create trigger notify_on_post_like_insert
+  after insert on public.post_likes
+  for each row execute function public.notify_on_post_like();
+
+-- (6) Trigger — like on a comment: notify the comment author.
+create or replace function public.notify_on_comment_like()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher uuid;
+  v_author  uuid;
+  v_post    uuid;
+begin
+  select p.teacher_id, c.author_id, c.post_id
+    into v_teacher, v_author, v_post
+  from public.comments c
+  join public.posts p on p.id = c.post_id
+  where c.id = new.comment_id;
+
+  if v_author is null or v_author = new.user_id then
+    return new;
+  end if;
+
+  if exists (
+       select 1 from public.memberships mem
+       join public.profiles pr on pr.id = mem.profile_id
+       where mem.teacher_id = v_teacher
+         and mem.profile_id = v_author
+         and mem.status = 'active'
+         and pr.deleted_at is null
+     )
+     and not exists (
+       select 1 from public.notifications
+       where recipient_id = v_author
+         and actor_id = new.user_id
+         and comment_id = new.comment_id
+         and type = 'comment_like'
+     )
+  then
+    insert into public.notifications
+      (teacher_id, recipient_id, actor_id, type, post_id, comment_id)
+    values (v_teacher, v_author, new.user_id, 'comment_like', v_post, new.comment_id);
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_on_comment_like_insert on public.comment_likes;
+create trigger notify_on_comment_like_insert
+  after insert on public.comment_likes
+  for each row execute function public.notify_on_comment_like();
+
+-- (7) Realtime — let a signed-in user get live pushes of their own rows.
+--     Safe to run repeatedly; ignore "already member of publication".
+do $$
+begin
+  alter publication supabase_realtime add table public.notifications;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end;
+$$;
 
 
 -- =============================================================================
