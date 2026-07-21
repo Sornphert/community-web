@@ -1,3 +1,5 @@
+import { TIMEZONE } from '@/lib/config'
+
 const MINUTE = 60
 const HOUR = MINUTE * 60
 const DAY = HOUR * 24
@@ -27,7 +29,14 @@ export function formatRelativeTime(date: string | Date): string {
     return `${days}d ago`
   }
 
-  return then.toLocaleDateString()
+  // HYDRATION: both the locale and the timezone MUST be pinned. A bare
+  // toLocaleDateString() resolves them from the runtime — the server (Node, UTC,
+  // en-US) renders "6/19/2026" while the browser (+08, en-GB) renders
+  // "19/06/2026", and React throws away the tree. The timezone half matters
+  // independently: without it, a timestamp near local midnight resolves to a
+  // different DAY on server vs client. Same rule lib/datetime.ts states — never
+  // bucket by the UTC date or the browser-local date.
+  return then.toLocaleDateString('en-GB', { timeZone: TIMEZONE })
 }
 
 // Human-readable file size, e.g. "820 KB", "1.4 MB".
