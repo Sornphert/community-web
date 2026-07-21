@@ -109,6 +109,9 @@ export interface PostVideo {
   video_status: string | null // 'pending' | 'processing' | 'ready' | 'failed'
   video_duration_seconds: number | null
   video_thumbnail_url: string | null
+  // Display order within the post (0-based), like post_images."position".
+  // Added in 0017 when the one-video-per-post constraint was dropped.
+  position: number
   created_at: string | null
 }
 
@@ -124,7 +127,9 @@ export type PostWithRelations = Post & {
   author: Profile
   images: PostImage[]
   attachments: PostAttachment[]
-  video: PostVideo | null
+  // Many-per-post since 0017, ordered by position. The feed card previews the
+  // first one; the detail view renders them all.
+  videos: PostVideo[]
   comment_count: number
   likes_count: number
   liked_by_current_user: boolean
@@ -142,7 +147,7 @@ export type PostWithFullRelations = Post & {
   author: Profile
   images: PostImage[]
   attachments: PostAttachment[]
-  video: PostVideo | null
+  videos: PostVideo[]
   comments: CommentWithRelations[]
   // section drives the /community post-detail collision guard: a weekly post is
   // redirected to its canonical /weekly URL.

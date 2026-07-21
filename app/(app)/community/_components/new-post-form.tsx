@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FileText, X } from 'lucide-react'
+import { CheckCircle2, FileText, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { convertToJpg } from '@/lib/image'
 import { MAX_ATTACHMENT_SIZE_BYTES, PDF_MIME } from '@/lib/attachments'
@@ -36,12 +36,15 @@ export type EditPost = {
   body: string
   images: ExistingImage[]
   attachments: ExistingAttachment[]
-  // Existing video for the read-only player + admin remove/replace controls.
-  video: {
+  // Existing videos for the read-only players + admin per-video remove control.
+  // A post may hold several since 0017; `id` is the post_videos row id, used to
+  // tell updatePost which ones to drop.
+  videos: {
+    id: string
     status: string | null
     playerUrl: string
     posterUrl: string | null
-  } | null
+  }[]
 }
 
 export function NewPostForm({
@@ -86,13 +89,14 @@ export function NewPostForm({
   >(initialPost?.attachments ?? [])
   const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([])
 
-  // Optional Bunny video (admin-only). videoId is set once a NEW upload finishes
-  // (a create attach, or an edit-mode replace); videoUploading disables submit
-  // while the byte upload is in flight. removeExistingVideo drops the current
-  // video without uploading a replacement (edit mode).
-  const [videoId, setVideoId] = useState<string | null>(null)
+  // Optional Bunny videos (admin-only). A post may hold several (0017).
+  //   newVideoIds  — Bunny ids for uploads finished in THIS session, in the order
+  //                  they were added; appended as new post_videos rows on save.
+  //   removedVideoIds — existing post_videos row ids the admin dropped (edit mode).
+  //   videoUploading — a byte upload is in flight, so submit stays disabled.
+  const [newVideoIds, setNewVideoIds] = useState<string[]>([])
+  const [removedVideoIds, setRemovedVideoIds] = useState<string[]>([])
   const [videoUploading, setVideoUploading] = useState(false)
-  const [removeExistingVideo, setRemoveExistingVideo] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -263,21 +267,27 @@ export function NewPostForm({
 
     const postUrl = `${basePath}/${channelSlug}/${postId}`
 
-    // Attach the optional video LAST, and never let its failure break the post:
-    // the post is already saved at this point. On failure, log it, keep the
-    // user here with a clear message + a link to the (orphaned-video) post,
-    // rather than throwing or navigating away silently.
-    if (videoId) {
-      const { error: videoError } = await supabase.from('post_videos').insert({
-        post_id: postId,
-        video_id: videoId,
-        video_provider: 'bunny',
-        video_status: 'processing',
-      })
+    // Attach the optional videos LAST, and never let their failure break the
+    // post: the post is already saved at this point. On failure, log it, keep
+    // the user here with a clear message + a link to the (orphaned-video) post,
+    // rather than throwing or navigating away silently. `position` preserves the
+    // order they were added in.
+    if (newVideoIds.length > 0) {
+      const { error: videoError } = await supabase.from('post_videos').insert(
+        newVideoIds.map((id, index) => ({
+          post_id: postId,
+          video_id: id,
+          video_provider: 'bunny',
+          video_status: 'processing',
+          position: index,
+        })),
+      )
       if (videoError) {
         console.error('Post saved, but attaching the video failed:', videoError)
         setError(
-          'Your post was published, but the video could not be attached. You can open the post below.',
+          newVideoIds.length > 1
+            ? 'Your post was published, but the videos could not be attached. You can open the post below.'
+            : 'Your post was published, but the video could not be attached. You can open the post below.',
         )
         setCreatedPostUrl(postUrl)
         setIsSubmitting(false)
@@ -338,16 +348,8 @@ export function NewPostForm({
       })
     }
 
-    // Video edits are admin-only. A new upload replaces (or adds); an explicit
-    // remove drops it; otherwise keep it untouched.
-    const video = isAdmin
-      ? videoId
-        ? ({ action: 'replace', newVideoId: videoId } as const)
-        : removeExistingVideo
-          ? ({ action: 'remove' } as const)
-          : ({ action: 'keep' } as const)
-      : undefined
-
+    // Video edits are admin-only: drop the rows the admin removed, append any
+    // newly uploaded ones. Both lists are empty for a no-op edit.
     const result = await updatePost({
       postId,
       title,
@@ -356,7 +358,8 @@ export function NewPostForm({
       newImages,
       removedAttachmentIds,
       newAttachments,
-      video,
+      removedVideoIds: isAdmin ? removedVideoIds : [],
+      newVideoIds: isAdmin ? newVideoIds : [],
     })
 
     if ('error' in result) {
@@ -394,10 +397,10 @@ export function NewPostForm({
     }
   }
 
-  // Whether to show the existing video (edit mode, not flagged for removal, no
-  // pending replacement upload).
-  const showExistingVideo =
-    isEdit && !!initialPost?.video && !removeExistingVideo && !videoId
+  // Existing videos still on the post (edit mode, minus any the admin removed).
+  const keptVideos = (initialPost?.videos ?? []).filter(
+    (v) => !removedVideoIds.includes(v.id),
+  )
 
   return (
     <form
@@ -548,43 +551,72 @@ export function NewPostForm({
         )}
       </div>
 
-      {/* Edit mode, non-admin author: existing video is read-only (no controls)
-          so the author can see it's still attached. */}
-      {showExistingVideo && !isAdmin && (
-        <PostVideoPlayer
-          playerUrl={initialPost!.video!.playerUrl}
-          posterUrl={initialPost!.video!.posterUrl}
-          status={initialPost!.video!.status}
-        />
-      )}
+      {/* Edit mode, non-admin author: existing videos are read-only (no controls)
+          so the author can see they're still attached. */}
+      {!isAdmin &&
+        keptVideos.map((video) => (
+          <PostVideoPlayer
+            key={video.id}
+            playerUrl={video.playerUrl}
+            posterUrl={video.posterUrl}
+            status={video.status}
+          />
+        ))}
 
-      {/* Admin video controls (create attach, or edit replace/remove). */}
+      {/* Admin video controls: each existing video with its own Remove, the
+          videos queued in this session, and an uploader to add another. */}
       {isAdmin && (
-        <div className="flex flex-col gap-2">
-          {showExistingVideo && (
-            <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
+          {keptVideos.map((video) => (
+            <div key={video.id} className="flex flex-col gap-2">
               <PostVideoPlayer
-                playerUrl={initialPost!.video!.playerUrl}
-                posterUrl={initialPost!.video!.posterUrl}
-                status={initialPost!.video!.status}
+                playerUrl={video.playerUrl}
+                posterUrl={video.posterUrl}
+                status={video.status}
               />
               <button
                 type="button"
-                onClick={() => setRemoveExistingVideo(true)}
+                onClick={() =>
+                  setRemovedVideoIds((prev) => [...prev, video.id])
+                }
                 className="self-start text-sm font-medium text-danger hover:underline"
               >
                 Remove video
               </button>
             </div>
+          ))}
+
+          {newVideoIds.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {newVideoIds.map((id, index) => (
+                <li
+                  key={id}
+                  className="flex items-center gap-2 rounded-md border border-line bg-canvas px-3 py-2"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg">
+                    Video {index + 1} uploaded — it will process after you save.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewVideoIds((prev) => prev.filter((v) => v !== id))
+                    }
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-fg"
+                    aria-label={`Remove video ${index + 1}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          {!showExistingVideo && (
-            <PostVideoUpload
-              title={title}
-              onUploadingChange={setVideoUploading}
-              onUploaded={setVideoId}
-              onCleared={() => setVideoId(null)}
-            />
-          )}
+
+          <PostVideoUpload
+            title={title}
+            onUploadingChange={setVideoUploading}
+            onUploaded={(id) => setNewVideoIds((prev) => [...prev, id])}
+          />
         </div>
       )}
 

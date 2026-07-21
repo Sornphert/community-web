@@ -50,15 +50,14 @@ export default async function EditPostPage({
       file_name: a.file_name,
       file_size: a.file_size,
     })),
-    video: post.video?.video_id
-      ? {
-          status: post.video.video_status,
-          playerUrl: getPlayerUrl(post.video.video_id),
-          posterUrl:
-            post.video.video_thumbnail_url ??
-            getThumbnailUrl(post.video.video_id),
-        }
-      : null,
+    videos: post.videos
+      .filter((v) => v.video_id)
+      .map((v) => ({
+        id: v.id,
+        status: v.video_status,
+        playerUrl: getPlayerUrl(v.video_id!),
+        posterUrl: v.video_thumbnail_url ?? getThumbnailUrl(v.video_id!),
+      })),
   }
 
   return (

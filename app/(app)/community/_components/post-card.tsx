@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { MessageSquare, Paperclip } from 'lucide-react'
+import { MessageSquare, Paperclip, Video } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatRelativeTime } from '@/lib/format'
@@ -24,7 +24,10 @@ export function PostCard({
   // A ready/processing/failed video takes the media slot in place of the first
   // image. Player + poster URLs are built server-side (Bunny library id / CDN
   // host are not exposed to the client) and passed to the client player.
-  const video = post.video?.video_id ? post.video : null
+  // A post can hold several videos (0017); the card previews the first, and the
+  // footer notes the rest so people know to open the post.
+  const videos = post.videos.filter((v) => v.video_id)
+  const video = videos[0] ?? null
 
   return (
     <Link
@@ -88,6 +91,12 @@ export function PostCard({
           <MessageSquare className="h-4 w-4" />
           {post.comment_count} comments
         </div>
+        {videos.length > 1 && (
+          <div className="flex items-center gap-1.5">
+            <Video className="h-4 w-4" />
+            {videos.length} videos
+          </div>
+        )}
         {post.attachments.length > 0 && (
           <div className="flex items-center gap-1.5">
             <Paperclip className="h-4 w-4" />
