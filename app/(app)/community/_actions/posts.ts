@@ -19,15 +19,6 @@ type NewAttachment = {
   file_size: number
 }
 
-// Video edits are admin-only (enforced below, not just in the UI):
-//   keep    — leave the existing video untouched
-//   remove  — delete the existing video (DB row + Bunny asset)
-//   replace — delete the existing video, attach newVideoId (status 'processing')
-type VideoEdit =
-  | { action: 'keep' }
-  | { action: 'remove' }
-  | { action: 'replace'; newVideoId: string }
-
 type UpdatePostInput = {
   postId: string
   title: string
@@ -36,7 +27,14 @@ type UpdatePostInput = {
   newImages: NewImage[]
   removedAttachmentIds: string[]
   newAttachments: NewAttachment[]
-  video?: VideoEdit
+  // Video edits are admin-only (enforced below, not just in the UI). A post can
+  // hold several videos since 0017, so edits are expressed as two lists rather
+  // than a single keep/remove/replace action:
+  //   removedVideoIds — post_videos row ids to delete (DB row + Bunny asset)
+  //   newVideoIds     — Bunny ids to append (status 'processing')
+  // Both default to empty, which leaves the post's videos untouched.
+  removedVideoIds?: string[]
+  newVideoIds?: string[]
 }
 
 // Author OR admin gate, enforced server-side (the posts RLS from migration 0013
@@ -184,28 +182,51 @@ export async function updatePost(input: UpdatePostInput): Promise<ActionResult> 
     if (error) return { error: error.message }
   }
 
-  // --- video (admin only) ---
-  if (input.video && input.video.action !== 'keep' && auth.isAdmin) {
-    const { data: current } = await admin
-      .from('post_videos')
-      .select('video_id')
-      .eq('post_id', postId)
-      .maybeSingle()
+  // --- videos (admin only) ---
+  const removedVideoIds = input.removedVideoIds ?? []
+  const newVideoIds = input.newVideoIds ?? []
 
-    // Remove/replace: delete the existing row FIRST (post_videos has
-    // UNIQUE(post_id) — inserting before deleting would violate it), then drop
-    // the Bunny asset. For replace, only then insert the new row.
-    if (current) {
-      await admin.from('post_videos').delete().eq('post_id', postId)
-      await tryDeleteBunnyVideo(current.video_id)
+  if (auth.isAdmin && (removedVideoIds.length > 0 || newVideoIds.length > 0)) {
+    // Removals first: drop the rows, then best-effort delete the Bunny assets.
+    if (removedVideoIds.length > 0) {
+      const { data: rows } = await admin
+        .from('post_videos')
+        .select('video_id')
+        .eq('post_id', postId)
+        .in('id', removedVideoIds)
+
+      const { error } = await admin
+        .from('post_videos')
+        .delete()
+        .eq('post_id', postId)
+        .in('id', removedVideoIds)
+      if (error) return { error: error.message }
+
+      for (const row of rows ?? []) {
+        await tryDeleteBunnyVideo(row.video_id)
+      }
     }
-    if (input.video.action === 'replace') {
-      const { error } = await admin.from('post_videos').insert({
-        post_id: postId,
-        video_id: input.video.newVideoId,
-        video_provider: 'bunny',
-        video_status: 'processing',
-      })
+
+    // Then append the new ones after whatever survived, preserving order.
+    if (newVideoIds.length > 0) {
+      const { data: remaining } = await admin
+        .from('post_videos')
+        .select('position')
+        .eq('post_id', postId)
+        .order('position', { ascending: false })
+        .limit(1)
+
+      const nextPosition = (remaining?.[0]?.position ?? -1) + 1
+
+      const { error } = await admin.from('post_videos').insert(
+        newVideoIds.map((videoId, index) => ({
+          post_id: postId,
+          video_id: videoId,
+          video_provider: 'bunny',
+          video_status: 'processing',
+          position: nextPosition + index,
+        })),
+      )
       if (error) return { error: error.message }
     }
   }
@@ -221,11 +242,12 @@ export async function deletePost({ postId }: { postId: string }): Promise<Action
   const admin = createAdminClient()
 
   // Gather external assets before the row (and its cascading children) vanish.
-  const { data: video } = await admin
+  // A post may hold several videos (0017) — no .maybeSingle() here, that would
+  // error the moment a post has more than one.
+  const { data: videos } = await admin
     .from('post_videos')
     .select('video_id')
     .eq('post_id', postId)
-    .maybeSingle()
   const { data: images } = await admin
     .from('post_images')
     .select('storage_path')
@@ -237,7 +259,9 @@ export async function deletePost({ postId }: { postId: string }): Promise<Action
 
   // FK cascade handles the DB rows; external assets do not cascade, so clean
   // them up here. All best-effort — a failure leaves orphaned bytes only.
-  await tryDeleteBunnyVideo(video?.video_id)
+  for (const row of videos ?? []) {
+    await tryDeleteBunnyVideo(row.video_id)
+  }
 
   const imagePaths = (images ?? []).map((r) => r.storage_path)
   if (imagePaths.length > 0) {

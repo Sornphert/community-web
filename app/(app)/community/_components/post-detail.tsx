@@ -92,18 +92,21 @@ export function PostDetail({
           </div>
         )}
 
-        {/* Optional Bunny video. Absent for posts with no video — renders nothing,
-            so existing posts are unchanged. Click-to-load: no stream until play. */}
-        {post.video?.video_id && (
-          <PostVideoPlayer
-            playerUrl={getPlayerUrl(post.video.video_id)}
-            posterUrl={
-              post.video.video_thumbnail_url ??
-              getThumbnailUrl(post.video.video_id)
-            }
-            status={post.video.video_status}
-          />
-        )}
+        {/* Optional Bunny videos, in position order (a post may hold several
+            since 0017). Absent for posts with no video — renders nothing, so
+            existing posts are unchanged. Click-to-load: no stream until play. */}
+        {post.videos
+          .filter((video) => video.video_id)
+          .map((video) => (
+            <PostVideoPlayer
+              key={video.id}
+              playerUrl={getPlayerUrl(video.video_id!)}
+              posterUrl={
+                video.video_thumbnail_url ?? getThumbnailUrl(video.video_id!)
+              }
+              status={video.video_status}
+            />
+          ))}
 
         {post.attachments.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">
