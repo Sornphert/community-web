@@ -64,6 +64,9 @@
 -- column + p_author_id filter — a DROP+CREATE; new public_member_header RPC; both
 -- anon-granted) is FOLDED IN below in SECTION 12; see 0017_public_member_profile.sql
 -- (standalone, hand-run).
+-- Migration 0018 (public_posts_feed returns image_url — the absolute post_images.url —
+-- instead of image_path, so imported content's images resolve) is FOLDED IN below in
+-- SECTION 12; see 0018_public_feed_absolute_image_url.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -1619,6 +1622,12 @@ $$;
 -- desc. limit defaults to 20 (NULL => 20, NOT 0 rows), hard ceiling 100.
 -- (0017: signature gained p_author_id and the return gained author_id — this was a
 -- DROP + CREATE, not a plain replace, since the RETURNS shape changed.)
+-- (0018: returns image_url — post_images.url, an ABSOLUTE public URL — instead of
+-- image_path. The client no longer rebuilds a URL with getPublicUrl, which wrongly
+-- assumed every image's bytes live in THIS project's bucket; content imported from
+-- the single-tenant projects keeps its original public URL and 404'd. Also a
+-- DROP + CREATE. Security is unchanged: same rows, and the in-app card has always
+-- rendered this exact URL.)
 create or replace function public.public_posts_feed(
   p_limit      int,
   p_offset     int,
@@ -1630,7 +1639,7 @@ returns table (
   display_name text,
   avatar_url   text,
   body         text,
-  image_path   text,
+  image_url    text,
   like_count   bigint,
   teacher_slug text,
   teacher_name text,
@@ -1644,11 +1653,11 @@ as $$
     pr.display_name,
     pr.avatar_url,
     p.body,
-    (select pi.storage_path
+    (select pi.url
        from public.post_images pi
       where pi.post_id = p.id
       order by pi."position" asc
-      limit 1)                                              as image_path,
+      limit 1)                                              as image_url,
     (select count(*)
        from public.post_likes pl
       where pl.post_id = p.id)                              as like_count,

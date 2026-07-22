@@ -27,7 +27,8 @@ In the SQL Editor (or `psql`), in order:
 
 This creates the full MT schema (tables, composite same-teacher FKs, the deferrable
 folder self-FK, RLS, the two authz RPCs, storage policies, the `on_auth_user_created`
-trigger) and seeds three teachers + per-teacher content:
+trigger, notifications + web push, and `delete_my_account()`) and seeds three teachers
++ per-teacher content:
 - **A** = `prophet-system` (The Prophet System)
 - **B** = `movement-bootcamp` (Movement Bootcamp)
 - **C** = `empty-academy` (Empty Academy) — intentionally **empty** (no members, no
@@ -72,13 +73,31 @@ differences.)
 
 ---
 
+## Account deletion — WORKS on MT (was previously listed here as a gap)
+`public.delete_my_account()` exists and is functional. It was rewritten for MT in
+migration `0001_delete_my_account_mt.sql` and is folded into `schema.sql` (SECTION 10),
+so a fresh project built from these files gets it automatically — no extra step.
+
+Behaviour: SECURITY DEFINER, no params (acts on `auth.uid()` only). Blocks deletion if
+the caller is a teacher's LAST active admin (returns `last_admin` + the teacher names).
+Otherwise it tombstones the profile (kept, so posts/comments still render
+"[Deleted user]"), un-publishes their public posts, removes post media rows, progress,
+notifications addressed to them, their web-push subscriptions, and memberships, then
+deletes the `auth.users` row. It returns the storage paths for the caller to delete
+post-commit (storage isn't transactional) — `app/(app)/profile/actions.ts` does this
+with the service-role client.
+
+Migration `0016` closed the gap where notifications and push_subscriptions survived
+deletion: both FK to `profiles` with ON DELETE CASCADE, but the profile is TOMBSTONED
+rather than deleted, so those cascades never fire and the rows must be deleted
+explicitly. Without it, a deleted account's browser kept receiving OS-level pushes.
+
+**Verified 2026-07-21** on `community-mt-dev` via a live browser deletion: received
+notifications, push subscription, memberships, the auth row and the avatar object were
+all removed; the profile survived as `[Deleted user]`; rows where the deleted user was
+the *actor* correctly survived and still render.
+
 ## Known gaps / deferred (MT)
-- **`delete_my_account()` is ABSENT** on community-mt-dev (dropped out-of-band during the
-  MT build, never rewritten). Account deletion is **non-functional** on MT and the schema
-  file intentionally omits it. An MT rewrite must decide global-vs-per-teacher deletion,
-  gate on `is_teacher_admin` instead of the removed global flag, and enumerate
-  `{teacher_id}/{uid}/...` storage paths across every teacher. Tracked in
-  `memory/mt-app-group-breaks.md`.
 - **content-files bucket is public-read** → a public object URL bypasses RLS and is not
   tenant-isolated (accepted v1 gap; private bucket + signed URLs is the deferred fix).
 - **Inter-tenant Bunny video isolation** rests on RLS over the video-id tables +
