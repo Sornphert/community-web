@@ -60,6 +60,10 @@
 -- profiles cascade never fires because the profile is TOMBSTONED; plus explicit grants
 -- for both tables, which 0013/0014 shipped without) is FOLDED IN below across SECTIONS
 -- 7 and 10; see 0016_notifications_deletion_and_grants.sql (standalone, hand-run).
+-- Migration 0017 (public author profiles: public_posts_feed gains an author_id return
+-- column + p_author_id filter — a DROP+CREATE; new public_member_header RPC; both
+-- anon-granted) is FOLDED IN below in SECTION 12; see 0017_public_member_profile.sql
+-- (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -766,11 +770,13 @@ grant execute on function public.teacher_member_counts()
 grant execute on function public.can_access_topic(uuid)
   to anon, authenticated, service_role;
 -- Public posts (0011): flag RPCs authenticated-only (internal authz gates them);
--- the read feed is the ONLY anon path into public posts.
+-- the read feed is the ONLY anon path into public posts. public_member_header (0017)
+-- is anon too — it backs the public author profile page.
 grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
-grant execute on function public.public_posts_feed(int, int, uuid) to anon, authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid, uuid) to anon, authenticated;
+grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
 
 
 -- =============================================================================
@@ -1602,17 +1608,25 @@ begin
 end;
 $$;
 
--- public_posts_feed — the ONLY anon read path. SECURITY DEFINER (bypasses
--- posts/profiles/post_likes RLS), but the hard WHERE + fixed 9-column return cap
--- exactly what leaves: NO post id / author id / channel_id / comments. p_teacher_id
--- null => all teachers; set => that teacher. Order featured-first, then created_at
+-- public_posts_feed — the ONLY anon read path INTO posts. SECURITY DEFINER (bypasses
+-- posts/profiles/post_likes RLS), but the hard WHERE + fixed return columns cap
+-- exactly what leaves: NO post id / channel_id / comments. author_id IS returned
+-- (0017) so a public feed card can link to /u/[teacher]/[id]; it's a random uuid,
+-- not a login credential, and exposes nothing beyond "this public post's author."
+-- p_teacher_id null => all teachers. p_author_id (0017) null => all authors; set =>
+-- ONE author's public posts (the profile page reuses this SAME predicate, so
+-- "what is a public post" is defined once). Order featured-first, then created_at
 -- desc. limit defaults to 20 (NULL => 20, NOT 0 rows), hard ceiling 100.
+-- (0017: signature gained p_author_id and the return gained author_id — this was a
+-- DROP + CREATE, not a plain replace, since the RETURNS shape changed.)
 create or replace function public.public_posts_feed(
   p_limit      int,
   p_offset     int,
-  p_teacher_id uuid default null
+  p_teacher_id uuid default null,
+  p_author_id  uuid default null
 )
 returns table (
+  author_id    uuid,
   display_name text,
   avatar_url   text,
   body         text,
@@ -1626,6 +1640,7 @@ returns table (
 language sql stable security definer set search_path to 'public'
 as $$
   select
+    p.author_id,
     pr.display_name,
     pr.avatar_url,
     p.body,
@@ -1648,15 +1663,56 @@ as $$
     and not p.hidden_from_public
     and pr.deleted_at is null
     and (p_teacher_id is null or p.teacher_id = p_teacher_id)
+    and (p_author_id  is null or p.author_id  = p_author_id)
   order by p.featured desc, p.created_at desc
   limit  least(greatest(coalesce(p_limit, 20), 0), 100)
   offset greatest(coalesce(p_offset, 0), 0);
 $$;
 
+-- public_member_header (0017) — the profile HEADER for one author in one teacher,
+-- backing the public /u/[teacher]/[id] page. SECURITY DEFINER, anon-granted. Returns
+-- a row ONLY for an ACTIVE, non-tombstoned member of that teacher (mirrors the
+-- getMemberProfile gate); empty result => the page 404s. Exposes bio + social_links
+-- publicly (product decision, 0017) — previously co-member-only. The author's PUBLIC
+-- posts are fetched separately via public_posts_feed(p_author_id), never here.
+create or replace function public.public_member_header(
+  p_teacher_id uuid,
+  p_author_id  uuid
+)
+returns table (
+  display_name text,
+  avatar_url   text,
+  bio          text,
+  social_links jsonb,
+  role         text,
+  teacher_slug text,
+  teacher_name text
+)
+language sql stable security definer set search_path to 'public'
+as $$
+  select
+    pr.display_name,
+    pr.avatar_url,
+    pr.bio,
+    pr.social_links,
+    m.role,
+    t.slug as teacher_slug,
+    t.name as teacher_name
+  from public.memberships m
+  join public.profiles pr on pr.id = m.profile_id
+  join public.teachers  t on t.id  = m.teacher_id
+  where m.teacher_id = p_teacher_id
+    and m.profile_id = p_author_id
+    and m.status = 'active'
+    and pr.deleted_at is null
+  limit 1;
+$$;
+
 grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
-grant execute on function public.public_posts_feed(int, int, uuid) to anon, authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid, uuid) to anon, authenticated;
+grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
 
 
 -- =============================================================================

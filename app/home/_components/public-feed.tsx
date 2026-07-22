@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { Heart, Star } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
@@ -67,15 +68,22 @@ function PublicFeedCard({ post }: { post: PublicFeedPost }) {
   return (
     <article className="rounded-xl border border-line bg-surface p-4">
       <div className="mb-2 flex items-center gap-3">
-        <Avatar url={post.avatar_url} name={post.display_name} size="sm" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-fg">
-            {post.display_name}
-          </p>
-          <p className="truncate text-xs text-fg-muted">
-            {post.teacher_name} · {formatRelativeTime(post.created_at)}
-          </p>
-        </div>
+        {/* Author → public profile (/u/[teacher]/[id]). The card body stays
+            non-clickable (post detail is auth-gated); only the author links out. */}
+        <Link
+          href={`/u/${post.teacher_slug}/${post.author_id}`}
+          className="flex min-w-0 items-center gap-3 rounded-md transition-opacity hover:opacity-80"
+        >
+          <Avatar url={post.avatar_url} name={post.display_name} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-fg">
+              {post.display_name}
+            </p>
+            <p className="truncate text-xs text-fg-muted">
+              {formatRelativeTime(post.created_at)}
+            </p>
+          </div>
+        </Link>
         {post.featured && (
           <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-fg-secondary">
             <Star className="h-3 w-3 fill-current" />

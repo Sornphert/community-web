@@ -252,6 +252,7 @@ export type PostWithFullRelations = Post & {
 // RPC's `image_path` (first post image, or null). `like_count` is the RPC's bigint,
 // narrowed to number.
 export type PublicFeedPost = {
+  author_id: string
   display_name: string
   avatar_url: string | null
   body: string
@@ -261,6 +262,19 @@ export type PublicFeedPost = {
   teacher_name: string
   featured: boolean
   created_at: string
+}
+
+// [Public profile] The header for a public author profile at /u/[teacher]/[id],
+// from the public_member_header RPC (0017). Anon-visible; posts are fetched
+// separately through public_posts_feed filtered to this author.
+export type PublicMemberHeader = {
+  display_name: string
+  avatar_url: string | null
+  bio: string | null
+  social_links: Record<string, string>
+  role: MembershipRole
+  teacher_slug: string
+  teacher_name: string
 }
 
 // A single user who liked a post or comment, for the likers modal.
