@@ -53,11 +53,6 @@ export default async function HomePage() {
 
     return (
       <div className="mx-auto w-full max-w-6xl">
-        <h1 className="mb-1 text-xl font-semibold text-fg">Communities</h1>
-        <p className="mb-8 text-sm text-fg-muted">
-          Browse the communities on the platform.
-        </p>
-
         <section>
           <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
             Discover
@@ -94,11 +89,6 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <h1 className="mb-1 text-xl font-semibold text-fg">Communities</h1>
-      <p className="mb-8 text-sm text-fg-muted">
-        Your communities, and others you can explore.
-      </p>
-
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
           Your communities

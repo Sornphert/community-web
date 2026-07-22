@@ -4,12 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 import { Avatar } from '@/app/(app)/_components/avatar'
 
-// The multi-tenant directory shell. PUBLIC: this layout no longer gates auth — anon
-// visitors see the directory too (proxy.ts allows '/' and '/home' without a session).
-// It still calls getUser() ONLY to choose the header: an Account avatar → /profile when
-// authed, or Log in / Sign up links when anon. getUser() returns null for anon without
-// throwing, so the logged-out path is safe. The page itself branches on auth for content.
-export default async function HomeLayout({
+// Public "About" shell. Mirrors app/home/layout.tsx: no auth gate (proxy.ts allows
+// '/about'), calls getUser() only to pick the header (avatar vs Log in / Sign up).
+// The logo here links to /home so a visitor can always get back to the directory —
+// the /home logo is the one that points AT /about.
+export default async function AboutLayout({
   children,
 }: {
   children: React.ReactNode
@@ -19,8 +18,6 @@ export default async function HomeLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Authed-only: read the profile for the header avatar (anon path skips this — no
-  // getUser-required query runs for logged-out viewers).
   let displayName = ''
   let avatarUrl: string | null = null
   if (user) {
@@ -36,9 +33,7 @@ export default async function HomeLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3">
-        {/* Per product: the platform wordmark links to the About page (not /home).
-            The /about header logo links back to /home so the directory stays reachable. */}
-        <Link href="/about" className="flex items-center gap-2">
+        <Link href="/home" className="flex items-center gap-2">
           <Image
             src={PLATFORM_LOGO_URL}
             alt={PLATFORM_NAME}

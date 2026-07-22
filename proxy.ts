@@ -78,13 +78,19 @@ export async function proxy(request: NextRequest) {
   const PUBLIC_PATHS = [
     '/',
     '/home',
+    '/about',
     '/login',
     '/reset-password',
     '/auth/confirm',
     '/forgot-password',
   ]
 
-  if (!user && !PUBLIC_PATHS.includes(pathname)) {
+  // Public author profiles live at /u/[teacher]/[id] — a DYNAMIC prefix, so it can't
+  // sit in the exact-match PUBLIC_PATHS list. It reads only anon-granted RPCs (0017),
+  // so anon access is safe.
+  const isPublicProfile = pathname.startsWith('/u/')
+
+  if (!user && !PUBLIC_PATHS.includes(pathname) && !isPublicProfile) {
     return redirectToLogin()
   }
 
