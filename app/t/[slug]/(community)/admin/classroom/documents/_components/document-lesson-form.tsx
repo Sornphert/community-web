@@ -144,6 +144,11 @@ export function DocumentLessonForm({
         throw uploadError
       }
 
+      // [0019] content-files is PRIVATE — getPublicUrl would mint a dead link. We
+      // still record a canonical /object/public/... url so the row carries a stable,
+      // parseable reference to the object, but it is NEVER served directly: the
+      // classroom fetchers re-derive the path and mint a short-lived signed url.
+      // document_storage_path is the real source of truth.
       const url = supabase.storage
         .from(CONTENT_FILES_BUCKET)
         .getPublicUrl(path).data.publicUrl
@@ -155,7 +160,8 @@ export function DocumentLessonForm({
         description,
         documentUrl: url,
         documentStoragePath: path,
-        // For images, reuse the file URL as the thumbnail so it previews inline.
+        // For images, reuse the file reference as the thumbnail so it previews
+        // inline (also re-signed on read).
         thumbnailUrl: upload.isImage ? url : null,
       })
       if (result.error) {

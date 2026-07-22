@@ -8,6 +8,26 @@ export const MAX_CONTENT_FILE_SIZE_BYTES = 20971520 // 20 MB
 
 export const CONTENT_FILES_BUCKET = 'content-files'
 
+// How long a minted document url stays valid. Long enough to open/read a lesson,
+// short enough that a leaked link is not permanent access (0019).
+export const CONTENT_FILE_SIGNED_URL_TTL_SECONDS = 60 * 60 // 1 hour
+
+// The bucket is PRIVATE (0019), so a stored /object/public/... url no longer resolves.
+// Given a content_items row we must re-derive the in-bucket path and sign it.
+// Prefer document_storage_path; fall back to parsing a legacy public url written
+// before that column existed. Returns null for genuinely EXTERNAL urls (e.g. seed
+// rows pointing at example.com), which are passed through untouched.
+export function contentFilePathFrom(
+  storagePath: string | null,
+  url: string | null,
+): string | null {
+  if (storagePath && storagePath.trim() !== '') return storagePath
+  if (!url) return null
+  // .../object/public/content-files/<path>  or  .../object/sign/content-files/<path>
+  const m = url.match(/\/content-files\/(.+?)(?:\?|$)/)
+  return m ? decodeURIComponent(m[1]) : null
+}
+
 export const PDF_MIME = 'application/pdf'
 export const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

@@ -118,10 +118,13 @@ insert into public.topic_tags (topic_id, tag_id, teacher_id) values
   ('275342ec-1064-480e-bf31-97a97e743059','b2100000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000')
 on conflict (topic_id, tag_id) do nothing;
 
--- Storage buckets (all public-read; gated by storage.objects RLS in schema.sql)
+-- Storage buckets. All are public-read EXCEPT content-files, which is PRIVATE (0019):
+-- classroom documents must not be fetchable by URL alone, so reads go through a
+-- short-lived signed url minted under the storage SELECT policy (active member of the
+-- owning teacher). Writes for every bucket are gated by storage.objects RLS in schema.sql.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('avatars',         'avatars',         true, 2097152,  '{image/jpeg,image/png,image/webp}'),
-  ('content-files',   'content-files',   true, 20971520, null),
+  ('content-files',   'content-files',   false, 20971520, null),
   ('post-attachments','post-attachments',true, 26214400, '{application/pdf}'),
   ('post-images',     'post-images',     true, 5242880,  null),
   ('topic-covers',    'topic-covers',    true, 2097152,  null),

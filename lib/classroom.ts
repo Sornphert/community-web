@@ -1,5 +1,11 @@
 import { cache } from 'react'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import {
+  CONTENT_FILES_BUCKET,
+  CONTENT_FILE_SIGNED_URL_TTL_SECONDS,
+  contentFilePathFrom,
+} from '@/lib/content-files'
 import type { ContentItem, Topic } from '@/lib/types'
 
 // [MT] Every fetcher takes a REQUIRED teacherId and filters teacher_id. Under MT RLS
@@ -48,6 +54,54 @@ export async function getTopic(
   return (data ?? null) as Topic | null
 }
 
+// [0019] content-files is PRIVATE, so the stored /object/public/... urls are dead.
+// Re-mint short-lived signed urls for document_url + thumbnail_url before handing
+// items to the UI. Signing runs on the USER's client, so the storage SELECT policy
+// (active member of the owning teacher) is the enforcement point — never swap this
+// to the service-role client. External urls (no in-bucket path) pass through as-is,
+// and a signing failure degrades to null rather than throwing: a broken thumbnail
+// must not 500 a classroom page.
+async function withSignedContentUrls<T extends ContentItem>(
+  supabase: SupabaseClient,
+  items: T[],
+): Promise<T[]> {
+  const paths = new Set<string>()
+  for (const item of items) {
+    const doc = contentFilePathFrom(item.document_storage_path, item.document_url)
+    if (doc) paths.add(doc)
+    const thumb = contentFilePathFrom(null, item.thumbnail_url)
+    if (thumb) paths.add(thumb)
+  }
+  if (paths.size === 0) return items
+
+  const list = [...paths]
+  const { data } = await supabase.storage
+    .from(CONTENT_FILES_BUCKET)
+    .createSignedUrls(list, CONTENT_FILE_SIGNED_URL_TTL_SECONDS)
+
+  const signed = new Map<string, string>()
+  for (const row of data ?? []) {
+    if (row.path && row.signedUrl) signed.set(row.path, row.signedUrl)
+  }
+
+  return items.map((item) => {
+    const docPath = contentFilePathFrom(
+      item.document_storage_path,
+      item.document_url,
+    )
+    const thumbPath = contentFilePathFrom(null, item.thumbnail_url)
+    return {
+      ...item,
+      document_url: docPath
+        ? (signed.get(docPath) ?? null)
+        : item.document_url,
+      thumbnail_url: thumbPath
+        ? (signed.get(thumbPath) ?? null)
+        : item.thumbnail_url,
+    }
+  })
+}
+
 export async function getContentItems(
   topicId: string,
   teacherId: string,
@@ -66,7 +120,7 @@ export async function getContentItems(
     throw new Error(`Failed to load content items: ${error.message}`)
   }
 
-  return (data ?? []) as ContentItem[]
+  return withSignedContentUrls(supabase, (data ?? []) as ContentItem[])
 }
 
 export async function getContentItem(
@@ -88,7 +142,9 @@ export async function getContentItem(
     throw new Error(`Failed to load content item: ${error.message}`)
   }
 
-  return (data ?? null) as ContentItem | null
+  const item = (data ?? null) as ContentItem | null
+  if (!item) return null
+  return (await withSignedContentUrls(supabase, [item]))[0]
 }
 
 // Progress reads stay user-keyed (no teacherId param). content_progress is a leaf

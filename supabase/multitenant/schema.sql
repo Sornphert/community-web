@@ -67,6 +67,10 @@
 -- Migration 0018 (public_posts_feed returns image_url — the absolute post_images.url —
 -- instead of image_path, so imported content's images resolve) is FOLDED IN below in
 -- SECTION 12; see 0018_public_feed_absolute_image_url.sql (standalone, hand-run).
+-- Migration 0019 (content-files bucket flipped PRIVATE + storage SELECT narrowed from
+-- any-authenticated to active-member-of-owning-teacher; reads become signed urls) is
+-- FOLDED IN below in SECTION 9, with the bucket flag in seed.sql; see
+-- 0019_content_files_private.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -1060,9 +1064,16 @@ drop policy if exists teacher_logos_delete_admin on storage.objects;
 create policy teacher_logos_delete_admin on storage.objects for delete to authenticated
   using (bucket_id = 'teacher-logos' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
 
--- content-files ({teacher_id}/...) — admin write, member read (public-read bucket: v1 gap)
+-- content-files ({teacher_id}/...) — admin write, member read. The bucket is PRIVATE
+-- (0019, set in seed.sql): the old public-read bucket meant any leaked url bypassed
+-- membership AND tag gating forever. Reads are now short-lived SIGNED urls, and because
+-- signing performs a SELECT under RLS, the policy below IS the enforcement point —
+-- an active member of the OWNING teacher only. Tag gating stays in the app layer
+-- (can_access_topic) since storage RLS can't join a path back to content_items.
+-- Sign with the USER's client, never service-role, or this policy is bypassed.
 drop policy if exists content_files_select on storage.objects;
-create policy content_files_select on storage.objects for select to authenticated using (bucket_id = 'content-files');
+create policy content_files_select on storage.objects for select to authenticated
+  using (bucket_id = 'content-files' and has_membership(((storage.foldername(name))[1])::uuid));
 drop policy if exists content_files_insert_admin on storage.objects;
 create policy content_files_insert_admin on storage.objects for insert to authenticated
   with check (bucket_id = 'content-files' and is_teacher_admin(((storage.foldername(name))[1])::uuid));
