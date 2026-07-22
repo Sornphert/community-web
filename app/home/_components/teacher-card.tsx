@@ -62,19 +62,24 @@ export function TeacherCard({
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md">
       {showCover ? (
+        // draggable=false + user-drag none: without these, dragging the carousel by a
+        // real cover image triggers the browser's native image-drag (you can drop the
+        // photo elsewhere) instead of scrolling. The coverless colored div has no such
+        // issue, which is why only Empty Academy worked before.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={teacher.cover_url as string}
           alt={teacher.name}
           loading="lazy"
+          draggable={false}
           onError={() => setCoverFailed(true)}
-          className="aspect-[5/2] w-full object-cover"
+          className="aspect-[3/2] w-full select-none object-cover [-webkit-user-drag:none]"
         />
       ) : (
         // No cover: colored band with the initial, so a coverless teacher isn't a
         // blank rectangle. The name is still exposed to screen readers.
         <div
-          className={`${colorForSlug(teacher.slug)} flex aspect-[5/2] w-full items-center justify-center`}
+          className={`${colorForSlug(teacher.slug)} flex aspect-[3/2] w-full items-center justify-center`}
         >
           <span className="text-4xl font-semibold text-white/90">{initial}</span>
           <span className="sr-only">{teacher.name}</span>

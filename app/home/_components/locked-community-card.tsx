@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ExternalLink, Lock, X } from 'lucide-react'
 import { PLATFORM_LOGO_URL } from '@/lib/config'
 import { TeacherCard } from './teacher-card'
@@ -81,7 +82,12 @@ function CommunityInfoModal({
       : `https://${rawUrl}`
     : null
 
-  return (
+  // Portal to <body>: the card lives inside the carousel track, which has a CSS
+  // transform (its scroll mechanism). A transformed ancestor becomes the containing
+  // block for position:fixed, so an in-place modal would anchor to the track (off to
+  // the side) instead of the viewport. Portaling out escapes the transform → true
+  // viewport-centered overlay.
+  return createPortal(
     // Backdrop — click to close.
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -143,6 +149,7 @@ function CommunityInfoModal({
           </a>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -7,6 +7,7 @@ import {
   getTeacherMemberCounts,
 } from '@/lib/teachers'
 import type { DirectoryTeacher } from '@/lib/types'
+import { CommunityCarousel } from './_components/community-carousel'
 import { LockedCommunityCard } from './_components/locked-community-card'
 import { PublicFeed } from './_components/public-feed'
 import { TeacherCard } from './_components/teacher-card'
@@ -30,7 +31,7 @@ export default async function HomePage() {
   const feed = await getPublicFeed(supabase, 0)
   const feedSection =
     feed.length > 0 ? (
-      <section className="mt-10">
+      <section className="mt-6">
         <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
           Latest from the communities
         </h2>
@@ -57,7 +58,7 @@ export default async function HomePage() {
           <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
             Discover
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CommunityCarousel>
             {teachers.map((teacher) => (
               <LockedCommunityCard
                 key={teacher.id}
@@ -66,7 +67,7 @@ export default async function HomePage() {
                 state="discover_public"
               />
             ))}
-          </div>
+          </CommunityCarousel>
         </section>
 
         {feedSection}
@@ -89,7 +90,7 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <section className="mb-10">
+      <section className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
           Your communities
         </h2>
@@ -98,9 +99,13 @@ export default async function HomePage() {
             You&rsquo;re not a member of any community yet.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CommunityCarousel>
             {myCommunities.map((teacher) => (
-              <Link key={teacher.id} href={`/t/${teacher.slug}`}>
+              <Link
+                key={teacher.id}
+                href={`/t/${teacher.slug}`}
+                className="block"
+              >
                 <TeacherCard
                   teacher={teacher}
                   memberCount={counts.get(teacher.id) ?? 0}
@@ -109,7 +114,7 @@ export default async function HomePage() {
                 />
               </Link>
             ))}
-          </div>
+          </CommunityCarousel>
         )}
       </section>
 
@@ -118,7 +123,7 @@ export default async function HomePage() {
           <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
             Discover
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CommunityCarousel>
             {discover.map((teacher) => (
               <LockedCommunityCard
                 key={teacher.id}
@@ -127,7 +132,7 @@ export default async function HomePage() {
                 state="invite_only"
               />
             ))}
-          </div>
+          </CommunityCarousel>
         </section>
       )}
 

@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { ThemeToggleIcon } from '@/app/_components/theme-toggle-icon'
 
 // The multi-tenant directory shell. PUBLIC: this layout no longer gates auth — anon
 // visitors see the directory too (proxy.ts allows '/' and '/home' without a session).
@@ -42,16 +43,17 @@ export default async function HomeLayout({
           <Image
             src={PLATFORM_LOGO_URL}
             alt={PLATFORM_NAME}
-            width={28}
-            height={28}
-            className="h-7 w-7 rounded object-contain shrink-0"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded object-contain shrink-0"
           />
-          <span className="hidden text-sm font-semibold text-fg sm:inline">
+          <span className="text-sm font-semibold text-fg">
             {PLATFORM_NAME}
           </span>
         </Link>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggleIcon />
           {user ? (
             <Link
               href="/profile"
