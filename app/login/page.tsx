@@ -3,6 +3,7 @@
 import { Suspense, useState, useTransition } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signUp } from './actions'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
@@ -47,6 +48,16 @@ function LoginForm() {
   return (
     <div className="flex flex-1 items-center justify-center bg-[#010822] px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
+        {/* Back to the logged-out home directory (anon-safe: /home is public). Inside the
+            card, dark text so it reads on the white background. */}
+        <Link
+          href="/home"
+          className="mb-4 -ml-1 inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Link>
+
         <div className="flex flex-col items-center gap-4 mb-8">
           <Image
             src={PLATFORM_LOGO_URL}

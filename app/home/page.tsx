@@ -1,5 +1,9 @@
 import Link from 'next/link'
-import { getPublicFeed, PUBLIC_FEED_PAGE_SIZE } from '@/lib/public-feed'
+import {
+  getPublicFeed,
+  getPublicFeedCategories,
+  PUBLIC_FEED_PAGE_SIZE,
+} from '@/lib/public-feed'
 import { createClient } from '@/lib/supabase/server'
 import {
   getAllTeachers,
@@ -28,7 +32,10 @@ export default async function HomePage() {
   // Page 0 is rendered server-side; <PublicFeed> pages the rest via "Load more".
   // getPublicFeed never throws, so a feed hiccup can't break the directory. The
   // section is omitted entirely when the corpus is empty (no sad empty heading).
-  const feed = await getPublicFeed(supabase, 0)
+  const [feed, feedCategories] = await Promise.all([
+    getPublicFeed(supabase, 0),
+    getPublicFeedCategories(supabase),
+  ])
   const feedSection =
     feed.length > 0 ? (
       <section className="mt-6">
@@ -39,6 +46,7 @@ export default async function HomePage() {
           <PublicFeed
             initial={feed}
             initialHasMore={feed.length === PUBLIC_FEED_PAGE_SIZE}
+            categories={feedCategories}
           />
         </div>
       </section>

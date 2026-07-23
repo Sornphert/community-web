@@ -78,6 +78,10 @@
 -- Migration 0021 (teachers.hero_url — per-teacher Announcements banner; the global
 -- HERO_URL env var becomes the fallback) is FOLDED IN below in SECTION 0; see
 -- 0021_teacher_hero.sql (standalone, hand-run).
+-- Migration 0022 (public_posts_feed gains p_category_slug so the homepage feed can be
+-- filtered by category via chips; a 'property' category is added and Jane reassigned to
+-- it) is FOLDED IN below in SECTION 12; see 0022_public_feed_category_filter.sql
+-- (standalone, hand-run). The 'property' category row lives in seed.sql.
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -793,7 +797,7 @@ grant execute on function public.can_access_topic(uuid)
 grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
-grant execute on function public.public_posts_feed(int, int, uuid, uuid) to anon, authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid, uuid, text) to anon, authenticated;
 grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
 
 
@@ -1660,10 +1664,11 @@ $$;
 -- DROP + CREATE. Security is unchanged: same rows, and the in-app card has always
 -- rendered this exact URL.)
 create or replace function public.public_posts_feed(
-  p_limit      int,
-  p_offset     int,
-  p_teacher_id uuid default null,
-  p_author_id  uuid default null
+  p_limit        int,
+  p_offset       int,
+  p_teacher_id   uuid default null,
+  p_author_id    uuid default null,
+  p_category_slug text default null
 )
 returns table (
   author_id    uuid,
@@ -1697,13 +1702,15 @@ as $$
     p.featured,
     p.created_at
   from public.posts p
-  join public.profiles pr on pr.id = p.author_id
-  join public.teachers t  on t.id  = p.teacher_id
+  join public.profiles pr  on pr.id  = p.author_id
+  join public.teachers t   on t.id   = p.teacher_id
+  left join public.categories cat on cat.id = t.category_id
   where p.is_public
     and not p.hidden_from_public
     and pr.deleted_at is null
-    and (p_teacher_id is null or p.teacher_id = p_teacher_id)
-    and (p_author_id  is null or p.author_id  = p_author_id)
+    and (p_teacher_id    is null or p.teacher_id = p_teacher_id)
+    and (p_author_id     is null or p.author_id  = p_author_id)
+    and (p_category_slug is null or cat.slug     = p_category_slug)
   order by p.featured desc, p.created_at desc
   limit  least(greatest(coalesce(p_limit, 20), 0), 100)
   offset greatest(coalesce(p_offset, 0), 0);
@@ -1751,8 +1758,26 @@ $$;
 grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
-grant execute on function public.public_posts_feed(int, int, uuid, uuid) to anon, authenticated;
+grant execute on function public.public_posts_feed(int, int, uuid, uuid, text) to anon, authenticated;
 grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
+
+-- public_feed_categories (0022) — categories that have >=1 public post, for the
+-- homepage feed chips. SECURITY DEFINER + anon-granted, same reason as the feed: anon
+-- can't SELECT posts under RLS.
+create or replace function public.public_feed_categories()
+returns table (slug text, name text)
+language sql stable security definer set search_path to 'public'
+as $$
+  select distinct c.slug, c.name
+  from public.posts p
+  join public.teachers t   on t.id  = p.teacher_id
+  join public.categories c on c.id  = t.category_id
+  join public.profiles pr  on pr.id = p.author_id
+  where p.is_public and not p.hidden_from_public and pr.deleted_at is null
+  order by c.name;
+$$;
+
+grant execute on function public.public_feed_categories() to anon, authenticated;
 
 
 -- =============================================================================

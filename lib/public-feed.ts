@@ -61,16 +61,35 @@ export async function getPublicFeed(
   supabase: SupabaseClient,
   offset = 0,
   limit = PUBLIC_FEED_PAGE_SIZE,
-  opts: { teacherId?: string | null; authorId?: string | null } = {},
+  opts: {
+    teacherId?: string | null
+    authorId?: string | null
+    categorySlug?: string | null
+  } = {},
 ): Promise<PublicFeedPost[]> {
   const { data, error } = await supabase.rpc('public_posts_feed', {
     p_limit: limit,
     p_offset: offset,
     p_teacher_id: opts.teacherId ?? null,
     p_author_id: opts.authorId ?? null,
+    p_category_slug: opts.categorySlug ?? null,
   })
 
   if (error || !data) return []
 
   return (data as RawFeedRow[]).map(mapFeedRow)
+}
+
+export type FeedCategory = { slug: string; name: string }
+
+// Categories that have at least one PUBLIC post, for the homepage feed chips. Reads via
+// the public_feed_categories() SECURITY DEFINER RPC (anon-granted) — a direct posts
+// query is blocked by RLS for logged-out visitors, same reason the feed uses an RPC.
+// Never throws: on error returns [] so the feed just renders without chips.
+export async function getPublicFeedCategories(
+  supabase: SupabaseClient,
+): Promise<FeedCategory[]> {
+  const { data, error } = await supabase.rpc('public_feed_categories')
+  if (error || !data) return []
+  return (data as FeedCategory[]).map((c) => ({ slug: c.slug, name: c.name }))
 }

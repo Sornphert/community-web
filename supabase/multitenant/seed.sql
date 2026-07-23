@@ -25,7 +25,8 @@ on conflict (id) do nothing;
 insert into public.categories (id, slug, name) values
   ('ca700000-0000-0000-0000-000000000001','investing','Investing & Trading'),
   ('ca700000-0000-0000-0000-000000000002','parenting','Parenting'),
-  ('ca700000-0000-0000-0000-000000000003','business', 'Business & Entrepreneurship')
+  ('ca700000-0000-0000-0000-000000000003','business', 'Business & Entrepreneurship'),
+  ('ca700000-0000-0000-0000-000000000004','property', 'Property')
 on conflict (id) do nothing;
 
 -- Assign dev teachers to categories.

@@ -5,34 +5,57 @@ import { useState, useTransition } from 'react'
 import { Heart, Star } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
-import { getPublicFeed, PUBLIC_FEED_PAGE_SIZE } from '@/lib/public-feed'
+import {
+  getPublicFeed,
+  PUBLIC_FEED_PAGE_SIZE,
+  type FeedCategory,
+} from '@/lib/public-feed'
 import { createClient } from '@/lib/supabase/client'
 import type { PublicFeedPost } from '@/lib/types'
 
-// [Surface 4] Homepage public feed (anon + authed). Server renders page 0; this
-// component owns "Load more", paging via the same getPublicFeed against the browser
-// client (the RPC is anon-granted, so this works logged-out too). Cards are NON-
-// clickable by design — the feed RPC returns no post id, and post detail is auth-gated.
+// [Surface 4] Homepage public feed (anon + authed). Server renders page 0 of the "All"
+// feed; this component owns the CATEGORY CHIPS + "Load more", paging via getPublicFeed
+// against the browser client (the RPC is anon-granted, so this works logged-out too).
+// Selecting a chip refetches page 0 filtered by category server-side, so paging stays
+// correct within a tab. Cards are NON-clickable by design (only the author links out).
 export function PublicFeed({
   initial,
   initialHasMore,
+  categories,
 }: {
   initial: PublicFeedPost[]
   initialHasMore: boolean
+  categories: FeedCategory[]
 }) {
   const [posts, setPosts] = useState(initial)
   const [hasMore, setHasMore] = useState(initialHasMore)
-  const [error, setError] = useState<string | null>(null)
+  // null = the "All" chip.
+  const [active, setActive] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Switch category: refetch page 0 with the server-side filter, replacing the list.
+  function selectCategory(slug: string | null) {
+    if (slug === active || isPending) return
+    setActive(slug)
+    startTransition(async () => {
+      const next = await getPublicFeed(createClient(), 0, PUBLIC_FEED_PAGE_SIZE, {
+        categorySlug: slug,
+      })
+      setPosts(next)
+      setHasMore(next.length === PUBLIC_FEED_PAGE_SIZE)
+    })
+  }
 
   function loadMore() {
     if (isPending) return
-    setError(null)
     startTransition(async () => {
-      const next = await getPublicFeed(createClient(), posts.length)
+      const next = await getPublicFeed(
+        createClient(),
+        posts.length,
+        PUBLIC_FEED_PAGE_SIZE,
+        { categorySlug: active },
+      )
       if (next.length === 0) {
-        // Either genuinely exhausted or a transient RPC error (getPublicFeed
-        // swallows errors → []). Stop offering more; a reload retries page 0.
         setHasMore(false)
         return
       }
@@ -43,11 +66,34 @@ export function PublicFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      {posts.map((post, i) => (
-        <PublicFeedCard key={`${post.teacher_slug}-${post.created_at}-${i}`} post={post} />
-      ))}
+      {categories.length > 0 && (
+        <div className="-mx-1 flex flex-wrap gap-2">
+          <Chip label="All" active={active === null} onClick={() => selectCategory(null)} />
+          {categories.map((c) => (
+            <Chip
+              key={c.slug}
+              label={c.name}
+              active={active === c.slug}
+              onClick={() => selectCategory(c.slug)}
+            />
+          ))}
+        </div>
+      )}
 
-      {hasMore && (
+      {posts.length === 0 ? (
+        <p className="py-6 text-center text-sm text-fg-muted">
+          {isPending ? 'Loading…' : 'Nothing here yet.'}
+        </p>
+      ) : (
+        posts.map((post, i) => (
+          <PublicFeedCard
+            key={`${post.teacher_slug}-${post.created_at}-${i}`}
+            post={post}
+          />
+        ))
+      )}
+
+      {hasMore && posts.length > 0 && (
         <div className="flex flex-col items-center gap-2 pt-2">
           <button
             type="button"
@@ -57,10 +103,34 @@ export function PublicFeed({
           >
             {isPending ? 'Loading…' : 'Load more'}
           </button>
-          {error && <span className="text-xs text-danger">{error}</span>}
         </div>
       )}
     </div>
+  )
+}
+
+function Chip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+        active
+          ? 'border-inverse bg-inverse text-inverse-fg'
+          : 'border-line text-fg-secondary hover:bg-muted'
+      }`}
+    >
+      {label}
+    </button>
   )
 }
 
