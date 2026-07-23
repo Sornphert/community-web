@@ -22,27 +22,34 @@ export function PublicFeed({
   initial,
   initialHasMore,
   categories,
+  loggedOut = false,
 }: {
   initial: PublicFeedPost[]
   initialHasMore: boolean
   categories: FeedCategory[]
+  loggedOut?: boolean
 }) {
   const [posts, setPosts] = useState(initial)
   const [hasMore, setHasMore] = useState(initialHasMore)
   // null = the "All" chip.
   const [active, setActive] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  // Distinct from isPending (which also covers "Load more"): true only while a chip
+  // switch is refetching, so we show skeleton cards in place of the swapped-out list.
+  const [switching, setSwitching] = useState(false)
 
   // Switch category: refetch page 0 with the server-side filter, replacing the list.
   function selectCategory(slug: string | null) {
     if (slug === active || isPending) return
     setActive(slug)
+    setSwitching(true)
     startTransition(async () => {
       const next = await getPublicFeed(createClient(), 0, PUBLIC_FEED_PAGE_SIZE, {
         categorySlug: slug,
       })
       setPosts(next)
       setHasMore(next.length === PUBLIC_FEED_PAGE_SIZE)
+      setSwitching(false)
     })
   }
 
@@ -80,15 +87,22 @@ export function PublicFeed({
         </div>
       )}
 
-      {posts.length === 0 ? (
+      {switching ? (
+        <>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </>
+      ) : posts.length === 0 ? (
         <p className="py-6 text-center text-sm text-fg-muted">
-          {isPending ? 'Loading…' : 'Nothing here yet.'}
+          Nothing here yet.
         </p>
       ) : (
         posts.map((post, i) => (
           <PublicFeedCard
             key={`${post.teacher_slug}-${post.created_at}-${i}`}
             post={post}
+            loggedOut={loggedOut}
           />
         ))
       )}
@@ -134,15 +148,51 @@ function Chip({
   )
 }
 
-function PublicFeedCard({ post }: { post: PublicFeedPost }) {
+// Skeleton placeholder shown while a category switch is loading.
+function SkeletonCard() {
   return (
-    <article className="rounded-xl border border-line bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+          <div className="h-2.5 w-16 animate-pulse rounded bg-muted" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+        <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+      </div>
+    </div>
+  )
+}
+
+function PublicFeedCard({
+  post,
+  loggedOut,
+}: {
+  post: PublicFeedPost
+  loggedOut: boolean
+}) {
+  return (
+    // Stretched-link card: the overlay <Link> (z-10) makes the WHOLE card open the
+    // post; the profile link is lifted above it (z-20) so it opens the profile instead.
+    // Non-interactive content (body/image) sits below the overlay, so a click there
+    // opens the post too.
+    // `isolate` confines the stretched-link z-10/z-20 to THIS card, so they don't
+    // leak up and paint over the sticky page header (which sits at z-10 above main).
+    <article className="relative isolate rounded-xl border border-line bg-surface p-4 transition-colors hover:border-line-strong">
+      <Link
+        href={`/p/${post.post_id}`}
+        aria-label={`Open post by ${post.display_name}`}
+        className="absolute inset-0 z-10 rounded-xl"
+      />
+
       <div className="mb-2 flex items-center gap-3">
-        {/* Author → public profile (/u/[teacher]/[id]). The card body stays
-            non-clickable (post detail is auth-gated); only the author links out. */}
         <Link
           href={`/u/${post.teacher_slug}/${post.author_id}`}
-          className="flex min-w-0 items-center gap-3 rounded-md transition-opacity hover:opacity-80"
+          className="relative z-20 flex min-w-0 items-center gap-3 rounded-md transition-opacity hover:opacity-80"
         >
           <Avatar url={post.avatar_url} name={post.display_name} size="sm" />
           <div className="min-w-0">
@@ -162,20 +212,37 @@ function PublicFeedCard({ post }: { post: PublicFeedPost }) {
         )}
       </div>
 
-      <p className="whitespace-pre-wrap break-words text-sm text-fg-secondary line-clamp-6">
+      <p
+        className={`whitespace-pre-wrap break-words text-sm text-fg-secondary ${
+          loggedOut ? 'line-clamp-3' : 'line-clamp-6'
+        }`}
+      >
         {post.body}
       </p>
+      {loggedOut && (
+        <span className="mt-1 inline-block text-sm font-semibold text-fg underline decoration-1 underline-offset-2">
+          Read more →
+        </span>
+      )}
 
       {post.image_url && (
-        // Remote Supabase Storage image — plain <img> per project convention
-        // (next/image `fill` needs an explicit sized box; a feed image's aspect
-        // ratio is unknown, so we cap height and object-cover instead).
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.image_url}
-          alt=""
-          className="mt-3 max-h-96 w-full rounded-lg object-cover"
-        />
+        <div className="relative mt-3 overflow-hidden rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.image_url}
+            alt=""
+            className={`max-h-96 w-full object-cover ${
+              loggedOut ? 'blur-md' : ''
+            }`}
+          />
+          {loggedOut && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white">
+                Log in to view
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="mt-3 flex items-center gap-1 text-xs text-fg-muted">

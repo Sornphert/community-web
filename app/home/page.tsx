@@ -47,6 +47,7 @@ export default async function HomePage() {
             initial={feed}
             initialHasMore={feed.length === PUBLIC_FEED_PAGE_SIZE}
             categories={feedCategories}
+            loggedOut={!user}
           />
         </div>
       </section>

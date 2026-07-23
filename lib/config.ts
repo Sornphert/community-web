@@ -49,6 +49,16 @@ export const FAVICON_URL =
 export const PLATFORM_FAVICON_URL =
   process.env.NEXT_PUBLIC_PLATFORM_FAVICON_URL ?? '/platform-logo.png'
 
+// Platform-level description + canonical URL for the MT root <title>/meta and social
+// share previews (Open Graph). Distinct from APP_DESCRIPTION (single-tenant Johnson
+// copy). SITE_URL is the metadataBase used to resolve relative OG image paths.
+export const PLATFORM_DESCRIPTION =
+  process.env.NEXT_PUBLIC_PLATFORM_DESCRIPTION ??
+  'Private learning communities — discover teachers and their classrooms.'
+
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.thetreewisdom.com'
+
 // Hero banner visibility. Defaults to true; only an explicit 'false' hides it
 // (reliable on Vercel, unlike an empty NEXT_PUBLIC_HERO_URL).
 export const SHOW_HERO = process.env.NEXT_PUBLIC_SHOW_HERO !== 'false'

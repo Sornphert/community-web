@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { PLATFORM_NAME, APP_DESCRIPTION, PLATFORM_FAVICON_URL } from "@/lib/config";
+import {
+  PLATFORM_NAME,
+  PLATFORM_DESCRIPTION,
+  PLATFORM_FAVICON_URL,
+  PLATFORM_LOGO_URL,
+  SITE_URL,
+} from "@/lib/config";
 import { ThemeProvider } from "./_components/theme-provider";
 import "./globals.css";
 
@@ -15,9 +21,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: PLATFORM_NAME,
-  description: APP_DESCRIPTION,
-  icons: { icon: PLATFORM_FAVICON_URL },
+  metadataBase: new URL(SITE_URL),
+  title: {
+    // Per-page titles become "Page · The Trees"; the root/home stays just the name.
+    default: PLATFORM_NAME,
+    template: `%s · ${PLATFORM_NAME}`,
+  },
+  description: PLATFORM_DESCRIPTION,
+  // `apple` = the iOS Home Screen icon AND the icon shown on iOS web-push
+  // notifications, so it stays even though we skip the full PWA manifest.
+  icons: { icon: PLATFORM_FAVICON_URL, apple: PLATFORM_LOGO_URL },
+  // Default social share preview (Open Graph + Twitter). Per-page routes (e.g. a
+  // public profile) can override via generateMetadata.
+  openGraph: {
+    type: "website",
+    siteName: PLATFORM_NAME,
+    title: PLATFORM_NAME,
+    description: PLATFORM_DESCRIPTION,
+    url: SITE_URL,
+    images: [{ url: PLATFORM_LOGO_URL, alt: PLATFORM_NAME }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: PLATFORM_NAME,
+    description: PLATFORM_DESCRIPTION,
+    images: [PLATFORM_LOGO_URL],
+  },
 };
 
 export default function RootLayout({

@@ -256,6 +256,7 @@ export type PostWithFullRelations = Post & {
 // RPC's `image_path` (first post image, or null). `like_count` is the RPC's bigint,
 // narrowed to number.
 export type PublicFeedPost = {
+  post_id: string
   author_id: string
   display_name: string
   avatar_url: string | null
@@ -264,6 +265,25 @@ export type PublicFeedPost = {
   like_count: number
   teacher_slug: string
   teacher_name: string
+  featured: boolean
+  created_at: string
+}
+
+// [Public post] A single public post for /p/[id], from the public_post RPC (0023).
+// comment_count is a COUNT only — comment text is never exposed here (members-only).
+export type PublicPost = {
+  post_id: string
+  author_id: string
+  display_name: string
+  avatar_url: string | null
+  title: string | null
+  body: string
+  image_url: string | null
+  like_count: number
+  comment_count: number
+  teacher_slug: string
+  teacher_name: string
+  channel_slug: string | null
   featured: boolean
   created_at: string
 }

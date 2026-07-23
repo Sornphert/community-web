@@ -82,6 +82,9 @@
 -- filtered by category via chips; a 'property' category is added and Jane reassigned to
 -- it) is FOLDED IN below in SECTION 12; see 0022_public_feed_category_filter.sql
 -- (standalone, hand-run). The 'property' category row lives in seed.sql.
+-- Migration 0023 (public_posts_feed returns post_id; new public_post(id) RPC for the
+-- public /p/[id] detail page — same public gate, comment_count only) is FOLDED IN below
+-- in SECTION 12; see 0023_public_post_detail.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -1671,6 +1674,7 @@ create or replace function public.public_posts_feed(
   p_category_slug text default null
 )
 returns table (
+  post_id      uuid,
   author_id    uuid,
   display_name text,
   avatar_url   text,
@@ -1685,6 +1689,7 @@ returns table (
 language sql stable security definer set search_path to 'public'
 as $$
   select
+    p.id                                                    as post_id,
     p.author_id,
     pr.display_name,
     pr.avatar_url,
@@ -1758,8 +1763,60 @@ $$;
 grant execute on function public.set_post_public(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_hidden(uuid, boolean)   to authenticated;
 grant execute on function public.set_post_featured(uuid, boolean) to authenticated;
+-- public_post (0023) — single public post for the public /p/[id] detail page. Same
+-- public gate as the feed (is_public AND NOT hidden AND author not tombstoned), so a
+-- private post is unreachable even by id. Returns comment_count (a COUNT only — comment
+-- TEXT never crosses this boundary; comments stay members-only), plus channel_slug so
+-- /p/[id] can redirect a member to the real in-app post. SECURITY DEFINER, anon-granted.
+create or replace function public.public_post(p_post_id uuid)
+returns table (
+  post_id       uuid,
+  author_id     uuid,
+  display_name  text,
+  avatar_url    text,
+  title         text,
+  body          text,
+  image_url     text,
+  like_count    bigint,
+  comment_count bigint,
+  teacher_slug  text,
+  teacher_name  text,
+  channel_slug  text,
+  featured      boolean,
+  created_at    timestamptz
+)
+language sql stable security definer set search_path to 'public'
+as $$
+  select
+    p.id as post_id,
+    p.author_id,
+    pr.display_name,
+    pr.avatar_url,
+    p.title,
+    p.body,
+    (select pi.url from public.post_images pi
+      where pi.post_id = p.id order by pi."position" asc limit 1)  as image_url,
+    (select count(*) from public.post_likes pl where pl.post_id = p.id) as like_count,
+    (select count(*) from public.comments c where c.post_id = p.id)     as comment_count,
+    t.slug  as teacher_slug,
+    t.name  as teacher_name,
+    ch.slug as channel_slug,
+    p.featured,
+    p.created_at
+  from public.posts p
+  join public.profiles pr on pr.id = p.author_id
+  join public.teachers t  on t.id  = p.teacher_id
+  left join public.channels ch on ch.id = p.channel_id
+  where p.id = p_post_id
+    and p.is_public
+    and not p.hidden_from_public
+    and pr.deleted_at is null
+  limit 1;
+$$;
+
 grant execute on function public.public_posts_feed(int, int, uuid, uuid, text) to anon, authenticated;
 grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
+grant execute on function public.public_post(uuid) to anon, authenticated;
 
 -- public_feed_categories (0022) — categories that have >=1 public post, for the
 -- homepage feed chips. SECURITY DEFINER + anon-granted, same reason as the feed: anon

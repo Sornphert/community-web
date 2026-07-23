@@ -97,5 +97,6 @@ export async function signOut() {
   await supabase.auth.signOut()
 
   revalidatePath('/', 'layout')
-  redirect('/login')
+  // Land on the public home directory (anon-visible), not the login form.
+  redirect('/home')
 }

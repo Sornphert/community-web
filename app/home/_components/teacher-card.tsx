@@ -57,10 +57,15 @@ export function TeacherCard({
   const showCover = !!teacher.cover_url && !coverFailed
   const initial = teacher.name.trim().charAt(0).toUpperCase() || '?'
 
-  // Every state is clickable (enter → community, locked → info modal), so the card
-  // always gets the hover affordance.
+  // Every state is clickable (enter → community, locked → info modal). On hover the
+  // card grows slightly and lifts above its neighbours (relative + z) to signal it's
+  // clickable — the carousel viewport has vertical padding so the grown card isn't
+  // clipped.
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md">
+    // Hover: grow + a soft SYMMETRIC glow (no directional offset, so no hard cut-off
+    // line) that fits inside the carousel's vertical padding. ~20px blur < the py-6
+    // room on the viewport, so it isn't clipped.
+    <div className="relative overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 will-change-transform hover:z-10 hover:scale-[1.1] hover:shadow-[0_0_20px_rgba(0,0,0,0.22)] dark:hover:shadow-[0_0_22px_rgba(255,255,255,0.28)]">
       {showCover ? (
         // draggable=false + user-drag none: without these, dragging the carousel by a
         // real cover image triggers the browser's native image-drag (you can drop the

@@ -86,12 +86,13 @@ export async function proxy(request: NextRequest) {
     '/forgot-password',
   ]
 
-  // Public author profiles live at /u/[teacher]/[id] — a DYNAMIC prefix, so it can't
-  // sit in the exact-match PUBLIC_PATHS list. It reads only anon-granted RPCs (0017),
-  // so anon access is safe.
-  const isPublicProfile = pathname.startsWith('/u/')
+  // Public author profiles (/u/[teacher]/[id], 0017) and public post detail
+  // (/p/[id], 0023) are DYNAMIC prefixes, so they can't sit in the exact-match
+  // PUBLIC_PATHS list. Both read only anon-granted RPCs, so anon access is safe.
+  const isPublicDynamic =
+    pathname.startsWith('/u/') || pathname.startsWith('/p/')
 
-  if (!user && !PUBLIC_PATHS.includes(pathname) && !isPublicProfile) {
+  if (!user && !PUBLIC_PATHS.includes(pathname) && !isPublicDynamic) {
     return redirectToLogin()
   }
 

@@ -171,7 +171,7 @@ export function CommunityCarousel({ children }: { children: ReactNode }) {
   // size: ~80% on phones (one card leads, next peeks), ~46% small tablets, ~31%
   // desktop (~3 across). On desktop a short row that fits stays static (see measure()).
   const slideClass =
-    'shrink-0 w-[60%] pr-4 sm:w-[44%] md:w-[30%] [&>*]:block [&>*]:w-full'
+    'shrink-0 w-[60%] pr-6 sm:w-[44%] md:w-[30%] [&>*]:block [&>*]:w-full'
 
   // Static fallback (fits, or reduced-motion): a plain swipeable row, items rendered
   // ONCE — no loop, no duplicate. This is the "just show them, static" case.
@@ -179,7 +179,7 @@ export function CommunityCarousel({ children }: { children: ReactNode }) {
     return (
       <div
         ref={viewportRef}
-        className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="overflow-x-auto py-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         <div ref={trackRef} className="flex">
           {items.map((child, i) => (
@@ -195,7 +195,7 @@ export function CommunityCarousel({ children }: { children: ReactNode }) {
   return (
     <div
       ref={viewportRef}
-      className="overflow-hidden [touch-action:pan-y] select-none"
+      className="overflow-hidden py-6 [touch-action:pan-y] select-none"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

@@ -19,6 +19,7 @@ export const PUBLIC_FEED_PAGE_SIZE = 20
 // post image's ABSOLUTE public URL (or null) — already resolved server-side (0018),
 // so no client-side URL building. `like_count` arrives as a bigint (number-or-string).
 type RawFeedRow = {
+  post_id: string
   author_id: string
   display_name: string
   avatar_url: string | null
@@ -40,6 +41,7 @@ type RawFeedRow = {
 // bucket, which broke for content imported from the single-tenant projects.
 export function mapFeedRow(row: RawFeedRow): PublicFeedPost {
   return {
+    post_id: row.post_id,
     author_id: row.author_id,
     display_name: row.display_name,
     avatar_url: row.avatar_url,

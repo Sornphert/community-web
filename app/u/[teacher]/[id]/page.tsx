@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Star } from 'lucide-react'
@@ -11,6 +12,40 @@ import {
   getPublicMemberHeader,
   getPublicMemberPosts,
 } from '@/lib/public-profile'
+
+// Per-profile social share preview: sharing a /u/ link shows the person's name,
+// their community, and their avatar. Falls back to the root defaults if not found.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ teacher: string; id: string }>
+}): Promise<Metadata> {
+  const { teacher: teacherSlug, id } = await params
+  const supabase = await createClient()
+  const result = await getPublicMemberHeader(supabase, teacherSlug, id)
+  if (!result) return {}
+
+  const { header } = result
+  const title = header.display_name
+  const description = `${header.display_name} on ${header.teacher_name}`
+  const image = header.avatar_url ?? undefined
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(image ? { images: [{ url: image, alt: header.display_name }] } : {}),
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+  }
+}
 
 // Public author profile reachable from the homepage public feed. Everything shown
 // here comes from anon-granted SECURITY DEFINER RPCs (0017): the header requires an
