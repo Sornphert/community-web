@@ -71,6 +71,13 @@
 -- any-authenticated to active-member-of-owning-teacher; reads become signed urls) is
 -- FOLDED IN below in SECTION 9, with the bucket flag in seed.sql; see
 -- 0019_content_files_private.sql (standalone, hand-run).
+-- Migration 0020 (post-attachments bucket flipped PRIVATE + a storage SELECT policy
+-- ADDED — none existed, since a public bucket never consulted RLS; reads become signed
+-- urls) is FOLDED IN below in SECTION 9, with the bucket flag in seed.sql; see
+-- 0020_post_attachments_private.sql (standalone, hand-run).
+-- Migration 0021 (teachers.hero_url — per-teacher Announcements banner; the global
+-- HERO_URL env var becomes the fallback) is FOLDED IN below in SECTION 0; see
+-- 0021_teacher_hero.sql (standalone, hand-run).
 -- =============================================================================
 
 set check_function_bodies = false;
@@ -99,6 +106,10 @@ create table public.teachers (
     created_at  timestamptz default now(),
     cover_url   text,
     logo_url    text,
+    -- Announcements banner (0021). NULL → the global HERO_URL env var, which is what
+    -- single-tenant deployments use. Before 0021 that env var was the ONLY source, so
+    -- every MT tenant rendered the same banner.
+    hero_url    text,
     description text,
     website_url text,
     category_id uuid,
@@ -1017,7 +1028,16 @@ drop policy if exists post_images_obj_delete_own on storage.objects;
 create policy post_images_obj_delete_own on storage.objects for delete to authenticated
   using (bucket_id = 'post-images' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
 
--- post-attachments ({teacher_id}/{uid}/...) — insert/delete only
+-- post-attachments ({teacher_id}/{uid}/...) — the bucket is PRIVATE (0020, flag in
+-- seed.sql): a public bucket meant any attached PDF was fetchable by url with no login
+-- and no membership, including on members-only posts and across tenants. Reads are now
+-- short-lived SIGNED urls (lib/posts.ts, user client), so the SELECT policy below is
+-- the enforcement point — it did not exist before, because a public bucket never
+-- consulted RLS at all. SELECT is any active member of the owning teacher (shared
+-- content); insert/delete stay restricted to the uploader via segment[2] = uid.
+drop policy if exists post_attachments_obj_select on storage.objects;
+create policy post_attachments_obj_select on storage.objects for select to authenticated
+  using (bucket_id = 'post-attachments' and has_membership(((storage.foldername(name))[1])::uuid));
 drop policy if exists post_attachments_obj_insert_own on storage.objects;
 create policy post_attachments_obj_insert_own on storage.objects for insert to authenticated
   with check (bucket_id = 'post-attachments' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);

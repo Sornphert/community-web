@@ -81,10 +81,13 @@ export default async function ChannelPage({
     <>
       <ChannelTabs channels={channels} basePath={basePath} />
 
+      {/* [0021] Per-teacher banner. HERO_URL is a single GLOBAL env var, so before
+          this every MT tenant rendered the same image. teacher.hero_url wins; the env
+          var remains the fallback so single-tenant deployments are unchanged. */}
       {channel.slug === 'announcements' && SHOW_HERO && (
         <div className="relative -mx-4 mb-6 aspect-video w-screen overflow-hidden md:mx-auto md:w-full md:max-w-3xl md:rounded-lg">
           <Image
-            src={HERO_URL}
+            src={teacher.hero_url ?? HERO_URL}
             alt={teacher.name}
             fill
             className="object-cover object-[center_70%]"

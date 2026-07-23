@@ -3,19 +3,22 @@
 -- =============================================================================
 -- Run AFTER multitenant/schema.sql, BEFORE scripts/dev-seed-personas.ts.
 -- Idempotent. Reproduces community-mt-dev's NON-PERSONA content:
---   3 teachers (A=prophet-system, B=movement-bootcamp, C=empty-academy[EMPTY])
---   + per-teacher channels/topics/content/folders/recordings/events + 5 buckets.
+--   2 teachers (A=prophet-system, B=movement-bootcamp)
+--   + per-teacher channels/topics/content/folders/recordings/events + 7 buckets.
 -- Persona auth.users + memberships + demo posts are created by dev-seed-personas.ts
 -- (auth users cannot be plain-INSERTed). UUIDs are stable/readable — this reproduces
 -- live's content STRUCTURE, not the ad-hoc app-test rows byte-for-byte (the Part E
--- gate is a SCHEMA diff). Teacher C is intentionally left empty (a member-less,
--- content-less teacher in the directory, for isolation tests).
+-- gate is a SCHEMA diff).
+--
+-- REMOVED: teacher C (empty-academy). It existed as a member-less, content-less
+-- tenant for isolation tests, but it also surfaced as a stray tenant in the public
+-- directory. If you need an empty-tenant fixture again, insert it ad hoc in the test
+-- rather than seeding it into every project.
 -- =============================================================================
 
 insert into public.teachers (id, slug, name) values
   ('a1a1a1a1-0000-0000-0000-000000000000','prophet-system',   'The Prophet System'),
-  ('b2b2b2b2-0000-0000-0000-000000000000','movement-bootcamp','Movement Bootcamp'),
-  ('c3c3c3c3-0000-0000-0000-000000000000','empty-academy',    'Empty Academy')
+  ('b2b2b2b2-0000-0000-0000-000000000000','movement-bootcamp','Movement Bootcamp')
 on conflict (id) do nothing;
 
 -- Categories (platform reference data; managed by SQL/service-role). Stable UUIDs.
@@ -25,8 +28,7 @@ insert into public.categories (id, slug, name) values
   ('ca700000-0000-0000-0000-000000000003','business', 'Business & Entrepreneurship')
 on conflict (id) do nothing;
 
--- Assign dev teachers to categories. empty-academy is intentionally left category_id NULL
--- to exercise the uncategorized-teacher path in the directory grouping.
+-- Assign dev teachers to categories.
 update public.teachers set category_id = 'ca700000-0000-0000-0000-000000000001'
   where id = 'a1a1a1a1-0000-0000-0000-000000000000';  -- prophet-system   -> investing
 update public.teachers set category_id = 'ca700000-0000-0000-0000-000000000002'
@@ -84,7 +86,6 @@ on conflict (id) do nothing;
 -- A=prophet-system/investing (x2), B=movement-bootcamp/parenting (x1). category_id MUST
 -- match the teacher's category (the write RLS enforces it; here we hand-match). created_by
 -- is left NULL (personas aren't in seed.sql; created_by is nullable, ON DELETE SET NULL).
--- empty-academy (C) gets NONE: its category_id is NULL, so it cannot own any item.
 insert into public.newsletter_items (id, teacher_id, category_id, url, headline, blurb) values
   ('a1b00000-0000-0000-0000-000000000001','a1a1a1a1-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000001','https://example.test/a/market-outlook','A: Weekly market outlook','What to watch in the week ahead.'),
   ('a1b00000-0000-0000-0000-000000000002','a1a1a1a1-0000-0000-0000-000000000000','ca700000-0000-0000-0000-000000000001','https://example.test/a/risk-basics','A: Position sizing basics','A short primer on managing risk per trade.'),
@@ -118,14 +119,18 @@ insert into public.topic_tags (topic_id, tag_id, teacher_id) values
   ('275342ec-1064-480e-bf31-97a97e743059','b2100000-0000-0000-0000-000000000002','b2b2b2b2-0000-0000-0000-000000000000')
 on conflict (topic_id, tag_id) do nothing;
 
--- Storage buckets. All are public-read EXCEPT content-files, which is PRIVATE (0019):
--- classroom documents must not be fetchable by URL alone, so reads go through a
--- short-lived signed url minted under the storage SELECT policy (active member of the
--- owning teacher). Writes for every bucket are gated by storage.objects RLS in schema.sql.
+-- Storage buckets. Public-read EXCEPT the two DOCUMENT buckets, which are PRIVATE:
+--   • content-files     (0019) — classroom lesson files
+--   • post-attachments  (0020) — PDFs attached to posts
+-- Neither may be fetchable by URL alone, so reads go through a short-lived signed url
+-- minted under a storage SELECT policy (active member of the owning teacher). Image
+-- buckets stay public: post-images already surface on the anon homepage feed by design,
+-- and avatars/covers/logos are branding. Writes for every bucket are gated by
+-- storage.objects RLS in schema.sql.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
   ('avatars',         'avatars',         true, 2097152,  '{image/jpeg,image/png,image/webp}'),
   ('content-files',   'content-files',   false, 20971520, null),
-  ('post-attachments','post-attachments',true, 26214400, '{application/pdf}'),
+  ('post-attachments','post-attachments',false, 26214400, '{application/pdf}'),
   ('post-images',     'post-images',     true, 5242880,  null),
   ('topic-covers',    'topic-covers',    true, 2097152,  null),
   ('teacher-covers',  'teacher-covers',  true, 2097152,  null),

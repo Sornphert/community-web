@@ -39,6 +39,10 @@ export interface Teacher {
   // nullable for now; the directory step picks a fallback on explicit null.
   cover_url: string | null
   logo_url: string | null
+  // Announcements-page banner (migration 0021). Null → falls back to the global
+  // HERO_URL env var, which is what single-tenant deployments use. Before 0021 the
+  // env var was the ONLY source, so every MT tenant rendered the same banner.
+  hero_url: string | null
   description: string | null
   // Optional outbound marketing link (migration 0015). Shown as the "Visit website"
   // CTA on the /home locked-community modal; anon-readable. null = no button.

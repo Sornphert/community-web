@@ -1,5 +1,11 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { isTeacherAdmin } from '@/lib/auth'
+import {
+  ATTACHMENT_SIGNED_URL_TTL_SECONDS,
+  POST_ATTACHMENTS_BUCKET,
+  attachmentPathFrom,
+} from '@/lib/attachments'
 import type {
   Channel,
   Comment,
@@ -213,6 +219,35 @@ export async function getPostsForChannel(
     })
 }
 
+// [0020] Re-mint attachment urls as short-lived signed urls (the bucket is private).
+// Batched into one createSignedUrls call. A signing failure degrades to the original
+// value rather than throwing — a dead download link must not 500 the post page.
+async function signAttachments(
+  supabase: SupabaseClient,
+  attachments: PostAttachment[],
+): Promise<PostAttachment[]> {
+  if (attachments.length === 0) return attachments
+
+  const paths = attachments
+    .map((a) => attachmentPathFrom(a.storage_path, a.url))
+    .filter((p): p is string => !!p)
+  if (paths.length === 0) return attachments
+
+  const { data } = await supabase.storage
+    .from(POST_ATTACHMENTS_BUCKET)
+    .createSignedUrls([...new Set(paths)], ATTACHMENT_SIGNED_URL_TTL_SECONDS)
+
+  const signed = new Map<string, string>()
+  for (const row of data ?? []) {
+    if (row.path && row.signedUrl) signed.set(row.path, row.signedUrl)
+  }
+
+  return attachments.map((a) => {
+    const path = attachmentPathFrom(a.storage_path, a.url)
+    return path ? { ...a, url: signed.get(path) ?? a.url } : a
+  })
+}
+
 export async function getPost(
   id: string,
   teacherId: string,
@@ -258,6 +293,13 @@ export async function getPost(
 
   const postLikes = row.likes ?? []
 
+  // [0020] post-attachments is PRIVATE, so the stored /object/public/... urls are
+  // dead. Mint short-lived signed urls here — this is the ONLY fetcher that needs it,
+  // because post CARDS render just a count while post-detail and the edit form render
+  // attachment.url, and both read through getPost. Signing runs on the USER's client
+  // so the storage SELECT policy (active member of the owning teacher) enforces.
+  const attachments = await signAttachments(supabase, row.attachments ?? [])
+
   return {
     id: row.id,
     author_id: row.author_id,
@@ -269,7 +311,7 @@ export async function getPost(
     channel: row.channel,
     author: row.author,
     images: row.images ?? [],
-    attachments: row.attachments ?? [],
+    attachments,
     video: firstVideo(row.video),
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),

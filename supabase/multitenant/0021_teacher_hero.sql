@@ -1,0 +1,21 @@
+-- =====================================================================
+-- 0021_teacher_hero.sql
+--
+-- The Announcements banner was read from HERO_URL — a SINGLE global env var
+-- (NEXT_PUBLIC_HERO_URL, default '/hero.jpg'). That is a single-tenant leftover: on
+-- MT it renders the SAME image for every teacher, so Johnson, Daphnie and Jane all
+-- show one banner. Per-tenant branding already exists for cover/logo; hero was missed.
+--
+-- Adds teachers.hero_url alongside cover_url/logo_url. The channel page reads
+-- teacher.hero_url and falls back to the env HERO_URL when null, so:
+--   • existing single-tenant deployments are unaffected (column is null → env wins),
+--   • MT tenants get their own banner as soon as one is set.
+--
+-- Nullable by design — a teacher without a hero simply falls back. The branding admin
+-- writes it through the same teachers UPDATE policy as cover/logo (admin of that
+-- teacher), so no new grant or policy is needed.
+--
+-- Standalone, hand-run, then reconciled into schema.sql. Idempotent.
+-- =====================================================================
+
+alter table public.teachers add column if not exists hero_url text;
