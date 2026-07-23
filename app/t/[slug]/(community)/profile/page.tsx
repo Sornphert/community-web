@@ -1,13 +1,15 @@
+import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
-import { ProfileScreen } from '@/app/(app)/profile/_components/profile-screen'
+import { getMemberProfile } from '@/lib/posts'
+import { getFollowState } from '@/lib/follows'
+import { MemberProfileView } from '../_components/member-profile-view'
 
-// [MT] Profile as an in-shell tab. The profile is GLOBAL (one profiles row per
-// user, keyed on user.id) — teacher_id is NOT a factor here. We resolve the slug
-// only for shell consistency (404 on an unknown teacher); the profile fetch is
-// identical to the global /profile route. Renders inside the teacher shell so the
-// sidebar/tabs stay visible instead of ejecting the user to /profile.
+// [MT] Your OWN profile tab — the SAME member view anyone else sees (your posts,
+// followers, following), NOT the edit form. The settings gear (top-right) leads to
+// /t/[slug]/profile/edit, which hosts the profile form + account settings.
 export default async function TeacherProfilePage({
   params,
 }: {
@@ -24,26 +26,39 @@ export default async function TeacherProfilePage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
   if (!user) {
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  const profileData = profile ?? {
-    id: user.id,
-    display_name: user.email ?? '',
-    bio: '',
-    avatar_url: null,
-    social_links: {},
+  // The viewer is an active member of this teacher (the shell gates that), so their
+  // own member profile resolves. If it somehow doesn't, fall back to the edit form.
+  const member = await getMemberProfile(user.id, teacher.id)
+  if (!member) {
+    redirect(`/t/${slug}/profile/edit`)
   }
 
+  const follow = await getFollowState(user.id, user.id)
+
   return (
-    <ProfileScreen profile={profileData} email={user.email ?? ''} />
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-fg-muted">Your profile</span>
+        <Link
+          href={`/t/${slug}/profile/edit`}
+          aria-label="Edit profile and settings"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm text-fg-secondary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </Link>
+      </div>
+
+      <MemberProfileView
+        member={member}
+        slug={slug}
+        follow={follow}
+        viewerId={user.id}
+      />
+    </div>
   )
 }

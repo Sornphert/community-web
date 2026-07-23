@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { ThemeToggleIcon } from '@/app/_components/theme-toggle-icon'
+import { ScrollToTop } from '@/app/_components/scroll-to-top'
 
 // Public shell for author profiles (/u/[teacher]/[id]). Mirrors app/home/layout.tsx:
 // no auth gate (proxy.ts allows the '/u/' prefix), getUser() only chooses the header.
@@ -77,6 +78,8 @@ export default async function PublicProfileLayout({
       <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>
+
+      <ScrollToTop />
     </div>
   )
 }

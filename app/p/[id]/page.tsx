@@ -72,8 +72,24 @@ export default async function PublicPostPage({
           : `/t/${post.teacher_slug}/community`,
       )
     }
-    // Logged-in, not a member.
-    return <PublicPostView post={post} mode="member-gate" />
+    // Logged-in, not a member. Pass the teacher so the comments gate can pop the same
+    // community-info modal (description + Visit website) the /home locked cards use.
+    return (
+      <PublicPostView
+        post={post}
+        mode="member-gate"
+        teacher={
+          teacher
+            ? {
+                name: teacher.name,
+                logo_url: teacher.logo_url,
+                description: teacher.description,
+                website_url: teacher.website_url,
+              }
+            : null
+        }
+      />
+    )
   }
 
   // Anon.

@@ -3,11 +3,11 @@ import { ArrowLeft } from 'lucide-react'
 import { PLATFORM_NAME } from '@/lib/config'
 
 export const metadata = {
-  title: `About · ${PLATFORM_NAME}`,
+  title: 'About',
 }
 
-// PLACEHOLDER About page. Public (proxy.ts allows '/about'). Copy is a stub for Sorn
-// to replace before launch — structure only.
+// Public About page (proxy.ts allows '/about'). Draft copy — Sorn to adjust tone/
+// specifics as the platform's positioning firms up.
 export default function AboutPage() {
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -23,14 +23,36 @@ export default function AboutPage() {
 
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-fg-secondary">
         <p>
-          {/* TODO(Sorn): replace with real About copy before launch. */}
-          {PLATFORM_NAME} is a home for private learning communities — each run by
-          an independent teacher, with its own classroom, members, and feed.
+          {PLATFORM_NAME} is a home for private learning communities. Each
+          community is led by an independent teacher or coach — an investor, a
+          parenting mentor, a property expert — who brings their students together
+          in one place to learn, ask questions, and grow.
         </p>
         <p>
-          This is placeholder text. Tell me what you want here and I&rsquo;ll drop
-          it in: your mission, who the platform is for, how to join a community, and
-          any contact details.
+          Every community has its own classroom of lessons and recordings, a
+          members-only feed for questions and wins, and a group of people all
+          working toward the same goal. Instead of scattered chat groups and lost
+          files, everything a teacher shares and everything their members discuss
+          lives in one organised space.
+        </p>
+        <p>
+          Communities are private. You join through the teacher who runs one —
+          usually via their own program or website — and once you&rsquo;re a
+          member, their classroom and community are waiting for you here.
+        </p>
+        <p>
+          Browse the communities on the{' '}
+          <Link
+            href="/home"
+            className="text-fg underline underline-offset-2 hover:text-fg-secondary"
+          >
+            homepage
+          </Link>{' '}
+          to see what&rsquo;s inside, or if you already belong to one, log in to
+          jump straight back in.
+        </p>
+        <p className="text-fg-muted">
+          {PLATFORM_NAME} is built by The Tree Solutions.
         </p>
       </div>
 

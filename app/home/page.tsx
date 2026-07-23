@@ -38,8 +38,8 @@ export default async function HomePage() {
   ])
   const feedSection =
     feed.length > 0 ? (
-      <section className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+      <section className="mt-2">
+        <h2 className="mb-2 text-base font-semibold text-fg-secondary">
           Latest from the communities
         </h2>
         <div className="mx-auto max-w-2xl">
@@ -64,7 +64,7 @@ export default async function HomePage() {
     return (
       <div className="mx-auto w-full max-w-6xl">
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+          <h2 className="mb-2 text-base font-semibold text-fg-secondary">
             Discover
           </h2>
           <CommunityCarousel>
@@ -103,7 +103,7 @@ export default async function HomePage() {
           "you're not a member yet" copy for a fresh signup. */}
       {myCommunities.length > 0 && (
         <section className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+          <h2 className="mb-2 text-base font-semibold text-fg-secondary">
             Your communities
           </h2>
           <CommunityCarousel>
@@ -111,7 +111,7 @@ export default async function HomePage() {
               <Link
                 key={teacher.id}
                 href={`/t/${teacher.slug}`}
-                className="block"
+                className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <TeacherCard
                   teacher={teacher}
@@ -127,7 +127,7 @@ export default async function HomePage() {
 
       {discover.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+          <h2 className="mb-2 text-base font-semibold text-fg-secondary">
             Discover
           </h2>
           <CommunityCarousel>

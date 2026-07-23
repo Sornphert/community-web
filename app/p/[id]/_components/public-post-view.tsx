@@ -5,6 +5,10 @@ import Link from 'next/link'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Heart, Lock, MessageCircle, Star, X } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import {
+  CommunityInfoModal,
+  type TeacherInfo,
+} from '@/app/_components/community-info-modal'
 import { formatRelativeTime } from '@/lib/format'
 import type { PublicPost } from '@/lib/types'
 
@@ -18,12 +22,16 @@ import type { PublicPost } from '@/lib/types'
 export function PublicPostView({
   post,
   mode,
+  teacher = null,
 }: {
   post: PublicPost
   mode: 'teaser' | 'member-gate'
+  // Present only in member-gate mode — feeds the "learn about this community" modal.
+  teacher?: TeacherInfo | null
 }) {
   const teaser = mode === 'teaser'
   const [lightbox, setLightbox] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -159,15 +167,30 @@ export function PublicPostView({
             <p className="mt-1 text-sm text-fg-muted">
               Join {post.teacher_name} to see the discussion.
             </p>
-            <Link
-              href="/home"
-              className="mt-4 inline-block rounded-lg bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
-            >
-              Explore communities
-            </Link>
+            {teacher ? (
+              <button
+                type="button"
+                onClick={() => setInfoOpen(true)}
+                aria-haspopup="dialog"
+                className="mt-4 inline-block rounded-lg bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                About {post.teacher_name}
+              </button>
+            ) : (
+              <Link
+                href="/home"
+                className="mt-4 inline-block rounded-lg bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
+              >
+                Explore communities
+              </Link>
+            )}
           </>
         )}
       </div>
+
+      {infoOpen && teacher && (
+        <CommunityInfoModal teacher={teacher} onClose={() => setInfoOpen(false)} />
+      )}
 
       {lightbox &&
         post.image_url &&

@@ -7,13 +7,17 @@ export const metadata = {
 }
 
 // ---------------------------------------------------------------------------
-// TODO(Sorn) — fill these before relying on this page for store submission, and
-// have the final text reviewed by someone qualified (a lawyer / your DPO). The
-// SUBSTANCE below is accurate to how the app actually handles data; these are the
-// legal identifiers only you can supply.
-const LEGAL_ENTITY = 'The Tree Solutions' // exact registered name (SSM)
-const CONTACT_EMAIL = 'support@theprophetsystem.com' // a monitored inbox
-const EFFECTIVE_DATE = '__ 2026' // date you publish this
+// VERIFY(Sorn) before relying on this for store submission, and have the final text
+// reviewed by someone qualified (a lawyer / your DPO). The SUBSTANCE below is accurate
+// to how the app handles data; these are the legal identifiers — confirm each:
+//   • LEGAL_ENTITY  — must be your EXACT registered company name (SSM).
+//   • CONTACT_EMAIL — a monitored inbox. Currently theprophetsystem's support address;
+//                     consider a platform address (e.g. support@thetreewisdom.com) once
+//                     that mailbox exists.
+//   • EFFECTIVE_DATE — set to the date you actually publish/deploy this.
+const LEGAL_ENTITY = 'The Tree Solutions'
+const CONTACT_EMAIL = 'support@theprophetsystem.com'
+const EFFECTIVE_DATE = 'July 2026'
 // Data is stored in Supabase's Southeast Asia (Singapore) region.
 // ---------------------------------------------------------------------------
 

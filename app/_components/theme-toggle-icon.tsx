@@ -31,7 +31,7 @@ export function ThemeToggleIcon() {
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-fg-secondary transition-colors hover:bg-muted"
+      className="flex h-9 w-9 items-center justify-center rounded-full text-fg-secondary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Icon className="h-5 w-5" />
     </button>

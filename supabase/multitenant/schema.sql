@@ -604,6 +604,27 @@ create table public.push_subscriptions (
 );
 create index push_subscriptions_user_idx on public.push_subscriptions (user_id);
 
+-- follows (0024) — platform-wide social graph: follower_id follows following_id,
+-- independent of any teacher. Powers follower/following counts + lists on profiles
+-- and the "Following" feed. Both FKs are ON DELETE CASCADE, but delete_my_account
+-- TOMBSTONES the profile (keeps the row), so the cascade never fires and a deleted
+-- user's follow rows persist — intentional: every follow READ joins profiles and
+-- filters deleted_at is null, so tombstoned users are never shown or counted (same
+-- as the members list). No delete_my_account change is needed.
+create table public.follows (
+    follower_id  uuid not null,
+    following_id uuid not null,
+    created_at   timestamptz not null default now(),
+    constraint follows_pkey primary key (follower_id, following_id),
+    constraint follows_no_self check (follower_id <> following_id),
+    constraint follows_follower_fkey
+      foreign key (follower_id)  references public.profiles(id) on delete cascade,
+    constraint follows_following_fkey
+      foreign key (following_id) references public.profiles(id) on delete cascade
+);
+create index follows_follower_idx  on public.follows (follower_id, created_at desc);
+create index follows_following_idx on public.follows (following_id, created_at desc);
+
 -- can_access_topic (0006; admin bypass added in 0010) — a SECTION 2-style SECURITY DEFINER
 -- authz helper, but DEFINED HERE because a language-sql function validates its body's table
 -- refs at creation, so it must follow topic_tags/member_tags. Returns true when the caller
@@ -677,6 +698,7 @@ alter table public.topic_tags                        enable row level security;
 alter table public.member_tags                       enable row level security;
 alter table public.notifications                     enable row level security;
 alter table public.push_subscriptions                enable row level security;
+alter table public.follows                           enable row level security;
 
 
 -- =============================================================================
@@ -786,6 +808,13 @@ grant select, insert, update, delete, truncate, references, trigger
 -- survives a future reordering of this section.
 revoke all on public.notifications      from anon;
 revoke all on public.push_subscriptions from anon;
+
+-- follows (0024) — authenticated may SELECT (platform-wide counts/lists), INSERT
+-- (follow) and DELETE (unfollow); RLS scopes writes to your own follower_id and a
+-- non-tombstoned target. No UPDATE (a follow has no mutable state). anon gets nothing
+-- (the follow UI is in-app, behind auth).
+grant select, insert, delete on public.follows to authenticated;
+revoke all on public.follows from anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -1000,6 +1029,21 @@ create policy push_subscriptions_update_own on public.push_subscriptions for upd
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy push_subscriptions_delete_own on public.push_subscriptions for delete to authenticated
   using (user_id = auth.uid());
+
+-- follows (0024) — platform-wide graph. SELECT is open to any authenticated user
+-- (counts/lists render for everyone). INSERT only as yourself, only a non-tombstoned
+-- target, never self (the follows_no_self CHECK also guards self). DELETE only your
+-- own follow (unfollow). No UPDATE policy — a follow has no mutable state.
+create policy follows_select_all on public.follows for select to authenticated
+  using (true);
+create policy follows_insert_own on public.follows for insert to authenticated
+  with check (
+    follower_id = auth.uid()
+    and follower_id <> following_id
+    and exists (select 1 from public.profiles p where p.id = following_id and p.deleted_at is null)
+  );
+create policy follows_delete_own on public.follows for delete to authenticated
+  using (follower_id = auth.uid());
 
 
 -- =============================================================================

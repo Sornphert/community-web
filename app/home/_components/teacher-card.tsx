@@ -65,7 +65,9 @@ export function TeacherCard({
     // Hover: grow + a soft SYMMETRIC glow (no directional offset, so no hard cut-off
     // line) that fits inside the carousel's vertical padding. ~20px blur < the py-6
     // room on the viewport, so it isn't clipped.
-    <div className="relative overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 will-change-transform hover:z-10 hover:scale-[1.1] hover:shadow-[0_0_20px_rgba(0,0,0,0.22)] dark:hover:shadow-[0_0_22px_rgba(255,255,255,0.28)]">
+    // motion-reduce: users who prefer reduced motion get the glow but not the scale
+    // transform (which is the part that "moves"), per prefers-reduced-motion.
+    <div className="relative overflow-hidden rounded-lg border border-line bg-surface transition-all duration-200 will-change-transform hover:z-10 hover:scale-[1.1] hover:shadow-[0_0_20px_rgba(0,0,0,0.22)] motion-reduce:transition-none motion-reduce:hover:scale-100 dark:hover:shadow-[0_0_22px_rgba(255,255,255,0.28)]">
       {showCover ? (
         // draggable=false + user-drag none: without these, dragging the carousel by a
         // real cover image triggers the browser's native image-drag (you can drop the

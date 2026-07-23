@@ -137,7 +137,7 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+      className={`rounded-full border px-3 py-1 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         active
           ? 'border-inverse bg-inverse text-inverse-fg'
           : 'border-line text-fg-secondary hover:bg-muted'
@@ -186,7 +186,7 @@ function PublicFeedCard({
       <Link
         href={`/p/${post.post_id}`}
         aria-label={`Open post by ${post.display_name}`}
-        className="absolute inset-0 z-10 rounded-xl"
+        className="absolute inset-0 z-10 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
 
       <div className="mb-2 flex items-center gap-3">

@@ -179,7 +179,14 @@ export function CommunityCarousel({ children }: { children: ReactNode }) {
     return (
       <div
         ref={viewportRef}
-        className="overflow-x-auto py-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Communities"
+        // overflow-CLIP + clip-margin so a hover-enlarged card at the edge can spill
+        // ~24px instead of being sliced. This branch is used when the row FITS (or
+        // reduced-motion), so there's nothing to scroll — clip is safe and matches the
+        // animated branch, keeping the fit/overflow measurement consistent.
+        className="overflow-clip py-2 [overflow-clip-margin:1.5rem]"
       >
         <div ref={trackRef} className="flex">
           {items.map((child, i) => (
@@ -195,7 +202,14 @@ export function CommunityCarousel({ children }: { children: ReactNode }) {
   return (
     <div
       ref={viewportRef}
-      className="overflow-hidden py-6 [touch-action:pan-y] select-none"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Communities"
+      // overflow-CLIP (not hidden) + a clip-margin lets a hover-enlarged card at the
+      // row edge spill ~24px before clipping, so it isn't sliced — while the far-off
+      // loop duplicates (hundreds of px away) are still clipped. Doesn't change
+      // clientWidth, so the overflow/loop measurement is unaffected.
+      className="overflow-clip py-2 [overflow-clip-margin:1.5rem] [touch-action:pan-y] select-none"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { ThemeToggleIcon } from '@/app/_components/theme-toggle-icon'
+import { ScrollToTop } from '@/app/_components/scroll-to-top'
 
 // Public shell for the post detail (/p/[id]). Mirrors app/u/layout.tsx: no auth gate
 // (proxy.ts allows the '/p/' prefix), getUser() only chooses the header.
@@ -75,6 +76,8 @@ export default async function PublicPostLayout({
       <main className="flex flex-1 flex-col bg-canvas p-4 pb-20 md:p-6 md:pb-6">
         {children}
       </main>
+
+      <ScrollToTop />
     </div>
   )
 }

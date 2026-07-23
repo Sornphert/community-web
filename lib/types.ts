@@ -309,6 +309,40 @@ export type Liker = {
   created_at: string
 }
 
+// A user in a follower/following list (platform-wide follow graph, 0024). Same
+// shape as Liker: identity + when the follow happened. Tombstoned profiles are
+// filtered out at read time, so display_name here is always a real name.
+export type FollowUser = {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  created_at: string
+}
+
+// Follower/following counts + whether the viewer follows this profile — the
+// header block on a member profile.
+export type FollowState = {
+  followers: number
+  following: number
+  isFollowing: boolean
+}
+
+// A post in the cross-teacher "Following" feed (0024): a post by someone you follow,
+// still only visible if you're a member of its community (posts RLS enforces that).
+// Carries the teacher + channel needed to link to the real in-app post.
+export type FollowingFeedPost = {
+  id: string
+  title: string | null
+  body: string
+  created_at: string
+  author_id: string
+  display_name: string
+  avatar_url: string | null
+  teacher_slug: string
+  teacher_name: string
+  channel_slug: string | null
+}
+
 // [MT] A member row in a teacher's directory: their profile decorated with their
 // role IN THIS TEACHER (memberships.role) — never the global is_admin, never the
 // viewer's role. Drives the per-member "Admin" badge.
