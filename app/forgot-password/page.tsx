@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
+import { AuthBackLink } from '@/app/_components/auth-back-link'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -30,6 +30,8 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-dvh flex-col">
       <div className="flex flex-1 items-center justify-center bg-[#010822] px-4">
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
+          <AuthBackLink href="/login" />
+
           <div className="flex flex-col items-center gap-4 mb-8">
             <Image
               src={PLATFORM_LOGO_URL}
@@ -47,7 +49,6 @@ export default function ForgotPasswordPage() {
             <h1 className="text-2xl font-semibold text-zinc-900 text-center">
               Forgot your password?
             </h1>
-            <p className="mt-1 text-sm text-zinc-500 text-center">忘记密码？</p>
           </div>
 
           {sent ? (
@@ -56,12 +57,6 @@ export default function ForgotPasswordPage() {
                 Check your email for a password reset link. It may take a minute
                 to arrive.
               </p>
-              <Link
-                href="/login"
-                className="text-center text-sm text-zinc-500 hover:text-zinc-700"
-              >
-                ← Back to sign in
-              </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -83,15 +78,8 @@ export default function ForgotPasswordPage() {
                 disabled={isPending}
                 className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
               >
-                {isPending ? 'Sending…' : 'Send reset link 发送重置链接'}
+                {isPending ? 'Sending…' : 'Send reset link'}
               </button>
-
-              <Link
-                href="/login"
-                className="text-center text-sm text-zinc-500 hover:text-zinc-700"
-              >
-                ← Back to sign in
-              </Link>
             </form>
           )}
         </div>

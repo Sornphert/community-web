@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
+import { AuthBackLink } from '@/app/_components/auth-back-link'
 
 type Status = 'checking' | 'ready' | 'invalid'
 type Message = { type: 'success' | 'error'; text: string }
@@ -68,6 +69,8 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-dvh flex-col">
       <div className="flex flex-1 items-center justify-center bg-[#010822] px-4">
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
+          <AuthBackLink href="/login" />
+
           <div className="flex flex-col items-center gap-4 mb-8">
             <Image
               src={PLATFORM_LOGO_URL}

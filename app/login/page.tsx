@@ -3,10 +3,10 @@
 import { Suspense, useState, useTransition } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signUp } from './actions'
 import { PLATFORM_NAME, PLATFORM_LOGO_URL } from '@/lib/config'
+import { AuthBackLink } from '@/app/_components/auth-back-link'
 
 type Mode = 'signin' | 'signup'
 
@@ -48,15 +48,8 @@ function LoginForm() {
   return (
     <div className="flex flex-1 items-center justify-center bg-[#010822] px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
-        {/* Back to the logged-out home directory (anon-safe: /home is public). Inside the
-            card, dark text so it reads on the white background. */}
-        <Link
-          href="/home"
-          className="mb-4 -ml-1 inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+        {/* Back to the logged-out home directory (anon-safe: /home is public). */}
+        <AuthBackLink href="/home" />
 
         <div className="flex flex-col items-center gap-4 mb-8">
           <Image
@@ -87,9 +80,6 @@ function LoginForm() {
           {returnTo && (
             <input type="hidden" name="returnTo" value={returnTo} />
           )}
-          <p className="text-sm font-medium text-zinc-500 -mb-2">
-            {mode === 'signin' ? 'Sign in' : 'Sign up'}
-          </p>
 
           {mode === 'signup' && (
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
