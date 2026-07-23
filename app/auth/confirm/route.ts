@@ -31,9 +31,23 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Two confirmation link formats both land here and establish the session:
+  //   • token_hash + type  → custom email template ({{ .TokenHash }}); verifyOtp.
+  //   • code               → the DEFAULT Supabase template, whose /auth/v1/verify
+  //     endpoint redirects here with a PKCE ?code after confirming; exchange it.
+  // Whichever succeeds sets the session cookies via the server client, then we forward
+  // the (now signed-in) user to `dest`.
+  const code = searchParams.get('code')
+
   if (token_hash && type) {
     const supabase = await createClient()
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
+    if (!error) {
+      return NextResponse.redirect(dest)
+    }
+  } else if (code) {
+    const supabase = await createClient()
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
       return NextResponse.redirect(dest)
     }

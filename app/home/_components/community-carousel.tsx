@@ -21,7 +21,7 @@ import {
 // seamless wrap share one number (xRef). A drag past the click threshold cancels the
 // child click, so cards stay tappable but a swipe never fires a navigation/modal.
 
-const AUTO_SPEED = 0.22 // px/frame baseline drift (~13px/s @60fps)
+const AUTO_SPEED = 0.32 // px/frame baseline drift (~19px/s @60fps)
 const FRICTION = 0.94 // momentum decay per frame
 const CLICK_SLOP = 8 // px of movement that reclassifies a tap as a drag
 

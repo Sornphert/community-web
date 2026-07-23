@@ -98,15 +98,13 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
-          Your communities
-        </h2>
-        {myCommunities.length === 0 ? (
-          <p className="text-sm text-fg-muted">
-            You&rsquo;re not a member of any community yet.
-          </p>
-        ) : (
+      {/* Only shown once the viewer actually belongs to a community — no empty-state
+          "you're not a member yet" copy for a fresh signup. */}
+      {myCommunities.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-fg-secondary">
+            Your communities
+          </h2>
           <CommunityCarousel>
             {myCommunities.map((teacher) => (
               <Link
@@ -123,8 +121,8 @@ export default async function HomePage() {
               </Link>
             ))}
           </CommunityCarousel>
-        )}
-      </section>
+        </section>
+      )}
 
       {discover.length > 0 && (
         <section>

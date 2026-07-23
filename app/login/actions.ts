@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
 // Open-redirect guard — the SINGLE point where a post-login returnTo is validated before it
@@ -53,11 +54,24 @@ export async function signUp(formData: FormData) {
     return { error: 'Display name is required.' }
   }
 
+  // Per-environment confirmation link: use the ORIGIN of the current request so a dev
+  // signup emails a localhost link and a prod signup emails the prod link (Supabase has
+  // only one static Site URL). The email template builds the link from {{ .RedirectTo }},
+  // and this value must match an entry in the project's Redirect URLs allow-list.
+  // /auth/confirm is the app's own token-hash handler (verifyOtp → session → redirect).
+  const hdrs = await headers()
+  const origin =
+    hdrs.get('origin') ??
+    (hdrs.get('host') ? `https://${hdrs.get('host')}` : '')
+
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName } },
+    options: {
+      data: { display_name: displayName },
+      emailRedirectTo: origin ? `${origin}/auth/confirm` : undefined,
+    },
   })
 
   if (error) {
