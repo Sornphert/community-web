@@ -45,10 +45,24 @@ export default async function MemberProfilePage({
       </Link>
 
       <MemberProfileView
-        member={member}
-        slug={slug}
+        targetId={member.id}
+        displayName={member.display_name}
+        avatarUrl={member.avatar_url}
+        bio={member.bio}
+        socialLinks={member.social_links ?? {}}
+        roleLabel={member.role === 'admin' ? 'Admin' : null}
+        posts={member.posts.map((p) => ({
+          id: p.id,
+          title: p.title,
+          body: p.body,
+          created_at: p.created_at,
+          href: p.channel_slug
+            ? `/t/${slug}/community/${p.channel_slug}/${p.id}`
+            : null,
+        }))}
         follow={follow}
         viewerId={user?.id ?? null}
+        memberBasePath={`/t/${slug}`}
       />
     </div>
   )

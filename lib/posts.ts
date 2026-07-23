@@ -487,6 +487,58 @@ export async function getMemberProfile(
   }
 }
 
+// A post in the GLOBAL profile view — spans every teacher the user is a member of,
+// each carrying its own teacher_slug so the row can link into the right shell.
+export type GlobalProfilePost = {
+  id: string
+  title: string | null
+  body: string
+  created_at: string
+  teacher_slug: string
+  channel_slug: string | null
+}
+
+// The current user's own posts across ALL their teachers, newest first. RLS lets a
+// member SELECT posts in their teachers, so this returns the user's posts everywhere
+// they're still an active member. Used by the teacher-agnostic global /profile.
+export async function getMyProfilePosts(
+  userId: string,
+): Promise<GlobalProfilePost[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select(
+      'id, title, body, created_at, teacher:teachers!teacher_id(slug), channel:channels(slug)',
+    )
+    .eq('author_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`Failed to load profile posts: ${error.message}`)
+  }
+
+  type Row = {
+    id: string
+    title: string | null
+    body: string
+    created_at: string
+    teacher: { slug: string } | null
+    channel: { slug: string } | null
+  }
+
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.teacher !== null)
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      body: r.body,
+      created_at: r.created_at,
+      teacher_slug: r.teacher!.slug,
+      channel_slug: r.channel?.slug ?? null,
+    }))
+}
+
 function mapLikers(rows: LikerRow[]): Liker[] {
   return rows
     .filter((row): row is LikerRow & { user: Profile } => row.user !== null)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { UserPlus, UserCheck, X } from 'lucide-react'
@@ -24,6 +25,7 @@ export function FollowControls({
   initialFollowing,
   followersList,
   followingList,
+  memberBasePath,
 }: {
   targetId: string
   isOwnProfile: boolean
@@ -32,6 +34,10 @@ export function FollowControls({
   initialFollowing: number
   followersList: FollowUser[]
   followingList: FollowUser[]
+  // When in a teacher shell (e.g. "/t/johnson"), list rows link to
+  // `${memberBasePath}/members/${id}`. Omitted on the global profile, where there's
+  // no teacher context to resolve a member page — rows are then non-clickable.
+  memberBasePath?: string
 }) {
   const router = useRouter()
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
@@ -131,6 +137,7 @@ export function FollowControls({
         <FollowListModal
           title={modal === 'followers' ? 'Followers' : 'Following'}
           users={modal === 'followers' ? followersList : followingList}
+          memberBasePath={memberBasePath}
           onClose={() => setModal(null)}
         />
       )}
@@ -141,10 +148,12 @@ export function FollowControls({
 function FollowListModal({
   title,
   users,
+  memberBasePath,
   onClose,
 }: {
   title: string
   users: FollowUser[]
+  memberBasePath?: string
   onClose: () => void
 }) {
   useEffect(() => {
@@ -192,17 +201,37 @@ function FollowListModal({
             </p>
           ) : (
             <ul className="flex flex-col">
-              {users.map((u) => (
-                <li
-                  key={u.user_id}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2"
-                >
-                  <Avatar url={u.avatar_url} name={u.display_name} size="sm" />
-                  <span className="truncate text-sm font-medium text-fg">
-                    {u.display_name}
-                  </span>
-                </li>
-              ))}
+              {users.map((u) => {
+                const row = (
+                  <>
+                    <Avatar
+                      url={u.avatar_url}
+                      name={u.display_name}
+                      size="sm"
+                    />
+                    <span className="truncate text-sm font-medium text-fg">
+                      {u.display_name}
+                    </span>
+                  </>
+                )
+                return (
+                  <li key={u.user_id}>
+                    {memberBasePath ? (
+                      <Link
+                        href={`${memberBasePath}/members/${u.user_id}`}
+                        onClick={onClose}
+                        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted"
+                      >
+                        {row}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+                        {row}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
