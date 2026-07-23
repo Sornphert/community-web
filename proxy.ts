@@ -79,6 +79,7 @@ export async function proxy(request: NextRequest) {
     '/',
     '/home',
     '/about',
+    '/privacy',
     '/login',
     '/reset-password',
     '/auth/confirm',

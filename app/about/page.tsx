@@ -33,6 +33,17 @@ export default function AboutPage() {
           any contact details.
         </p>
       </div>
+
+      <p className="mt-8 text-sm text-fg-muted">
+        Read our{' '}
+        <Link
+          href="/privacy"
+          className="text-fg-secondary underline underline-offset-2 hover:text-fg"
+        >
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   )
 }
