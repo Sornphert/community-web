@@ -92,9 +92,24 @@ export async function deleteComment({
   if ('error' in auth) return auth
 
   const admin = createAdminClient()
+
+  // Gather image bytes before the rows cascade away (storage doesn't cascade).
+  const { data: imgs } = await admin
+    .from('comment_images')
+    .select('storage_path')
+    .eq('comment_id', commentId)
+
   const { error } = await admin.from('comments').delete().eq('id', commentId)
   if (error) {
     return { error: error.message }
+  }
+
+  const paths = (imgs ?? []).map((r) => r.storage_path)
+  if (paths.length > 0) {
+    const { error: rmError } = await admin.storage
+      .from('comment-images')
+      .remove(paths)
+    if (rmError) console.error('Failed to remove comment-images objects:', rmError)
   }
 
   revalidatePath('/community', 'layout')

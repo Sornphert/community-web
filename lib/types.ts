@@ -139,8 +139,20 @@ export type PostWithRelations = Post & {
   can_edit: boolean
 }
 
+// An image attached to a comment (0019). Mirrors PostImage.
+// storage_path: {user_id}/{comment_id}/{position}.jpg in the comment-images bucket.
+export interface CommentImage {
+  id: string
+  comment_id: string
+  url: string
+  storage_path: string
+  position: number
+  created_at: string | null
+}
+
 export type CommentWithRelations = Comment & {
   author: Profile
+  images: CommentImage[]
   likes_count: number
   liked_by_current_user: boolean
   // True when the current viewer is the comment author or an admin — drives the

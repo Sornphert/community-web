@@ -117,10 +117,34 @@ export function CommentItem({
             </div>
           </div>
         ) : (
-          <MentionText
-            body={comment.body}
-            className="block whitespace-pre-wrap text-sm text-fg-secondary"
-          />
+          <>
+            {comment.body && (
+              <MentionText
+                body={comment.body}
+                className="block whitespace-pre-wrap text-sm text-fg-secondary"
+              />
+            )}
+            {comment.images.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {comment.images.map((img) => (
+                  <a
+                    key={img.id}
+                    href={img.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.url}
+                      alt=""
+                      className="max-h-60 rounded-md border border-line object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <div className="mt-1 flex items-center gap-3">

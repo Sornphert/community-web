@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type {
   Channel,
   Comment,
+  CommentImage,
   Liker,
   PostAttachment,
   PostImage,
@@ -59,7 +60,11 @@ type PostRow = {
   attachments: PostAttachment[] | null
   videos: VideoEmbed
   comments:
-    | (Comment & { author: Profile | null; likes: LikeRow[] | null })[]
+    | (Comment & {
+        author: Profile | null
+        images: CommentImage[] | null
+        likes: LikeRow[] | null
+      })[]
     | null
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes: LikeRow[] | null
@@ -283,7 +288,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), videos:post_videos(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), videos:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
     )
     .eq('id', id)
     .order('position', { referencedTable: 'post_images', ascending: true })
@@ -330,6 +335,7 @@ export async function getPost(
           comment,
         ): comment is Comment & {
           author: Profile
+          images: CommentImage[] | null
           likes: LikeRow[] | null
         } => comment.author !== null,
       )
@@ -343,6 +349,9 @@ export async function getPost(
           created_at: comment.created_at,
           edited_at: comment.edited_at,
           author: comment.author,
+          images: [...(comment.images ?? [])].sort(
+            (a, b) => a.position - b.position,
+          ),
           likes_count: commentLikes.length,
           liked_by_current_user:
             !!uid && commentLikes.some((l) => l.user_id === uid),

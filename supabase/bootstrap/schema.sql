@@ -212,6 +212,16 @@ CREATE TABLE public.comments (
     edited_at timestamp with time zone
 );
 
+-- 0019: images attached to a comment (mirrors post_images).
+CREATE TABLE public.comment_images (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    comment_id uuid NOT NULL,
+    url text NOT NULL,
+    storage_path text NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
 CREATE TABLE public.content_items (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     topic_id uuid NOT NULL,
@@ -393,6 +403,10 @@ ALTER TABLE ONLY public.comment_likes ADD CONSTRAINT comment_likes_comment_id_fk
 ALTER TABLE ONLY public.comment_likes ADD CONSTRAINT comment_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.comments ADD CONSTRAINT comments_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.comments ADD CONSTRAINT comments_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.comment_images ADD CONSTRAINT comment_images_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.comment_images ADD CONSTRAINT comment_images_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.comments(id) ON DELETE CASCADE;
+CREATE INDEX comment_images_comment_idx ON public.comment_images USING btree (comment_id, "position");
+ALTER TABLE public.comment_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ONLY public.content_items ADD CONSTRAINT content_items_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES public.topics(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.content_progress ADD CONSTRAINT content_progress_content_item_id_fkey FOREIGN KEY (content_item_id) REFERENCES public.content_items(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.content_progress ADD CONSTRAINT content_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
@@ -449,6 +463,10 @@ CREATE POLICY "Only admins can insert topics" ON public.topics FOR INSERT TO aut
 CREATE POLICY "Only admins can update topics" ON public.topics FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 CREATE POLICY "Only admins can delete topics" ON public.topics FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));
 
+-- 0019: comment_images — read for all authenticated; write gated by owning the comment.
+CREATE POLICY comment_images_select ON public.comment_images FOR SELECT TO authenticated USING (true);
+CREATE POLICY comment_images_insert_own ON public.comment_images FOR INSERT TO authenticated WITH CHECK ((EXISTS (SELECT 1 FROM public.comments c WHERE ((c.id = comment_images.comment_id) AND (c.author_id = auth.uid())))));
+CREATE POLICY comment_images_delete_own ON public.comment_images FOR DELETE TO authenticated USING ((EXISTS (SELECT 1 FROM public.comments c WHERE ((c.id = comment_images.comment_id) AND (c.author_id = auth.uid())))));
 CREATE POLICY "Post images are viewable by authenticated users" ON public.post_images FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can attach images to their own posts" ON public.post_images FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.posts WHERE ((posts.id = post_images.post_id) AND (posts.author_id = auth.uid())))));
 CREATE POLICY "Users can delete images from their own posts" ON public.post_images FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1 FROM public.posts WHERE ((posts.id = post_images.post_id) AND (posts.author_id = auth.uid())))));
