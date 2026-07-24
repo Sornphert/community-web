@@ -208,7 +208,8 @@ CREATE TABLE public.comments (
     post_id uuid NOT NULL,
     author_id uuid NOT NULL,
     body text NOT NULL,
-    created_at timestamp with time zone DEFAULT now()
+    created_at timestamp with time zone DEFAULT now(),
+    edited_at timestamp with time zone
 );
 
 CREATE TABLE public.content_items (
@@ -435,7 +436,8 @@ ALTER TABLE public.week_groups ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Comments are viewable by authenticated users" ON public.comments FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can create their own comments" ON public.comments FOR INSERT TO authenticated WITH CHECK ((auth.uid() = author_id));
 CREATE POLICY "Users can update their own comments" ON public.comments FOR UPDATE TO authenticated USING ((auth.uid() = author_id));
-CREATE POLICY "Users can delete their own comments" ON public.comments FOR DELETE TO authenticated USING ((auth.uid() = author_id));
+-- 0018: DELETE = author OR admin (moderation). UPDATE stays author-only above.
+CREATE POLICY comments_delete_owner_or_admin ON public.comments FOR DELETE TO authenticated USING (((auth.uid() = author_id) OR (EXISTS (SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()) AND (p.is_admin = true))))));
 
 CREATE POLICY "Content items are viewable by authenticated users" ON public.content_items FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Only admins can insert content items" ON public.content_items FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1 FROM public.profiles WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true)))));

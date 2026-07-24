@@ -121,6 +121,8 @@ export interface Comment {
   author_id: string
   body: string
   created_at: string
+  // Set by updateComment. null = never edited (drives the "(edited)" tag).
+  edited_at: string | null
 }
 
 export type PostWithRelations = Post & {
@@ -141,6 +143,9 @@ export type CommentWithRelations = Comment & {
   author: Profile
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer is the comment author or an admin — drives the
+  // edit/delete UI (edit is author-only; delete is author-or-admin).
+  can_edit: boolean
 }
 
 export type PostWithFullRelations = Post & {

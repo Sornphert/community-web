@@ -341,10 +341,12 @@ export async function getPost(
           author_id: comment.author_id,
           body: comment.body,
           created_at: comment.created_at,
+          edited_at: comment.edited_at,
           author: comment.author,
           likes_count: commentLikes.length,
           liked_by_current_user:
             !!uid && commentLikes.some((l) => l.user_id === uid),
+          can_edit: viewerIsAdmin || (!!uid && comment.author_id === uid),
         }
       }),
   }
