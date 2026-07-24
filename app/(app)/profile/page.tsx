@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getMyProfilePosts } from '@/lib/posts'
+import { getPostsByAuthor } from '@/lib/posts'
 import { getFollowState } from '@/lib/follows'
 import { MemberProfileView } from '@/app/t/[slug]/(community)/_components/member-profile-view'
 import type { SocialLinks } from '@/lib/types'
@@ -29,7 +29,7 @@ export default async function ProfilePage() {
     .maybeSingle()
 
   const [posts, follow] = await Promise.all([
-    getMyProfilePosts(user.id),
+    getPostsByAuthor(user.id),
     getFollowState(user.id, user.id),
   ])
 

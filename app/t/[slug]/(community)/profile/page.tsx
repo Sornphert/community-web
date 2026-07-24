@@ -71,7 +71,6 @@ export default async function TeacherProfilePage({
         }))}
         follow={follow}
         viewerId={user.id}
-        memberBasePath={`/t/${slug}`}
       />
     </div>
   )

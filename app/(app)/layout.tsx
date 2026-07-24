@@ -32,9 +32,9 @@ export default async function AppLayout({
           <Image
             src={PLATFORM_LOGO_URL}
             alt={PLATFORM_NAME}
-            width={28}
-            height={28}
-            className="h-7 w-7 rounded object-contain shrink-0"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded object-contain shrink-0"
           />
           <span className="hidden text-sm font-semibold text-fg sm:inline">
             {PLATFORM_NAME}

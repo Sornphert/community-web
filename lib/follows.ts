@@ -1,64 +1,61 @@
 import { createClient } from '@/lib/supabase/server'
-import type { FollowUser, FollowState, FollowingFeedPost } from '@/lib/types'
+import type {
+  FollowUser,
+  FollowState,
+  FollowingFeedPost,
+  SocialLinks,
+  UserCard,
+} from '@/lib/types'
 
-// Platform-wide follow graph (migration 0024). Reads run on the server client;
-// writes (follow/unfollow) take a browser client from a client handler, mirroring
-// the like/unlike pattern. Every read joins profiles and drops tombstoned users
-// (deleted_at is not null) so counts and lists never surface "[Deleted user]".
-
-// Row shape for the profile embed on a follows read.
-type FollowRow = {
-  created_at: string
-  profile: {
-    id: string
-    display_name: string
-    avatar_url: string | null
-    deleted_at: string | null
-  } | null
-}
-
-function mapRows(rows: FollowRow[]): FollowUser[] {
-  return rows
-    .filter(
-      (r): r is FollowRow & { profile: NonNullable<FollowRow['profile']> } =>
-        r.profile !== null && r.profile.deleted_at === null,
-    )
-    .map((r) => ({
-      user_id: r.profile.id,
-      display_name: r.profile.display_name,
-      avatar_url: r.profile.avatar_url,
-      created_at: r.created_at,
-    }))
-}
+// Platform-wide follow graph (migrations 0024 + 0025). Reads run on the server
+// client. To make follows GLOBAL (not locked to shared communities), identity reads
+// go through SECURITY DEFINER RPCs (get_followers / get_following / user_card) that
+// bypass the co-member-only profiles RLS and already drop tombstoned users. Writes
+// (follow/unfollow) run inline in the client component with the browser client.
 
 // The people who follow `profileId` (newest first), tombstoned users excluded.
 export async function getFollowers(profileId: string): Promise<FollowUser[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('follows')
-    .select(
-      'created_at, profile:profiles!follower_id(id, display_name, avatar_url, deleted_at)',
-    )
-    .eq('following_id', profileId)
-    .order('created_at', { ascending: false })
-
+  const { data, error } = await supabase.rpc('get_followers', {
+    p_profile: profileId,
+  })
   if (error) throw new Error(`Failed to load followers: ${error.message}`)
-  return mapRows((data ?? []) as unknown as FollowRow[])
+  return (data ?? []) as FollowUser[]
 }
 
 // The people `profileId` follows (newest first), tombstoned users excluded.
 export async function getFollowing(profileId: string): Promise<FollowUser[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('follows')
-    .select(
-      'created_at, profile:profiles!following_id(id, display_name, avatar_url, deleted_at)',
-    )
-    .eq('follower_id', profileId)
-    .order('created_at', { ascending: false })
-
+  const { data, error } = await supabase.rpc('get_following', {
+    p_profile: profileId,
+  })
   if (error) throw new Error(`Failed to load following: ${error.message}`)
-  return mapRows((data ?? []) as unknown as FollowRow[])
+  return (data ?? []) as FollowUser[]
+}
+
+// Minimal GLOBAL identity for any live user — name, avatar, bio, socials — readable
+// cross-tenant (0025 user_card RPC). Returns null for an unknown/tombstoned user.
+export async function getUserCard(userId: string): Promise<UserCard | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('user_card', { p_user: userId })
+  if (error) throw new Error(`Failed to load user: ${error.message}`)
+  const row = (data ?? [])[0] as
+    | {
+        id: string
+        display_name: string
+        avatar_url: string | null
+        bio: string | null
+        social_links: SocialLinks | null
+      }
+    | undefined
+  if (!row) return null
+  return {
+    id: row.id,
+    display_name: row.display_name,
+    avatar_url: row.avatar_url,
+    bio: row.bio,
+    social_links: (row.social_links ?? {}) as SocialLinks,
+  }
 }
 
 // Counts + whether the CURRENT user follows `profileId`, plus the full lists so the

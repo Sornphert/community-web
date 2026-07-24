@@ -498,10 +498,11 @@ export type GlobalProfilePost = {
   channel_slug: string | null
 }
 
-// The current user's own posts across ALL their teachers, newest first. RLS lets a
-// member SELECT posts in their teachers, so this returns the user's posts everywhere
-// they're still an active member. Used by the teacher-agnostic global /profile.
-export async function getMyProfilePosts(
+// Posts authored by `userId` that the CURRENT viewer may see, across every teacher,
+// newest first. RLS scopes results to communities the viewer is a member of, so on a
+// global profile you see someone's posts only in communities you share. Used by the
+// global /profile and the universal /people/[id] profile.
+export async function getPostsByAuthor(
   userId: string,
 ): Promise<GlobalProfilePost[]> {
   const supabase = await createClient()

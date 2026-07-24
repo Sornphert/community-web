@@ -327,6 +327,17 @@ export type FollowState = {
   isFollowing: boolean
 }
 
+// Minimal global identity for any user (0025 user_card RPC) — what any authenticated
+// user may see about someone platform-wide, regardless of shared community. Posts are
+// NOT here (they stay community-gated).
+export type UserCard = {
+  id: string
+  display_name: string
+  avatar_url: string | null
+  bio: string | null
+  social_links: SocialLinks
+}
+
 // A post in the cross-teacher "Following" feed (0024): a post by someone you follow,
 // still only visible if you're a member of its community (posts RLS enforces that).
 // Carries the teacher + channel needed to link to the real in-app post.

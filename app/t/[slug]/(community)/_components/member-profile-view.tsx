@@ -35,7 +35,6 @@ export function MemberProfileView({
   posts,
   follow,
   viewerId,
-  memberBasePath,
 }: {
   targetId: string
   displayName: string
@@ -47,9 +46,6 @@ export function MemberProfileView({
   posts: ProfilePost[]
   follow: FollowStateWithLists
   viewerId: string | null
-  // Teacher-shell base (e.g. "/t/johnson") so the follow-list rows can link to member
-  // pages; omitted on the global profile.
-  memberBasePath?: string
 }) {
   // Build renderable social links in platform order; drop anything unsafe/unset.
   const links = socialLinks ?? {}
@@ -101,7 +97,6 @@ export function MemberProfileView({
           initialFollowing={follow.following}
           followersList={follow.followersList}
           followingList={follow.followingList}
-          memberBasePath={memberBasePath}
         />
 
         <div className="my-4 w-full border-t border-line" />

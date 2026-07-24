@@ -62,7 +62,6 @@ export default async function MemberProfilePage({
         }))}
         follow={follow}
         viewerId={user?.id ?? null}
-        memberBasePath={`/t/${slug}`}
       />
     </div>
   )

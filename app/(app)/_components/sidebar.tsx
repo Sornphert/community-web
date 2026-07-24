@@ -89,7 +89,7 @@ export function Sidebar({
             alt={appName}
             width={40}
             height={40}
-            className="h-10 w-10 rounded object-cover shrink-0"
+            className="h-10 w-10 rounded object-contain shrink-0"
           />
           <h1 className="font-semibold text-fg text-sm leading-tight">
             {appName}
@@ -184,7 +184,7 @@ export function Sidebar({
           alt={appName}
           width={32}
           height={32}
-          className="h-8 w-8 rounded object-cover shrink-0"
+          className="h-8 w-8 rounded object-contain shrink-0"
         />
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {appName}

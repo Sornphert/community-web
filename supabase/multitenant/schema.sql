@@ -832,6 +832,47 @@ grant execute on function public.set_post_featured(uuid, boolean) to authenticat
 grant execute on function public.public_posts_feed(int, int, uuid, uuid, text) to anon, authenticated;
 grant execute on function public.public_member_header(uuid, uuid) to anon, authenticated;
 
+-- 0025 — GLOBAL follow helpers (SECURITY DEFINER, so they bypass profiles RLS and
+-- work cross-tenant). Defined here (before SECTION 8) because follows_insert_own
+-- references profile_is_active(). Expose only the MINIMAL identity the product
+-- allows platform-wide (name/avatar/bio/socials); posts stay community-gated.
+create or replace function public.profile_is_active(p_user uuid)
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (select 1 from public.profiles where id = p_user and deleted_at is null);
+$$;
+grant execute on function public.profile_is_active(uuid) to authenticated;
+
+create or replace function public.user_card(p_user uuid)
+returns table (id uuid, display_name text, avatar_url text, bio text, social_links jsonb)
+language sql security definer set search_path = public stable as $$
+  select p.id, p.display_name, p.avatar_url, p.bio, p.social_links
+  from public.profiles p
+  where p.id = p_user and p.deleted_at is null;
+$$;
+grant execute on function public.user_card(uuid) to authenticated;
+
+create or replace function public.get_followers(p_profile uuid)
+returns table (user_id uuid, display_name text, avatar_url text, created_at timestamptz)
+language sql security definer set search_path = public stable as $$
+  select f.follower_id, p.display_name, p.avatar_url, f.created_at
+  from public.follows f
+  join public.profiles p on p.id = f.follower_id
+  where f.following_id = p_profile and p.deleted_at is null
+  order by f.created_at desc;
+$$;
+grant execute on function public.get_followers(uuid) to authenticated;
+
+create or replace function public.get_following(p_profile uuid)
+returns table (user_id uuid, display_name text, avatar_url text, created_at timestamptz)
+language sql security definer set search_path = public stable as $$
+  select f.following_id, p.display_name, p.avatar_url, f.created_at
+  from public.follows f
+  join public.profiles p on p.id = f.following_id
+  where f.follower_id = p_profile and p.deleted_at is null
+  order by f.created_at desc;
+$$;
+grant execute on function public.get_following(uuid) to authenticated;
+
 
 -- =============================================================================
 -- SECTION 8 — RLS policies (public)
@@ -1036,11 +1077,15 @@ create policy push_subscriptions_delete_own on public.push_subscriptions for del
 -- own follow (unfollow). No UPDATE policy — a follow has no mutable state.
 create policy follows_select_all on public.follows for select to authenticated
   using (true);
+-- 0025: gate the insert on existence/tombstone via the SECURITY DEFINER
+-- profile_is_active() (below), NOT an inline profiles EXISTS — the inline form was
+-- evaluated under profiles RLS (co-member only), which locked follows to shared
+-- communities. The definer helper bypasses that, so you can follow ANY live user.
 create policy follows_insert_own on public.follows for insert to authenticated
   with check (
     follower_id = auth.uid()
     and follower_id <> following_id
-    and exists (select 1 from public.profiles p where p.id = following_id and p.deleted_at is null)
+    and public.profile_is_active(following_id)
   );
 create policy follows_delete_own on public.follows for delete to authenticated
   using (follower_id = auth.uid());
