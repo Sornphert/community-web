@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bell } from 'lucide-react'
+import { Bell, CalendarClock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatRelativeTime } from '@/lib/format'
 import type { NotificationItem, NotificationType } from '@/lib/types'
@@ -12,7 +12,7 @@ import { PushToggle } from './push-toggle'
 // The embed shape returned by the notifications query below. actor/post need the
 // FK hints because notifications has two FKs to profiles (actor_id, recipient_id).
 const SELECT =
-  'id, type, read_at, created_at, post_id, comment_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug))'
+  'id, type, read_at, created_at, post_id, comment_id, event_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug)), event:events!event_id(title)'
 
 type Row = {
   id: string
@@ -21,8 +21,10 @@ type Row = {
   created_at: string
   post_id: string | null
   comment_id: string | null
+  event_id: string | null
   actor: NotificationItem['actor']
   post: { title: string | null; channel: { slug: string } | null } | null
+  event: { title: string | null } | null
 }
 
 function mapRow(row: Row): NotificationItem {
@@ -35,6 +37,8 @@ function mapRow(row: Row): NotificationItem {
     comment_id: row.comment_id,
     post_title: row.post?.title ?? null,
     channel_slug: row.post?.channel?.slug ?? null,
+    event_id: row.event_id,
+    event_title: row.event?.title ?? null,
     actor: row.actor,
   }
 }
@@ -51,6 +55,8 @@ function verbFor(type: NotificationType): string {
       return 'liked your post'
     case 'comment_like':
       return 'liked your comment'
+    case 'event_reminder':
+      return 'starts soon'
   }
 }
 
@@ -148,6 +154,7 @@ export function NotificationBell() {
   }
 
   function hrefFor(n: NotificationItem): string | null {
+    if (n.type === 'event_reminder') return '/events'
     if (!n.post_id || !n.channel_slug) return null
     return `/community/${n.channel_slug}/${n.post_id}`
   }
@@ -184,18 +191,34 @@ export function NotificationBell() {
               {items.map((n) => {
                 const href = hrefFor(n)
                 const actorName = n.actor?.display_name ?? 'Someone'
+                const isEvent = n.type === 'event_reminder'
                 const body = (
                   <div className="flex gap-3 px-4 py-3">
-                    <Avatar
-                      url={n.actor?.avatar_url ?? null}
-                      name={actorName}
-                      size="sm"
-                    />
+                    {isEvent ? (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-fg-secondary">
+                        <CalendarClock className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <Avatar
+                        url={n.actor?.avatar_url ?? null}
+                        name={actorName}
+                        size="sm"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-fg">
-                        <span className="font-medium">{actorName}</span>{' '}
-                        {verbFor(n.type)}
-                      </p>
+                      {isEvent ? (
+                        <p className="text-sm text-fg">
+                          <span className="font-medium">
+                            {n.event_title ?? 'An event'}
+                          </span>{' '}
+                          starts soon
+                        </p>
+                      ) : (
+                        <p className="text-sm text-fg">
+                          <span className="font-medium">{actorName}</span>{' '}
+                          {verbFor(n.type)}
+                        </p>
+                      )}
                       {n.post_title && (
                         <p className="truncate text-xs text-fg-muted">
                           {n.post_title}

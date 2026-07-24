@@ -255,7 +255,8 @@ CREATE TABLE public.events (
     meeting_url text,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now(),
-    series_id uuid
+    series_id uuid,
+    reminder_sent_at timestamp with time zone
 );
 
 CREATE TABLE public.post_attachments (

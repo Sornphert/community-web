@@ -194,6 +194,8 @@ export type NotificationType =
   | 'post_comment'
   | 'post_like'
   | 'comment_like'
+  // A scheduled reminder that an event starts soon (0020). No actor; carries event_id.
+  | 'event_reminder'
 
 // A notification row decorated for display: the actor's identity plus enough of
 // the target (post title, channel slug) to build a deep link. Rows are created
@@ -207,6 +209,9 @@ export type NotificationItem = {
   comment_id: string | null
   post_title: string | null
   channel_slug: string | null
+  // Present on 'event_reminder' rows (0020): the event to deep-link + name.
+  event_id: string | null
+  event_title: string | null
   actor: {
     id: string
     display_name: string

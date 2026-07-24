@@ -19,6 +19,7 @@ type NotificationRecord = {
   type: NotificationType
   post_id: string | null
   comment_id: string | null
+  event_id: string | null
 }
 
 type WebhookBody = {
@@ -84,37 +85,60 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: 'no_subscriptions' })
   }
 
-  const [{ data: actor }, { data: post }] = await Promise.all([
-    record.actor_id
-      ? supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('id', record.actor_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    record.post_id
-      ? supabase
-          .from('posts')
-          .select('title, channel:channels(slug)')
-          .eq('id', record.post_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ])
-
-  const actorName =
-    (actor as { display_name?: string } | null)?.display_name ?? 'Someone'
-  const postRow = post as {
-    title: string | null
-    channel: { slug: string } | null
-  } | null
-
   const origin =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
     request.nextUrl.origin
 
-  let url = `${origin}/community`
-  if (record.post_id && postRow?.channel?.slug) {
-    url = `${origin}/community/${postRow.channel.slug}/${record.post_id}`
+  // Payload differs by kind: an event reminder has no actor/post — it names the
+  // event and deep-links to /events. Everything else is the actor+post shape.
+  let title: string
+  let bodyText: string
+  let url: string
+
+  if (record.type === 'event_reminder') {
+    const { data: event } = record.event_id
+      ? await supabase
+          .from('events')
+          .select('title')
+          .eq('id', record.event_id)
+          .maybeSingle()
+      : { data: null }
+    const eventTitle =
+      (event as { title?: string } | null)?.title ?? 'An event'
+    title = `Reminder: ${eventTitle}`
+    bodyText = 'Starting soon'
+    url = `${origin}/events`
+  } else {
+    const [{ data: actor }, { data: post }] = await Promise.all([
+      record.actor_id
+        ? supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', record.actor_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      record.post_id
+        ? supabase
+            .from('posts')
+            .select('title, channel:channels(slug)')
+            .eq('id', record.post_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const actorName =
+      (actor as { display_name?: string } | null)?.display_name ?? 'Someone'
+    const postRow = post as {
+      title: string | null
+      channel: { slug: string } | null
+    } | null
+
+    title = `${actorName} ${verbFor(record.type)}`
+    bodyText = postRow?.title ?? ''
+    url = `${origin}/community`
+    if (record.post_id && postRow?.channel?.slug) {
+      url = `${origin}/community/${postRow.channel.slug}/${record.post_id}`
+    }
   }
 
   // Per-site notification icon. Each deployment sets its own brand logo via
@@ -126,8 +150,8 @@ export async function POST(request: NextRequest) {
   const iconUrl = /^https?:\/\//.test(brand) ? brand : `${origin}${brand}`
 
   const payload = JSON.stringify({
-    title: `${actorName} ${verbFor(record.type)}`,
-    body: postRow?.title ?? '',
+    title,
+    body: bodyText,
     url,
     icon: iconUrl,
     badge: iconUrl,
