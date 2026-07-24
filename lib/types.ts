@@ -209,9 +209,11 @@ export type NotificationItem = {
   comment_id: string | null
   post_title: string | null
   channel_slug: string | null
-  // Present on 'event_reminder' rows (0020): the event to deep-link + name.
+  // Present on 'event_reminder' rows (0020): the event to deep-link + name +
+  // start time (so the row can show "starts in ~8 hours").
   event_id: string | null
   event_title: string | null
+  event_starts_at: string | null
   actor: {
     id: string
     display_name: string

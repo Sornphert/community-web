@@ -99,14 +99,23 @@ export async function POST(request: NextRequest) {
     const { data: event } = record.event_id
       ? await supabase
           .from('events')
-          .select('title')
+          .select('title, starts_at')
           .eq('id', record.event_id)
           .maybeSingle()
       : { data: null }
-    const eventTitle =
-      (event as { title?: string } | null)?.title ?? 'An event'
-    title = `Reminder: ${eventTitle}`
-    bodyText = 'Starting soon'
+    const ev = event as { title?: string; starts_at?: string } | null
+    title = `Reminder: ${ev?.title ?? 'An event'}`
+    // Lead computed at send time (≈ the 24h / 8h / 1h milestone).
+    const ms = ev?.starts_at
+      ? new Date(ev.starts_at).getTime() - Date.now()
+      : 0
+    const hours = Math.round(ms / 3_600_000)
+    bodyText =
+      hours >= 20
+        ? 'Starts in about a day'
+        : hours >= 2
+          ? `Starts in about ${hours} hours`
+          : 'Starting within the hour'
     url = `${origin}/events`
   } else {
     const [{ data: actor }, { data: post }] = await Promise.all([

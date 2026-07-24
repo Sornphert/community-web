@@ -256,7 +256,9 @@ CREATE TABLE public.events (
     created_by uuid,
     created_at timestamp with time zone DEFAULT now(),
     series_id uuid,
-    reminder_sent_at timestamp with time zone
+    reminded_24h_at timestamp with time zone,
+    reminded_8h_at timestamp with time zone,
+    reminded_1h_at timestamp with time zone
 );
 
 CREATE TABLE public.post_attachments (

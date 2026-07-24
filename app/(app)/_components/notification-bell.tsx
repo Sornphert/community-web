@@ -12,7 +12,7 @@ import { PushToggle } from './push-toggle'
 // The embed shape returned by the notifications query below. actor/post need the
 // FK hints because notifications has two FKs to profiles (actor_id, recipient_id).
 const SELECT =
-  'id, type, read_at, created_at, post_id, comment_id, event_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug)), event:events!event_id(title)'
+  'id, type, read_at, created_at, post_id, comment_id, event_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug)), event:events!event_id(title, starts_at)'
 
 type Row = {
   id: string
@@ -24,7 +24,7 @@ type Row = {
   event_id: string | null
   actor: NotificationItem['actor']
   post: { title: string | null; channel: { slug: string } | null } | null
-  event: { title: string | null } | null
+  event: { title: string | null; starts_at: string | null } | null
 }
 
 function mapRow(row: Row): NotificationItem {
@@ -39,8 +39,20 @@ function mapRow(row: Row): NotificationItem {
     channel_slug: row.post?.channel?.slug ?? null,
     event_id: row.event_id,
     event_title: row.event?.title ?? null,
+    event_starts_at: row.event?.starts_at ?? null,
     actor: row.actor,
   }
+}
+
+// "starts in ~N hours" for an event reminder, from its start time.
+function startsInLabel(iso: string | null): string {
+  if (!iso) return 'starts soon'
+  const ms = new Date(iso).getTime() - Date.now()
+  if (ms <= 0) return 'is starting now'
+  const hours = Math.round(ms / 3_600_000)
+  if (hours >= 20) return 'starts in about a day'
+  if (hours >= 2) return `starts in about ${hours} hours`
+  return 'starts within the hour'
 }
 
 function verbFor(type: NotificationType): string {
@@ -211,7 +223,7 @@ export function NotificationBell() {
                           <span className="font-medium">
                             {n.event_title ?? 'An event'}
                           </span>{' '}
-                          starts soon
+                          {startsInLabel(n.event_starts_at)}
                         </p>
                       ) : (
                         <p className="text-sm text-fg">

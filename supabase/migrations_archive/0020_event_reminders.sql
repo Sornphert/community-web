@@ -3,20 +3,23 @@
 -- Idempotent: safe to re-run.
 --
 -- Sends every member an in-app notification (and, via the existing notifications
--- Database Webhook → /api/push/send, an OS push) shortly before an event starts.
+-- Database Webhook → /api/push/send, an OS push) at THREE lead times before an
+-- event: ~24h, ~8h, and ~1h before it starts. Each fires at most once.
 --
 -- WHY pg_cron (not Vercel Cron): the site is on Vercel's Hobby tier, whose cron
--- runs at most once per day — far too coarse for "remind ~1h before". pg_cron runs
--- inside Postgres every few minutes for free. It inserts notification rows exactly
--- like the mention/like triggers do, so the SAME webhook delivers the push — no new
--- endpoint required.
+-- runs at most once per day — far too coarse. pg_cron runs inside Postgres every
+-- few minutes for free, inserting notification rows exactly like the mention/like
+-- triggers do, so the SAME webhook delivers the push — no new endpoint required.
 --
--- LEAD TIME: an event is reminded once, when it is within REMINDER_LEAD of starting
--- (default 60 min) and not already reminded (events.reminder_sent_at). Past events
--- and already-reminded events are skipped.
+-- WINDOWS (disjoint, so a cron tick fires at most one reminder per event):
+--   24h reminder: event starts in (8h, 24h]  and 24h not yet sent
+--    8h reminder: event starts in (1h,  8h]  and  8h not yet sent
+--    1h reminder: event starts in (0,   1h]  and  1h not yet sent
+-- An event created late (e.g. 2h before start) simply skips the milestones whose
+-- window has already passed — it won't get a bogus "24h" reminder.
 
 -- ---------------------------------------------------------------------------
--- 1. Schema: new notification type + event link + a per-event dedupe stamp.
+-- 1. Schema: new notification type + event link + per-milestone dedupe stamps.
 -- ---------------------------------------------------------------------------
 alter table public.notifications
   drop constraint if exists notifications_type_check;
@@ -39,13 +42,14 @@ exception
 end $$;
 
 alter table public.events
-  add column if not exists reminder_sent_at timestamptz;
+  add column if not exists reminded_24h_at timestamptz,
+  add column if not exists reminded_8h_at  timestamptz,
+  add column if not exists reminded_1h_at  timestamptz;
 
 -- ---------------------------------------------------------------------------
 -- 2. The reminder function. SECURITY DEFINER so it can insert notifications
---    (which have NO authenticated INSERT policy — same as the trigger authors).
---    One row per (member, event); tombstoned users excluded. Marks the event
---    reminded so it never double-fires.
+--    (which have NO authenticated INSERT policy). One row per (member, event)
+--    per milestone; tombstoned users excluded.
 -- ---------------------------------------------------------------------------
 create or replace function public.send_event_reminders()
 returns void
@@ -54,25 +58,48 @@ security definer
 set search_path = public
 as $$
 declare
-  v_lead interval := interval '60 minutes';
   v_event record;
 begin
+  -- 24h before
   for v_event in
-    select id
-    from public.events
-    where reminder_sent_at is null
-      and starts_at > now()
-      and starts_at <= now() + v_lead
+    select id from public.events
+    where reminded_24h_at is null
+      and starts_at > now() + interval '8 hours'
+      and starts_at <= now() + interval '24 hours'
     for update skip locked
   loop
     insert into public.notifications (recipient_id, type, event_id)
     select p.id, 'event_reminder', v_event.id
-    from public.profiles p
-    where p.deleted_at is null;
+    from public.profiles p where p.deleted_at is null;
+    update public.events set reminded_24h_at = now() where id = v_event.id;
+  end loop;
 
-    update public.events
-      set reminder_sent_at = now()
-      where id = v_event.id;
+  -- 8h before
+  for v_event in
+    select id from public.events
+    where reminded_8h_at is null
+      and starts_at > now() + interval '1 hour'
+      and starts_at <= now() + interval '8 hours'
+    for update skip locked
+  loop
+    insert into public.notifications (recipient_id, type, event_id)
+    select p.id, 'event_reminder', v_event.id
+    from public.profiles p where p.deleted_at is null;
+    update public.events set reminded_8h_at = now() where id = v_event.id;
+  end loop;
+
+  -- 1h before
+  for v_event in
+    select id from public.events
+    where reminded_1h_at is null
+      and starts_at > now()
+      and starts_at <= now() + interval '1 hour'
+    for update skip locked
+  loop
+    insert into public.notifications (recipient_id, type, event_id)
+    select p.id, 'event_reminder', v_event.id
+    from public.profiles p where p.deleted_at is null;
+    update public.events set reminded_1h_at = now() where id = v_event.id;
   end loop;
 end;
 $$;
