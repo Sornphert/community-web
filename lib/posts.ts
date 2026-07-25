@@ -9,6 +9,7 @@ import {
 import type {
   Channel,
   Comment,
+  CommentImage,
   Liker,
   PostAttachment,
   PostImage,
@@ -72,7 +73,11 @@ type PostRow = {
   attachments: PostAttachment[] | null
   video: VideoEmbed
   comments:
-    | (Comment & { author: Profile | null; likes: LikeRow[] | null })[]
+    | (Comment & {
+        author: Profile | null
+        images: CommentImage[] | null
+        likes: LikeRow[] | null
+      })[]
     | null
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes: LikeRow[] | null
@@ -264,7 +269,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
     )
     .eq('id', id)
     // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
@@ -327,6 +332,7 @@ export async function getPost(
           comment,
         ): comment is Comment & {
           author: Profile
+          images: CommentImage[] | null
           likes: LikeRow[] | null
         } => comment.author !== null,
       )
@@ -338,10 +344,15 @@ export async function getPost(
           author_id: comment.author_id,
           body: comment.body,
           created_at: comment.created_at,
+          edited_at: comment.edited_at,
           author: comment.author,
+          images: [...(comment.images ?? [])].sort(
+            (a, b) => a.position - b.position,
+          ),
           likes_count: commentLikes.length,
           liked_by_current_user:
             !!uid && commentLikes.some((l) => l.user_id === uid),
+          can_edit: viewerIsAdmin || (!!uid && comment.author_id === uid),
         }
       }),
   }

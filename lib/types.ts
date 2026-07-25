@@ -199,6 +199,8 @@ export interface Comment {
   author_id: string
   body: string
   created_at: string
+  // Set by the updateComment action. null = never edited (drives the "(edited)" tag).
+  edited_at: string | null
 }
 
 export type PostWithRelations = Post & {
@@ -223,8 +225,23 @@ export type PostWithRelations = Post & {
 
 export type CommentWithRelations = Comment & {
   author: Profile
+  images: CommentImage[]
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer is the comment author or an admin OF THIS TEACHER —
+  // drives the edit/delete UI (edit is author-only; delete is author-or-admin).
+  can_edit: boolean
+}
+
+// An image attached to a comment (MT). storage_path:
+// {teacher_id}/{user_id}/{comment_id}/{position}.jpg in the comment-images bucket.
+export interface CommentImage {
+  id: string
+  comment_id: string
+  url: string
+  storage_path: string
+  position: number
+  created_at: string | null
 }
 
 export type PostWithFullRelations = Post & {
@@ -396,6 +413,8 @@ export type NotificationType =
   | 'post_comment'
   | 'post_like'
   | 'comment_like'
+  // A scheduled reminder that an event starts soon (0027). No actor; carries event_id.
+  | 'event_reminder'
 
 // A notification row decorated for display: the actor's identity plus enough of
 // the target (post title, channel slug) to build a deep link. Rows are created
@@ -410,6 +429,10 @@ export type NotificationItem = {
   // Denormalized for the dropdown link + snippet.
   post_title: string | null
   channel_slug: string | null
+  // Present on 'event_reminder' rows (0027): event to deep-link + name + start time.
+  event_id: string | null
+  event_title: string | null
+  event_starts_at: string | null
   actor: {
     id: string
     display_name: string

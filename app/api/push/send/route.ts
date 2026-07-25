@@ -20,6 +20,7 @@ type NotificationRecord = {
   type: NotificationType
   post_id: string | null
   comment_id: string | null
+  event_id: string | null
 }
 
 type WebhookBody = {
@@ -123,8 +124,33 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
     request.nextUrl.origin
 
+  let title = `${actorName} ${verbFor(record.type)}`
+  let bodyText = postRow?.title ?? teacherRow?.name ?? ''
   let url = origin
-  if (teacherRow) {
+
+  if (record.type === 'event_reminder') {
+    // Event reminders name the event and deep-link to the teacher's Events page.
+    const { data: event } = record.event_id
+      ? await supabase
+          .from('events')
+          .select('title, starts_at')
+          .eq('id', record.event_id)
+          .maybeSingle()
+      : { data: null }
+    const ev = event as { title?: string; starts_at?: string } | null
+    title = `Reminder: ${ev?.title ?? 'An event'}`
+    const ms = ev?.starts_at
+      ? new Date(ev.starts_at).getTime() - Date.now()
+      : 0
+    const hours = Math.round(ms / 3_600_000)
+    bodyText =
+      hours >= 20
+        ? 'Starts in about a day'
+        : hours >= 2
+          ? `Starts in about ${hours} hours`
+          : 'Starting within the hour'
+    url = teacherRow ? `${origin}/t/${teacherRow.slug}/events` : origin
+  } else if (teacherRow) {
     url = `${origin}/t/${teacherRow.slug}/community`
     if (record.post_id && postRow?.channel?.slug) {
       url += `/${postRow.channel.slug}/${record.post_id}`
@@ -132,8 +158,8 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = JSON.stringify({
-    title: `${actorName} ${verbFor(record.type)}`,
-    body: postRow?.title ?? teacherRow?.name ?? '',
+    title,
+    body: bodyText,
     url,
     tag: record.id,
   })

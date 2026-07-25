@@ -8,6 +8,7 @@ import { formatFileSize, formatRelativeTime } from '@/lib/format'
 import type { PostWithFullRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { CommentForm } from './comment-form'
+import { CommentItem } from './comment-item'
 import { LikeButton } from './like-button'
 import { PostActions } from './post-actions'
 import { PublicToggle } from './public-toggle'
@@ -175,36 +176,13 @@ export function PostDetail({
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           {post.comments.map((comment) => (
-            <div key={comment.id} className="flex gap-3">
-              <Avatar
-                url={comment.author.avatar_url}
-                name={comment.author.display_name}
-                size="sm"
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-fg">
-                    {comment.author.display_name}
-                  </span>
-                  <span className="text-sm text-fg-muted">
-                    {formatRelativeTime(comment.created_at)}
-                  </span>
-                </div>
-                <MentionText
-                  body={comment.body}
-                  slug={slug}
-                  className="block whitespace-pre-wrap text-sm text-fg-secondary"
-                />
-                <div className="mt-1">
-                  <LikeButton
-                    targetType="comment"
-                    targetId={comment.id}
-                    initialLikesCount={comment.likes_count}
-                    initialLikedByCurrentUser={comment.liked_by_current_user}
-                  />
-                </div>
-              </div>
-            </div>
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              slug={slug}
+              members={members}
+              canMentionAll={canMentionAll}
+            />
           ))}
         </div>
       )}
