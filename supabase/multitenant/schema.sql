@@ -370,6 +370,10 @@ create table public.events (
     series_id   uuid,
     created_by  uuid,
     created_at  timestamptz default now(),
+    -- 0027: per-milestone reminder dedupe stamps (24h/8h/1h before starts_at).
+    reminded_24h_at timestamptz,
+    reminded_8h_at  timestamptz,
+    reminded_1h_at  timestamptz,
     constraint events_pkey primary key (id),
     constraint events_teacher_id_fkey foreign key (teacher_id) references public.teachers(id),
     constraint events_created_by_fkey foreign key (created_by) references public.profiles(id) on delete set null
@@ -411,11 +415,26 @@ create table public.comments (
     author_id  uuid not null,
     body       text not null,
     created_at timestamptz default now(),
+    edited_at  timestamptz, -- 0026: set by updateComment; null = never edited
     constraint comments_pkey primary key (id),
     constraint comments_post_id_fkey   foreign key (post_id)   references public.posts(id)    on delete cascade,
     constraint comments_author_id_fkey foreign key (author_id) references public.profiles(id) on delete cascade
 );
 create index comments_post_id_idx on public.comments (post_id);
+
+-- comment_images (0026) — images attached to a comment; mirrors post_images.
+-- storage_path: {user_id}/{comment_id}/{position}.jpg in the public comment-images bucket.
+create table public.comment_images (
+    id           uuid not null default gen_random_uuid(),
+    comment_id   uuid not null,
+    url          text not null,
+    storage_path text not null,
+    "position"   integer not null default 0,
+    created_at   timestamptz default now(),
+    constraint comment_images_pkey primary key (id),
+    constraint comment_images_comment_id_fkey foreign key (comment_id) references public.comments(id) on delete cascade
+);
+create index comment_images_comment_idx on public.comment_images (comment_id, "position");
 
 create table public.post_images (
     id           uuid not null default gen_random_uuid(),
@@ -561,11 +580,12 @@ create table public.notifications (
     type         text not null,
     post_id      uuid,
     comment_id   uuid,
+    event_id     uuid, -- 0027: set on 'event_reminder' rows
     read_at      timestamptz,
     created_at   timestamptz not null default now(),
     constraint notifications_pkey primary key (id),
     constraint notifications_type_check check (
-      type = any (array['mention','mention_all','post_comment','post_like','comment_like'])
+      type = any (array['mention','mention_all','post_comment','post_like','comment_like','event_reminder'])
     ),
     constraint notifications_teacher_fkey
       foreign key (teacher_id)   references public.teachers(id) on delete cascade,
@@ -576,7 +596,9 @@ create table public.notifications (
     constraint notifications_post_fkey
       foreign key (post_id)      references public.posts(id)    on delete cascade,
     constraint notifications_comment_fkey
-      foreign key (comment_id)   references public.comments(id) on delete cascade
+      foreign key (comment_id)   references public.comments(id) on delete cascade,
+    constraint notifications_event_fkey
+      foreign key (event_id)     references public.events(id)   on delete cascade
 );
 create index notifications_recipient_idx on public.notifications (recipient_id, created_at desc);
 create index notifications_unread_idx    on public.notifications (recipient_id) where read_at is null;
@@ -686,6 +708,7 @@ alter table public.classroom_recordings             enable row level security;
 alter table public.events                           enable row level security;
 alter table public.newsletter_items                 enable row level security;
 alter table public.comments                         enable row level security;
+alter table public.comment_images                   enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
 alter table public.post_videos                      enable row level security;
@@ -815,6 +838,11 @@ revoke all on public.push_subscriptions from anon;
 -- (the follow UI is in-app, behind auth).
 grant select, insert, delete on public.follows to authenticated;
 revoke all on public.follows from anon;
+
+-- comment_images (0026) — authenticated CRUD (RLS gates writes to the owning comment);
+-- anon has nothing (members-only surface).
+grant select, insert, update, delete on public.comment_images to authenticated;
+revoke all on public.comment_images from anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -991,8 +1019,19 @@ create policy comments_insert_own on public.comments for insert to authenticated
 create policy comments_update_own on public.comments for update to authenticated
   using (author_id = auth.uid() and has_membership((select p.teacher_id from public.posts p where p.id = comments.post_id)))
   with check (author_id = auth.uid() and has_membership((select p.teacher_id from public.posts p where p.id = comments.post_id)));
-create policy comments_delete_own on public.comments for delete to authenticated
-  using (author_id = auth.uid() and has_membership((select p.teacher_id from public.posts p where p.id = comments.post_id)));
+-- 0026: DELETE = author OR admin-of-this-teacher (moderation). UPDATE stays author-only.
+create policy comments_delete_owner_or_admin on public.comments for delete to authenticated
+  using (
+    auth.uid() = author_id
+    or is_teacher_admin((select p.teacher_id from public.posts p where p.id = comments.post_id))
+  );
+
+-- comment_images (0026) — read for members-context authenticated; write gated by owning the comment.
+create policy comment_images_select on public.comment_images for select to authenticated using (true);
+create policy comment_images_insert_own on public.comment_images for insert to authenticated
+  with check (exists (select 1 from public.comments c where c.id = comment_images.comment_id and c.author_id = auth.uid()));
+create policy comment_images_delete_own on public.comment_images for delete to authenticated
+  using (exists (select 1 from public.comments c where c.id = comment_images.comment_id and c.author_id = auth.uid()));
 
 -- post_images (own the post)
 create policy post_images_select on public.post_images for select to authenticated
@@ -1123,6 +1162,17 @@ create policy post_images_obj_insert_own on storage.objects for insert to authen
 drop policy if exists post_images_obj_delete_own on storage.objects;
 create policy post_images_obj_delete_own on storage.objects for delete to authenticated
   using (bucket_id = 'post-images' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
+
+-- comment-images ({uid}/{comment_id}/{pos}.jpg) — public read; own-folder write
+-- (gated on foldername[1] = uid, like avatars). 0026.
+drop policy if exists comment_images_obj_select on storage.objects;
+create policy comment_images_obj_select on storage.objects for select to authenticated using (bucket_id = 'comment-images');
+drop policy if exists comment_images_obj_insert on storage.objects;
+create policy comment_images_obj_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'comment-images' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists comment_images_obj_delete on storage.objects;
+create policy comment_images_obj_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'comment-images' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- post-attachments ({teacher_id}/{uid}/...) — the bucket is PRIVATE (0020, flag in
 -- seed.sql): a public bucket meant any attached PDF was fetchable by url with no login
@@ -2201,6 +2251,60 @@ exception
   when undefined_object then null;
 end;
 $$;
+
+
+-- =============================================================================
+-- SECTION 14 — event reminders (0027: pg_cron notifies each event's active members
+-- at ~24h / ~8h / ~1h before it starts; reuses the notifications → push webhook)
+-- =============================================================================
+create or replace function public.send_event_reminders()
+returns void language plpgsql security definer set search_path = public as $$
+declare v_event record;
+begin
+  for v_event in
+    select id, teacher_id from public.events
+    where reminded_24h_at is null and starts_at > now() + interval '8 hours' and starts_at <= now() + interval '24 hours'
+    for update skip locked
+  loop
+    insert into public.notifications (teacher_id, recipient_id, type, event_id)
+    select v_event.teacher_id, m.profile_id, 'event_reminder', v_event.id
+    from public.memberships m join public.profiles p on p.id = m.profile_id
+    where m.teacher_id = v_event.teacher_id and m.status = 'active' and p.deleted_at is null;
+    update public.events set reminded_24h_at = now() where id = v_event.id;
+  end loop;
+  for v_event in
+    select id, teacher_id from public.events
+    where reminded_8h_at is null and starts_at > now() + interval '1 hour' and starts_at <= now() + interval '8 hours'
+    for update skip locked
+  loop
+    insert into public.notifications (teacher_id, recipient_id, type, event_id)
+    select v_event.teacher_id, m.profile_id, 'event_reminder', v_event.id
+    from public.memberships m join public.profiles p on p.id = m.profile_id
+    where m.teacher_id = v_event.teacher_id and m.status = 'active' and p.deleted_at is null;
+    update public.events set reminded_8h_at = now() where id = v_event.id;
+  end loop;
+  for v_event in
+    select id, teacher_id from public.events
+    where reminded_1h_at is null and starts_at > now() and starts_at <= now() + interval '1 hour'
+    for update skip locked
+  loop
+    insert into public.notifications (teacher_id, recipient_id, type, event_id)
+    select v_event.teacher_id, m.profile_id, 'event_reminder', v_event.id
+    from public.memberships m join public.profiles p on p.id = m.profile_id
+    where m.teacher_id = v_event.teacher_id and m.status = 'active' and p.deleted_at is null;
+    update public.events set reminded_1h_at = now() where id = v_event.id;
+  end loop;
+end; $$;
+grant execute on function public.send_event_reminders() to service_role;
+
+create extension if not exists pg_cron;
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'event-reminders') then
+    perform cron.unschedule('event-reminders');
+  end if;
+  perform cron.schedule('event-reminders', '*/10 * * * *', $cron$select public.send_event_reminders()$cron$);
+end $$;
 
 
 -- =============================================================================
