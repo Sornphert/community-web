@@ -167,6 +167,27 @@ export type ReactionSummary = {
   reacted_by_current_user: boolean
 }
 
+// A single option within a poll (0033), with its live tally and whether the
+// current viewer picked it.
+export type PollOption = {
+  id: string
+  text: string
+  position: number
+  votes: number
+  voted_by_current_user: boolean
+}
+
+// A poll attached to a post (0033). allow_multiple lets a member pick more than
+// one option; closes_at (nullable) closes voting once past. total_votes is the
+// number of distinct votes cast (rows), used to render percentage bars.
+export type PollSummary = {
+  id: string
+  allow_multiple: boolean
+  closes_at: string | null
+  total_votes: number
+  options: PollOption[]
+}
+
 export interface PostImage {
   id: string
   post_id: string
@@ -225,6 +246,8 @@ export type PostWithRelations = Post & {
   saved_by_current_user: boolean
   // Aggregated emoji reactions (0032).
   reactions: ReactionSummary[]
+  // Attached poll (0033), or null for posts without one.
+  poll: PollSummary | null
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Public-visibility flags (0011) + the UNCONFLATED viewer signals that
@@ -273,6 +296,8 @@ export type PostWithFullRelations = Post & {
   saved_by_current_user: boolean
   // Aggregated emoji reactions (0032).
   reactions: ReactionSummary[]
+  // Attached poll (0033), or null for posts without one.
+  poll: PollSummary | null
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Same visibility + viewer signals as PostWithRelations, kept symmetric so

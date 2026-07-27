@@ -12,6 +12,7 @@ import type {
   CommentImage,
   Liker,
   ReactionSummary,
+  PollSummary,
   PostAttachment,
   PostImage,
   PostVideo,
@@ -67,6 +68,55 @@ function summarizeReactions(
     })
 }
 
+// Raw poll embed. polls.post_id is UNIQUE, so PostgREST may return the embed as a
+// single object or a one-element array — normalize via firstPoll() below.
+type PollEmbed = {
+  id: string
+  allow_multiple: boolean
+  closes_at: string | null
+  options: { id: string; text: string; position: number }[] | null
+  votes: { option_id: string; user_id: string }[] | null
+}
+type PollEmbedRaw = PollEmbed | PollEmbed[] | null
+
+function firstPoll(p: PollEmbedRaw | undefined): PollEmbed | null {
+  if (!p) return null
+  return Array.isArray(p) ? (p[0] ?? null) : p
+}
+
+// Collapse a raw poll embed into a PollSummary: per-option vote counts, whether the
+// viewer voted for each, and the total votes cast. Returns null for posts w/o a poll.
+function summarizePoll(
+  raw: PollEmbedRaw | undefined,
+  uid: string | null,
+): PollSummary | null {
+  const poll = firstPoll(raw)
+  if (!poll) return null
+  const votes = poll.votes ?? []
+  const options = (poll.options ?? [])
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((o) => {
+      const forOption = votes.filter((v) => v.option_id === o.id)
+      return {
+        id: o.id,
+        text: o.text,
+        position: o.position,
+        votes: forOption.length,
+        voted_by_current_user: uid
+          ? forOption.some((v) => v.user_id === uid)
+          : false,
+      }
+    })
+  return {
+    id: poll.id,
+    allow_multiple: poll.allow_multiple,
+    closes_at: poll.closes_at,
+    total_votes: votes.length,
+    options,
+  }
+}
+
 type FeedRow = {
   id: string
   author_id: string
@@ -87,6 +137,7 @@ type FeedRow = {
   likes: LikeRow[] | null
   saved: LikeRow[] | null
   reactions: { user_id: string; emoji: string }[] | null
+  poll: PollEmbedRaw
 }
 
 type PostRow = {
@@ -116,6 +167,7 @@ type PostRow = {
   likes: LikeRow[] | null
   saved: LikeRow[] | null
   reactions: { user_id: string; emoji: string }[] | null
+  poll: PollEmbedRaw
 }
 
 // Embedded shape returned by the likers queries below.
@@ -224,7 +276,7 @@ export async function getPostsForChannel(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji), poll:polls(id, allow_multiple, closes_at, options:poll_options(id, text, position), votes:poll_votes(option_id, user_id))',
     )
     .eq('channel_id', channelId)
     // Pinned posts float to the top (newest pin first), then newest.
@@ -262,6 +314,7 @@ export async function getPostsForChannel(
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
         saved_by_current_user: (row.saved ?? []).length > 0,
         reactions: summarizeReactions(row.reactions, uid),
+        poll: summarizePoll(row.poll, uid),
         can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
         is_public: row.is_public,
         hidden_from_public: row.hidden_from_public,
@@ -299,7 +352,7 @@ export async function getSavedPosts(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji), poll:polls(id, allow_multiple, closes_at, options:poll_options(id, text, position), votes:poll_votes(option_id, user_id))',
     )
     .in('id', ids)
     .eq('teacher_id', teacherId)
@@ -331,6 +384,7 @@ export async function getSavedPosts(
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
         saved_by_current_user: true,
         reactions: summarizeReactions(row.reactions, uid),
+        poll: summarizePoll(row.poll, uid),
         can_edit: viewerIsAdmin || row.author_id === uid,
         is_public: row.is_public,
         hidden_from_public: row.hidden_from_public,
@@ -440,7 +494,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji), poll:polls(id, allow_multiple, closes_at, options:poll_options(id, text, position), votes:poll_votes(option_id, user_id))',
     )
     .eq('id', id)
     // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
@@ -494,6 +548,7 @@ export async function getPost(
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
     saved_by_current_user: (row.saved ?? []).length > 0,
     reactions: summarizeReactions(row.reactions, uid),
+    poll: summarizePoll(row.poll, uid),
     can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
     is_public: row.is_public,
     hidden_from_public: row.hidden_from_public,

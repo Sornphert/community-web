@@ -10,6 +10,7 @@ import { AdminPostControls } from './admin-post-controls'
 import { CommentForm } from './comment-form'
 import { CommentItem } from './comment-item'
 import { LikeButton } from './like-button'
+import { PollView } from './poll-view'
 import { ReactionBar } from './reaction-bar'
 import { SaveButton } from './save-button'
 import { PostActions } from './post-actions'
@@ -159,6 +160,8 @@ export function PostDetail({
             ))}
           </div>
         )}
+
+        {post.poll && <PollView poll={post.poll} />}
 
         <div className="mt-4 flex items-center border-t border-line pt-3 text-sm text-fg-muted">
           <LikeButton

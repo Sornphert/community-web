@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FileText, X } from 'lucide-react'
+import { BarChart3, FileText, Plus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { convertToJpg } from '@/lib/image'
 import { MAX_ATTACHMENT_SIZE_BYTES, PDF_MIME } from '@/lib/attachments'
@@ -89,6 +89,14 @@ export function NewPostForm({
   // Public share is opt-in: default OFF, so publishing to the public page is an
   // explicit choice. The flag itself moves via set_post_public after the insert.
   const [isPublic, setIsPublic] = useState(false)
+
+  // Optional poll (create mode only). Off by default; enabling reveals the option
+  // rows. Kept minimal: 2+ non-empty options required, single- or multi-choice, and
+  // an optional close time. Polls are immutable after create, so edit mode omits this.
+  const [pollEnabled, setPollEnabled] = useState(false)
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false)
+  const [pollClosesAt, setPollClosesAt] = useState('')
 
   // Newly picked files (both modes).
   const [images, setImages] = useState<SelectedImage[]>([])
@@ -280,6 +288,32 @@ export function NewPostForm({
       }
     }
 
+    // Optional poll: create it after the post exists (RLS insert requires the post
+    // author). Options are validated in handleSubmit, so >=2 non-empty here.
+    if (pollEnabled) {
+      const cleanOptions = pollOptions.map((o) => o.trim()).filter(Boolean)
+      const { data: pollRow, error: pollError } = await supabase
+        .from('polls')
+        .insert({
+          post_id: postId,
+          allow_multiple: pollAllowMultiple,
+          closes_at: pollClosesAt ? new Date(pollClosesAt).toISOString() : null,
+        })
+        .select('id')
+        .single()
+      if (pollError) throw pollError
+      const { error: optionsError } = await supabase
+        .from('poll_options')
+        .insert(
+          cleanOptions.map((text, position) => ({
+            poll_id: pollRow.id,
+            text,
+            position,
+          })),
+        )
+      if (optionsError) throw optionsError
+    }
+
     const postUrl = `${basePath}/${channelSlug}/${postId}`
 
     // Opt-in public share: flip is_public via set_post_public AFTER the post
@@ -421,6 +455,11 @@ export function NewPostForm({
 
     if (!body.trim()) {
       setError('Please write something in the body.')
+      return
+    }
+
+    if (pollEnabled && pollOptions.filter((o) => o.trim()).length < 2) {
+      setError('A poll needs at least two options.')
       return
     }
 
@@ -595,6 +634,89 @@ export function NewPostForm({
           </div>
         )}
       </div>
+
+      {/* Optional poll (create mode only). Polls are immutable after creation, so
+          the edit route never shows this. */}
+      {!isEdit && (
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-fg-secondary">
+            <input
+              type="checkbox"
+              checked={pollEnabled}
+              onChange={(e) => setPollEnabled(e.target.checked)}
+              className="h-4 w-4 shrink-0 rounded border-line-strong focus:ring-1 focus:ring-ring"
+            />
+            <BarChart3 className="h-4 w-4 text-fg-muted" />
+            Add a poll
+          </label>
+
+          {pollEnabled && (
+            <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+              {pollOptions.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={option}
+                    onChange={(e) =>
+                      setPollOptions((prev) =>
+                        prev.map((o, i) => (i === index ? e.target.value : o)),
+                      )
+                    }
+                    maxLength={200}
+                    placeholder={`Option ${index + 1}`}
+                    className="flex-1 rounded-md border border-line-strong px-3 py-2 text-sm font-normal text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                  />
+                  {pollOptions.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPollOptions((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        )
+                      }
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-fg"
+                      aria-label="Remove option"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {pollOptions.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => setPollOptions((prev) => [...prev, ''])}
+                  className="flex items-center gap-1 self-start text-sm font-medium text-fg-secondary hover:text-fg"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add option
+                </button>
+              )}
+
+              <label className="flex items-center gap-2 text-sm font-normal text-fg-secondary">
+                <input
+                  type="checkbox"
+                  checked={pollAllowMultiple}
+                  onChange={(e) => setPollAllowMultiple(e.target.checked)}
+                  className="h-4 w-4 shrink-0 rounded border-line-strong focus:ring-1 focus:ring-ring"
+                />
+                Allow choosing multiple options
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm font-normal text-fg-secondary">
+                Close voting at (optional)
+                <input
+                  type="datetime-local"
+                  value={pollClosesAt}
+                  onChange={(e) => setPollClosesAt(e.target.value)}
+                  className="self-start rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Edit mode, non-admin author: existing video is read-only (no controls)
           so the author can see it's still attached. */}

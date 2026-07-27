@@ -8,6 +8,7 @@ import { bodyToPlainText } from '@/lib/mentions'
 import type { PostWithRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { LikeButton } from './like-button'
+import { PollView } from './poll-view'
 import { PostActions } from './post-actions'
 import { ReactionBar } from './reaction-bar'
 import { SaveButton } from './save-button'
@@ -115,6 +116,8 @@ export function PostCard({
           </div>
         )
       )}
+
+      {post.poll && <PollView poll={post.poll} />}
 
       <div className="mt-3 flex items-center gap-4 border-t border-line pt-3 text-sm text-fg-muted">
         <LikeButton
