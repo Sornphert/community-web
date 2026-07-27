@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { SmilePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 import type { ReactionSummary } from '@/lib/types'
 
 // The emoji palette members can react with.
@@ -18,6 +19,7 @@ export function ReactionBar({
   postId: string
   initial: ReactionSummary[]
 }) {
+  const { showToast } = useToast()
   const [reactions, setReactions] = useState<ReactionSummary[]>(initial)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pending, setPending] = useState(false)
@@ -73,6 +75,7 @@ export function ReactionBar({
       }
     } catch {
       setReactions(prev) // revert on failure
+      showToast('Could not update reaction.', 'error')
     } finally {
       setPending(false)
     }

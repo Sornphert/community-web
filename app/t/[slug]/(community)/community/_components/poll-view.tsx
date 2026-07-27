@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 import type { PollOption, PollSummary } from '@/lib/types'
 
 // A poll on a post (0033). Renders each option as a clickable bar showing the live
@@ -11,6 +12,7 @@ import type { PollOption, PollSummary } from '@/lib/types'
 // own-only via RLS. Sits inside the feed card's <Link>, so every handler stops
 // propagation. Closed polls (past closes_at) render read-only results.
 export function PollView({ poll }: { poll: PollSummary }) {
+  const { showToast } = useToast()
   const [options, setOptions] = useState<PollOption[]>(poll.options)
   const [total, setTotal] = useState(poll.total_votes)
   const [pending, setPending] = useState(false)
@@ -94,6 +96,7 @@ export function PollView({ poll }: { poll: PollSummary }) {
     } catch {
       setOptions(prevOptions) // revert on failure
       setTotal(prevTotal)
+      showToast('Could not record your vote.', 'error')
     } finally {
       setPending(false)
     }

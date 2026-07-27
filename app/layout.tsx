@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import {
   PLATFORM_NAME,
@@ -8,6 +8,8 @@ import {
   SITE_URL,
 } from "@/lib/config";
 import { ThemeProvider } from "./_components/theme-provider";
+import { ServiceWorkerRegister } from "./_components/sw-register";
+import { ToastProvider } from "./_components/toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,8 +31,14 @@ export const metadata: Metadata = {
   },
   description: PLATFORM_DESCRIPTION,
   // `apple` = the iOS Home Screen icon AND the icon shown on iOS web-push
-  // notifications, so it stays even though we skip the full PWA manifest.
+  // notifications.
   icons: { icon: PLATFORM_FAVICON_URL, apple: PLATFORM_LOGO_URL },
+  // iOS standalone (Add to Home Screen): run full-screen with the app's name.
+  appleWebApp: {
+    capable: true,
+    title: PLATFORM_NAME,
+    statusBarStyle: "black-translucent",
+  },
   // Default social share preview (Open Graph + Twitter). Per-page routes (e.g. a
   // public profile) can override via generateMetadata.
   openGraph: {
@@ -49,6 +57,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -61,7 +73,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

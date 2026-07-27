@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bookmark } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 
 // Bookmark toggle for a post. Optimistic; own-only via RLS. Lives inside the feed
 // card's <Link>, so it stops event propagation to avoid triggering navigation.
@@ -18,6 +19,7 @@ export function SaveButton({
   refreshOnChange?: boolean
 }) {
   const router = useRouter()
+  const { showToast } = useToast()
   const [saved, setSaved] = useState(initialSaved)
   const [pending, setPending] = useState(false)
 
@@ -48,8 +50,10 @@ export function SaveButton({
         if (error) throw error
       }
       if (refreshOnChange) router.refresh()
+      showToast(next ? 'Saved to bookmarks' : 'Removed from bookmarks', 'success')
     } catch {
       setSaved(!next)
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setPending(false)
     }
