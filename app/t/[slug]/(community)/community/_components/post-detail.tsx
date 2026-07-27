@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { ImageLightbox } from '@/app/(app)/_components/image-lightbox'
 import { MentionText } from '@/app/(app)/_components/mention-text'
 import type { MentionMember } from '@/app/(app)/_components/mention-textarea'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
@@ -108,11 +109,9 @@ export function PostDetail({
         {post.images.length > 0 && (
           <div className="mt-4 flex flex-col gap-3">
             {post.images.map((image) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <ImageLightbox
                 key={image.id}
                 src={image.url}
-                alt=""
                 className="max-w-full rounded"
               />
             ))}

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
+import { ImageLightbox } from '@/app/(app)/_components/image-lightbox'
 import { MentionText } from '@/app/(app)/_components/mention-text'
 import {
   MentionTextarea,
@@ -127,20 +128,11 @@ export function CommentItem({
             {comment.images.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {comment.images.map((img) => (
-                  <a
+                  <ImageLightbox
                     key={img.id}
-                    href={img.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.url}
-                      alt=""
-                      className="max-h-60 rounded-md border border-line object-cover"
-                    />
-                  </a>
+                    src={img.url}
+                    className="max-h-60 rounded-md border border-line object-cover"
+                  />
                 ))}
               </div>
             )}

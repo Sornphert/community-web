@@ -35,6 +35,36 @@ export function ThreadView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId])
 
+  // Realtime: append messages inserted into this thread by the other person (my own
+  // sends are already appended optimistically; the id check dedupes). Inbound
+  // messages are marked read immediately since the thread is open.
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`dm-thread-${threadId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'dm_messages',
+          filter: `thread_id=eq.${threadId}`,
+        },
+        (payload) => {
+          const m = payload.new as DmMessage
+          setMessages((cur) => (cur.some((x) => x.id === m.id) ? cur : [...cur, m]))
+          if (m.sender_id !== meId) {
+            void supabase.rpc('mark_dm_read', { p_thread: threadId })
+          }
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])

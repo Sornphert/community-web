@@ -46,3 +46,14 @@ begin
   return v_msg;
 end;
 $$;
+
+-- Realtime for the open DM thread (RLS still scopes each subscriber to their own
+-- threads). Safe to run repeatedly.
+do $$
+begin
+  alter publication supabase_realtime add table public.dm_messages;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end;
+$$;

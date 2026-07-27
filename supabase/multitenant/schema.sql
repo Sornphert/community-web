@@ -2510,6 +2510,17 @@ exception
 end;
 $$;
 
+-- 0035: dm_messages realtime so the open thread updates live (RLS still scopes each
+-- subscriber to threads they participate in).
+do $$
+begin
+  alter publication supabase_realtime add table public.dm_messages;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end;
+$$;
+
 
 -- =============================================================================
 -- SECTION 14 — event reminders (0027: pg_cron notifies each event's active members
