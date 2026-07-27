@@ -21,6 +21,7 @@ import Image from 'next/image'
 import type { Channel } from '@/lib/types'
 import { APP_NAME, BRAND_LOGO_URL } from '@/lib/config'
 import { NotificationBell } from './notification-bell'
+import { ThemeToggle } from './theme-toggle'
 
 type NavItem = {
   href: string
@@ -208,6 +209,7 @@ export function Sidebar({
           >
             {userEmail}
           </p>
+          <ThemeToggle />
           <form action={signOut}>
             <button
               type="submit"
@@ -283,6 +285,9 @@ export function Sidebar({
                   {label}
                 </Link>
               ))}
+              <div className="mt-1 border-t border-line pt-1">
+                <ThemeToggle />
+              </div>
             </nav>
           </>
         )}

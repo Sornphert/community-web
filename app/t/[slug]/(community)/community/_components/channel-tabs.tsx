@@ -17,7 +17,7 @@ export function ChannelTabs({
   const pathname = usePathname()
 
   return (
-    <div className="sticky top-[57px] z-10 -mx-4 mb-4 border-b border-line bg-canvas px-4 py-2 md:hidden">
+    <div className="sticky top-[57px] z-10 -mx-4 -mt-4 mb-4 border-b border-line bg-canvas px-4 py-2 md:hidden">
       <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {channels.map((channel) => {
           const href = `${basePath}/${channel.slug}`
