@@ -393,6 +393,18 @@ create table public.event_rsvps (
 );
 create index event_rsvps_event_idx on public.event_rsvps (event_id);
 
+-- saved_posts (0029) — a member's private bookmarks. Own-only RLS; reading the list
+-- joins posts (membership-gated), so a post the user can no longer see drops out.
+create table public.saved_posts (
+    user_id    uuid not null,
+    post_id    uuid not null,
+    created_at timestamptz default now(),
+    constraint saved_posts_pkey primary key (user_id, post_id),
+    constraint saved_posts_user_fkey foreign key (user_id) references public.profiles(id) on delete cascade,
+    constraint saved_posts_post_fkey foreign key (post_id) references public.posts(id)    on delete cascade
+);
+create index saved_posts_user_idx on public.saved_posts (user_id, created_at desc);
+
 -- newsletter_items (migration 0005) — a running, newest-first feed of curated links,
 -- grouped by category on the public /home homepage. teacher_id + category_id are derived
 -- server-side from the authoring admin's teacher (never client-chosen); category_id is
@@ -722,6 +734,7 @@ alter table public.newsletter_items                 enable row level security;
 alter table public.comments                         enable row level security;
 alter table public.comment_images                   enable row level security;
 alter table public.event_rsvps                      enable row level security;
+alter table public.saved_posts                      enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
 alter table public.post_videos                      enable row level security;
@@ -861,6 +874,10 @@ revoke all on public.comment_images from anon;
 -- own row); anon nothing.
 grant select, insert, delete on public.event_rsvps to authenticated;
 revoke all on public.event_rsvps from anon;
+
+-- saved_posts (0029) — own-only bookmarks; anon nothing.
+grant select, insert, delete on public.saved_posts to authenticated;
+revoke all on public.saved_posts from anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -1057,6 +1074,14 @@ create policy event_rsvps_select on public.event_rsvps for select to authenticat
 create policy event_rsvps_insert_own on public.event_rsvps for insert to authenticated
   with check (user_id = auth.uid() and has_membership((select e.teacher_id from public.events e where e.id = event_rsvps.event_id)));
 create policy event_rsvps_delete_own on public.event_rsvps for delete to authenticated
+  using (user_id = auth.uid());
+
+-- saved_posts (0029) — strictly own-only (a bookmark is private).
+create policy saved_posts_select_own on public.saved_posts for select to authenticated
+  using (user_id = auth.uid());
+create policy saved_posts_insert_own on public.saved_posts for insert to authenticated
+  with check (user_id = auth.uid());
+create policy saved_posts_delete_own on public.saved_posts for delete to authenticated
   using (user_id = auth.uid());
 
 -- post_images (own the post)

@@ -9,6 +9,7 @@ import type { PostWithRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { LikeButton } from './like-button'
 import { PostActions } from './post-actions'
+import { SaveButton } from './save-button'
 import { PublicToggle } from './public-toggle'
 import { PostVideoPlayer } from './post-video-player'
 
@@ -124,6 +125,12 @@ export function PostCard({
             {post.attachments.length} PDF
           </div>
         )}
+        <div className="ml-auto">
+          <SaveButton
+            postId={post.id}
+            initialSaved={post.saved_by_current_user}
+          />
+        </div>
       </div>
     </Link>
   )

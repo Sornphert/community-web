@@ -211,6 +211,8 @@ export type PostWithRelations = Post & {
   comment_count: number
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer has bookmarked this post (0029).
+  saved_by_current_user: boolean
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Public-visibility flags (0011) + the UNCONFLATED viewer signals that
@@ -255,6 +257,8 @@ export type PostWithFullRelations = Post & {
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes_count: number
   liked_by_current_user: boolean
+  // True when the current viewer has bookmarked this post (0029).
+  saved_by_current_user: boolean
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Same visibility + viewer signals as PostWithRelations, kept symmetric so

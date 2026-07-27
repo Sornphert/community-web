@@ -10,6 +10,7 @@ import { AdminPostControls } from './admin-post-controls'
 import { CommentForm } from './comment-form'
 import { CommentItem } from './comment-item'
 import { LikeButton } from './like-button'
+import { SaveButton } from './save-button'
 import { PostActions } from './post-actions'
 import { PublicToggle } from './public-toggle'
 import { PostVideoPlayer } from './post-video-player'
@@ -164,6 +165,12 @@ export function PostDetail({
             initialLikesCount={post.likes_count}
             initialLikedByCurrentUser={post.liked_by_current_user}
           />
+          <div className="ml-auto">
+            <SaveButton
+              postId={post.id}
+              initialSaved={post.saved_by_current_user}
+            />
+          </div>
         </div>
       </article>
 

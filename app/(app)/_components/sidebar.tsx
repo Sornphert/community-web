@@ -9,6 +9,7 @@ import {
   Users,
   Shield,
   UserCircle,
+  Bookmark,
   type LucideIcon,
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
@@ -61,6 +62,7 @@ export function Sidebar({
     { href: `${base}/community`, label: 'Community', icon: MessageSquare },
     { href: `${base}/classroom`, label: 'Classroom', icon: GraduationCap },
     { href: `${base}/events`, label: 'Events', icon: CalendarDays },
+    { href: `${base}/saved`, label: 'Saved', icon: Bookmark },
     // [MT] Members is a member-visible directory (gated by membership in the layout),
     // so it shows for everyone. Admin stays admin-only.
     { href: `${base}/members`, label: 'Members', icon: Users },

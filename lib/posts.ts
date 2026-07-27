@@ -55,6 +55,7 @@ type FeedRow = {
   video: VideoEmbed
   comments: { count: number }[] | null
   likes: LikeRow[] | null
+  saved: LikeRow[] | null
 }
 
 type PostRow = {
@@ -81,6 +82,7 @@ type PostRow = {
     | null
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes: LikeRow[] | null
+  saved: LikeRow[] | null
 }
 
 // Embedded shape returned by the likers queries below.
@@ -189,7 +191,7 @@ export async function getPostsForChannel(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id)',
     )
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
@@ -222,6 +224,7 @@ export async function getPostsForChannel(
         comment_count: row.comments?.[0]?.count ?? 0,
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
+        saved_by_current_user: (row.saved ?? []).length > 0,
         can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
         is_public: row.is_public,
         hidden_from_public: row.hidden_from_public,
@@ -230,6 +233,74 @@ export async function getPostsForChannel(
         isAuthor: !!uid && row.author_id === uid,
       }
     })
+}
+
+// The current user's saved (bookmarked) posts within THIS teacher, newest-saved
+// first. RLS: saved_posts is own-only, and the posts embed stays membership-gated,
+// so an unsaved-since-revoked post simply drops out.
+export async function getSavedPosts(
+  teacherId: string,
+): Promise<PostWithRelations[]> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+  const uid = user.id
+  const viewerIsAdmin = await isTeacherAdmin(teacherId)
+
+  const { data: savedRows, error: savedErr } = await supabase
+    .from('saved_posts')
+    .select('post_id')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+  if (savedErr) throw new Error(`Failed to load saved posts: ${savedErr.message}`)
+
+  const ids = (savedRows ?? []).map((r) => r.post_id as string)
+  if (ids.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select(
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id)',
+    )
+    .in('id', ids)
+    .eq('teacher_id', teacherId)
+    .order('position', { referencedTable: 'post_images', ascending: true })
+    .order('position', { referencedTable: 'post_attachments', ascending: true })
+  if (error) throw new Error(`Failed to load saved posts: ${error.message}`)
+
+  const order = new Map(ids.map((id, i) => [id, i]))
+  return (data ?? [])
+    .map((r) => r as unknown as FeedRow)
+    .filter((row): row is FeedRow & { author: Profile } => row.author !== null)
+    .map((row) => {
+      const likes = row.likes ?? []
+      return {
+        id: row.id,
+        author_id: row.author_id,
+        title: row.title,
+        body: row.body,
+        created_at: row.created_at,
+        edited_at: row.edited_at,
+        channel_id: row.channel_id,
+        author: row.author,
+        images: row.images ?? [],
+        attachments: row.attachments ?? [],
+        video: firstVideo(row.video),
+        comment_count: row.comments?.[0]?.count ?? 0,
+        likes_count: likes.length,
+        liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
+        saved_by_current_user: true,
+        can_edit: viewerIsAdmin || row.author_id === uid,
+        is_public: row.is_public,
+        hidden_from_public: row.hidden_from_public,
+        featured: row.featured,
+        viewerIsAdmin,
+        isAuthor: row.author_id === uid,
+      }
+    })
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
 }
 
 // [0020] Re-mint attachment urls as short-lived signed urls (the bucket is private).
@@ -330,7 +401,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id)',
     )
     .eq('id', id)
     // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
@@ -381,6 +452,7 @@ export async function getPost(
     video: firstVideo(row.video),
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
+    saved_by_current_user: (row.saved ?? []).length > 0,
     can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
     is_public: row.is_public,
     hidden_from_public: row.hidden_from_public,
