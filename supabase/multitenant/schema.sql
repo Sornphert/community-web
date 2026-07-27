@@ -381,6 +381,18 @@ create table public.events (
 create index events_starts_at_idx on public.events (teacher_id, starts_at);
 create index events_series_id_idx on public.events (series_id);
 
+-- event_rsvps (0028) — one row per attending member. Reads gated by membership of
+-- the event's teacher; writes own-only. No teacher_id column — tenancy flows via event.
+create table public.event_rsvps (
+    event_id   uuid not null,
+    user_id    uuid not null,
+    created_at timestamptz default now(),
+    constraint event_rsvps_pkey primary key (event_id, user_id),
+    constraint event_rsvps_event_fkey foreign key (event_id) references public.events(id)   on delete cascade,
+    constraint event_rsvps_user_fkey  foreign key (user_id)  references public.profiles(id) on delete cascade
+);
+create index event_rsvps_event_idx on public.event_rsvps (event_id);
+
 -- newsletter_items (migration 0005) — a running, newest-first feed of curated links,
 -- grouped by category on the public /home homepage. teacher_id + category_id are derived
 -- server-side from the authoring admin's teacher (never client-chosen); category_id is
@@ -709,6 +721,7 @@ alter table public.events                           enable row level security;
 alter table public.newsletter_items                 enable row level security;
 alter table public.comments                         enable row level security;
 alter table public.comment_images                   enable row level security;
+alter table public.event_rsvps                      enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
 alter table public.post_videos                      enable row level security;
@@ -843,6 +856,11 @@ revoke all on public.follows from anon;
 -- anon has nothing (members-only surface).
 grant select, insert, update, delete on public.comment_images to authenticated;
 revoke all on public.comment_images from anon;
+
+-- event_rsvps (0028) — authenticated SELECT/INSERT/DELETE (RLS gates to membership +
+-- own row); anon nothing.
+grant select, insert, delete on public.event_rsvps to authenticated;
+revoke all on public.event_rsvps from anon;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -1032,6 +1050,14 @@ create policy comment_images_insert_own on public.comment_images for insert to a
   with check (exists (select 1 from public.comments c where c.id = comment_images.comment_id and c.author_id = auth.uid()));
 create policy comment_images_delete_own on public.comment_images for delete to authenticated
   using (exists (select 1 from public.comments c where c.id = comment_images.comment_id and c.author_id = auth.uid()));
+
+-- event_rsvps (0028) — read for members of the event's teacher; write own only.
+create policy event_rsvps_select on public.event_rsvps for select to authenticated
+  using (has_membership((select e.teacher_id from public.events e where e.id = event_rsvps.event_id)));
+create policy event_rsvps_insert_own on public.event_rsvps for insert to authenticated
+  with check (user_id = auth.uid() and has_membership((select e.teacher_id from public.events e where e.id = event_rsvps.event_id)));
+create policy event_rsvps_delete_own on public.event_rsvps for delete to authenticated
+  using (user_id = auth.uid());
 
 -- post_images (own the post)
 create policy post_images_select on public.post_images for select to authenticated

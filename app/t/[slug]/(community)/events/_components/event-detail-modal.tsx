@@ -14,6 +14,7 @@ import type { CommunityEvent } from '@/lib/types'
 import { formatKlDateLong, formatKlTime, KL_TZ_LABEL } from '@/lib/datetime'
 import { buildIcs, icsFileName } from '@/lib/ics'
 import { deleteEvent } from '../actions'
+import { EventRsvp } from './event-rsvp'
 import { Modal } from './modal'
 
 export function EventDetailModal({
@@ -162,6 +163,8 @@ export function EventDetailModal({
             {event.description}
           </p>
         )}
+
+        <EventRsvp eventId={event.id} isAdmin={isAdmin} />
 
         {inSeries && (
           <p className="inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-fg-soft">
