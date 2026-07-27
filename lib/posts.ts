@@ -164,11 +164,18 @@ export async function getChannelBySlug(
   return (data as Channel | null) ?? null
 }
 
+// Community feeds are paginated (was: load-all). offset/limit page the newest-first
+// list; the channel page renders page 0 and a client "Load more" fetches the rest.
+export const CHANNEL_PAGE_SIZE = 20
+
 export async function getPostsForChannel(
   channelId: string,
   teacherId: string,
+  opts: { offset?: number; limit?: number } = {},
 ): Promise<PostWithRelations[]> {
   const supabase = await createClient()
+  const offset = opts.offset ?? 0
+  const limit = opts.limit ?? CHANNEL_PAGE_SIZE
 
   const {
     data: { user },
@@ -188,6 +195,7 @@ export async function getPostsForChannel(
     .order('created_at', { ascending: false })
     .order('position', { referencedTable: 'post_images', ascending: true })
     .order('position', { referencedTable: 'post_attachments', ascending: true })
+    .range(offset, offset + limit - 1)
 
   if (error) {
     throw new Error(`Failed to load channel posts: ${error.message}`)
@@ -251,6 +259,59 @@ async function signAttachments(
     const path = attachmentPathFrom(a.storage_path, a.url)
     return path ? { ...a, url: signed.get(path) ?? a.url } : a
   })
+}
+
+// A lightweight post search hit (title/body match), for the community search page.
+export type PostSearchResult = {
+  id: string
+  title: string
+  body: string
+  created_at: string
+  channel_slug: string | null
+  author_name: string
+}
+
+// Search a teacher's posts by title/body. RLS scopes results to member-visible posts
+// of this teacher; the weekly leak-guard drops any stray section='weekly' row.
+export async function searchPosts(
+  teacherId: string,
+  query: string,
+  limit = 30,
+): Promise<PostSearchResult[]> {
+  const safe = query.trim().replace(/[,()%*]/g, ' ').trim()
+  if (!safe) return []
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('posts')
+    .select(
+      'id, title, body, created_at, author:profiles!author_id(display_name), channel:channels(slug, section)',
+    )
+    .eq('teacher_id', teacherId)
+    .or(`title.ilike.%${safe}%,body.ilike.%${safe}%`)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(`Search failed: ${error.message}`)
+
+  type Row = {
+    id: string
+    title: string
+    body: string
+    created_at: string
+    author: { display_name: string } | null
+    channel: { slug: string; section: 'community' | 'weekly' } | null
+  }
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.channel?.section !== 'weekly')
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      body: r.body,
+      created_at: r.created_at,
+      channel_slug: r.channel?.slug ?? null,
+      author_name: r.author?.display_name ?? 'Unknown',
+    }))
 }
 
 export async function getPost(

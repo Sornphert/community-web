@@ -8,20 +8,25 @@ import {
   getChannels,
   getPost,
   getPostsForChannel,
+  CHANNEL_PAGE_SIZE,
 } from '@/lib/posts'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
+import { SearchBox } from '../_components/search-box'
 import { HERO_URL, SHOW_HERO } from '@/lib/config'
 
 export default async function ChannelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; channel: string }>
+  searchParams: Promise<{ limit?: string }>
 }) {
   const { slug, channel: channelSlug } = await params
+  const { limit: limitParam } = await searchParams
   // cache()-deduped with the layout's resolution. Defensive 404 if it's gone.
   const teacher = await getTeacherBySlug(slug)
   if (!teacher) {
@@ -70,10 +75,18 @@ export default async function ChannelPage({
 
   const isAdmin = await isTeacherAdmin(teacher.id)
 
-  const [channels, posts] = await Promise.all([
+  // Paginated feed: ?limit grows on each "Load more" (default one page). Fetch one
+  // extra row to know whether another page exists, then trim.
+  const limit = Math.max(
+    CHANNEL_PAGE_SIZE,
+    Math.min(500, Number(limitParam) || CHANNEL_PAGE_SIZE),
+  )
+  const [channels, page] = await Promise.all([
     getChannels(teacher.id),
-    getPostsForChannel(channel.id, teacher.id),
+    getPostsForChannel(channel.id, teacher.id, { limit: limit + 1 }),
   ])
+  const hasMore = page.length > limit
+  const posts = hasMore ? page.slice(0, limit) : page
 
   const canPost = channel.post_permission === 'all' || isAdmin
 
@@ -98,6 +111,9 @@ export default async function ChannelPage({
       )}
 
       <div className="mx-auto w-full max-w-2xl">
+        <div className="mb-4">
+          <SearchBox basePath={basePath} />
+        </div>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-fg">
@@ -134,6 +150,18 @@ export default async function ChannelPage({
                 basePath={basePath}
               />
             ))}
+          </div>
+        )}
+
+        {hasMore && (
+          <div className="mt-6 flex justify-center">
+            <Link
+              href={`${basePath}/${channel.slug}?limit=${limit + CHANNEL_PAGE_SIZE}`}
+              scroll={false}
+              className="rounded-full border border-line px-4 py-1.5 text-sm text-fg-secondary transition-colors hover:bg-muted"
+            >
+              Load more
+            </Link>
           </div>
         )}
       </div>
