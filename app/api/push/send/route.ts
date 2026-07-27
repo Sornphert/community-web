@@ -21,6 +21,7 @@ type NotificationRecord = {
   post_id: string | null
   comment_id: string | null
   event_id: string | null
+  thread_id: string | null
 }
 
 type WebhookBody = {
@@ -41,6 +42,8 @@ function verbFor(type: NotificationType): string {
       return 'liked your post'
     case 'comment_like':
       return 'liked your comment'
+    case 'direct_message':
+      return 'sent you a message'
     default:
       return 'sent you a notification'
   }
@@ -150,6 +153,14 @@ export async function POST(request: NextRequest) {
           ? `Starts in about ${hours} hours`
           : 'Starting within the hour'
     url = teacherRow ? `${origin}/t/${teacherRow.slug}/events` : origin
+  } else if (record.type === 'direct_message') {
+    // Direct message: "<actor> sent you a message", deep-link to the thread.
+    title = `${actorName} sent you a message`
+    bodyText = teacherRow?.name ?? ''
+    url =
+      teacherRow && record.thread_id
+        ? `${origin}/t/${teacherRow.slug}/messages/${record.thread_id}`
+        : origin
   } else if (teacherRow) {
     url = `${origin}/t/${teacherRow.slug}/community`
     if (record.post_id && postRow?.channel?.slug) {

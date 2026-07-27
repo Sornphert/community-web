@@ -12,7 +12,7 @@ import { PushToggle } from './push-toggle'
 // The embed shape returned by the notifications query below. actor/post need the
 // FK hints because notifications has two FKs to profiles (actor_id, recipient_id).
 const SELECT =
-  'id, type, read_at, created_at, post_id, comment_id, event_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug)), event:events!event_id(title, starts_at)'
+  'id, type, read_at, created_at, post_id, comment_id, event_id, thread_id, actor:profiles!actor_id(id, display_name, avatar_url), post:posts!post_id(title, channel:channels(slug)), event:events!event_id(title, starts_at)'
 
 type Row = {
   id: string
@@ -22,6 +22,7 @@ type Row = {
   post_id: string | null
   comment_id: string | null
   event_id: string | null
+  thread_id: string | null
   actor: NotificationItem['actor']
   post: { title: string | null; channel: { slug: string } | null } | null
   event: { title: string | null; starts_at: string | null } | null
@@ -35,6 +36,7 @@ function mapRow(row: Row): NotificationItem {
     created_at: row.created_at,
     post_id: row.post_id,
     comment_id: row.comment_id,
+    thread_id: row.thread_id,
     post_title: row.post?.title ?? null,
     channel_slug: row.post?.channel?.slug ?? null,
     event_id: row.event_id,
@@ -58,6 +60,8 @@ function verbFor(type: NotificationType): string {
       return 'liked your comment'
     case 'event_reminder':
       return 'starts soon'
+    case 'direct_message':
+      return 'sent you a message'
   }
 }
 
@@ -177,6 +181,8 @@ export function NotificationBell({
 
   function hrefFor(n: NotificationItem): string | null {
     if (n.type === 'event_reminder') return `/t/${slug}/events`
+    if (n.type === 'direct_message')
+      return n.thread_id ? `/t/${slug}/messages/${n.thread_id}` : null
     if (!n.post_id || !n.channel_slug) return null
     return `/t/${slug}/community/${n.channel_slug}/${n.post_id}`
   }

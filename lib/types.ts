@@ -458,6 +458,8 @@ export type NotificationType =
   | 'comment_like'
   // A scheduled reminder that an event starts soon (0027). No actor; carries event_id.
   | 'event_reminder'
+  // A direct message from another member (0035). Carries thread_id + actor.
+  | 'direct_message'
 
 // A notification row decorated for display: the actor's identity plus enough of
 // the target (post title, channel slug) to build a deep link. Rows are created
@@ -469,6 +471,8 @@ export type NotificationItem = {
   created_at: string
   post_id: string | null
   comment_id: string | null
+  // Present on 'direct_message' rows (0035): the thread to deep-link.
+  thread_id: string | null
   // Denormalized for the dropdown link + snippet.
   post_title: string | null
   channel_slug: string | null

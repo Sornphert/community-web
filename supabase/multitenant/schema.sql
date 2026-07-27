@@ -668,11 +668,12 @@ create table public.notifications (
     post_id      uuid,
     comment_id   uuid,
     event_id     uuid, -- 0027: set on 'event_reminder' rows
+    thread_id    uuid, -- 0035: set on 'direct_message' rows (FK added after dm_threads)
     read_at      timestamptz,
     created_at   timestamptz not null default now(),
     constraint notifications_pkey primary key (id),
     constraint notifications_type_check check (
-      type = any (array['mention','mention_all','post_comment','post_like','comment_like','event_reminder'])
+      type = any (array['mention','mention_all','post_comment','post_like','comment_like','event_reminder','direct_message'])
     ),
     constraint notifications_teacher_fkey
       foreign key (teacher_id)   references public.teachers(id) on delete cascade,
@@ -767,6 +768,11 @@ create table public.dm_messages (
     constraint dm_messages_sender_fkey foreign key (sender_id) references public.profiles(id)   on delete cascade
 );
 create index dm_messages_thread_idx on public.dm_messages (thread_id, created_at);
+
+-- 0035: notifications.thread_id FK, added here because dm_threads is defined after
+-- the notifications table. Set on 'direct_message' rows to deep-link to the thread.
+alter table public.notifications add constraint notifications_thread_fkey
+  foreign key (thread_id) references public.dm_threads(id) on delete cascade;
 
 -- can_access_topic (0006; admin bypass added in 0010) — a SECTION 2-style SECURITY DEFINER
 -- authz helper, but DEFINED HERE because a language-sql function validates its body's table
@@ -2634,6 +2640,13 @@ begin
   insert into public.dm_messages (thread_id, sender_id, body)
   values (p_thread, auth.uid(), trim(p_body)) returning * into v_msg;
   update public.dm_threads set last_message_at = now() where id = p_thread;
+  -- 0035: notify the OTHER participant (bell + realtime + web push via the webhook).
+  insert into public.notifications (teacher_id, recipient_id, actor_id, type, thread_id)
+  select t.teacher_id,
+         case when t.user_a = auth.uid() then t.user_b else t.user_a end,
+         auth.uid(), 'direct_message', t.id
+  from public.dm_threads t
+  where t.id = p_thread;
   return v_msg;
 end;
 $$;
