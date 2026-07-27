@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -11,6 +12,8 @@ import {
   UserCircle,
   Bookmark,
   Mail,
+  Menu,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
@@ -92,6 +95,24 @@ export function Sidebar({
   const pathname = usePathname()
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + '/')
+
+  // Mobile hamburger dropdown (top-right) holds the overflow nav items.
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // [MT] Mobile bottom bar shows only the primary destinations so it never gets
+  // crowded; everything else moves into the top-right hamburger. Admin (when present)
+  // rides the bottom bar; Events / Saved / Members overflow into the menu.
+  const primaryHrefs = new Set(
+    [
+      `${base}/community`,
+      `${base}/classroom`,
+      `${base}/messages`,
+      `${base}/admin`,
+      `${base}/profile`,
+    ].filter(Boolean),
+  )
+  const mobilePrimary = navItems.filter((i) => primaryHrefs.has(i.href))
+  const mobileOverflow = navItems.filter((i) => !primaryHrefs.has(i.href))
 
   return (
     <>
@@ -201,7 +222,8 @@ export function Sidebar({
       {/* Mobile: sticky top brand bar */}
       {/* z-40, matching main. At z-10 this sticky header creates a stacking context
           that traps the NotificationBell dropdown (z-30 is scoped INSIDE it), so
-          page content like the channel tab bar paints over the panel. */}
+          page content like the channel tab bar paints over the panel. relative so the
+          hamburger dropdown anchors to the header. */}
       <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-canvas px-4 py-3 md:hidden">
         <Image
           src={logoUrl}
@@ -213,16 +235,62 @@ export function Sidebar({
         <h1 className="font-semibold text-fg text-sm leading-tight truncate">
           {appName}
         </h1>
-        {teacherId && slug && (
-          <div className="ml-auto">
+        {/* Right cluster: bell (left) + hamburger (right). The hamburger opens the
+            overflow nav (Events / Saved / Members …) that no longer fits the bottom
+            bar. */}
+        <div className="ml-auto flex items-center gap-1">
+          {teacherId && slug && (
             <NotificationBell teacherId={teacherId} slug={slug} />
-          </div>
+          )}
+          {mobileOverflow.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="More"
+              aria-expanded={menuOpen}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-fg-soft transition-colors hover:bg-muted"
+            >
+              {menuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Overflow dropdown. Backdrop closes on outside tap; each link closes on tap. */}
+        {menuOpen && (
+          <>
+            <div
+              className="fixed inset-0 top-[57px] z-30 bg-black/20"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden
+            />
+            <nav className="absolute right-2 top-full z-40 mt-1 min-w-44 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg">
+              {mobileOverflow.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                    isActive(href)
+                      ? 'bg-muted font-medium text-fg'
+                      : 'text-fg-soft hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </>
         )}
       </header>
 
-      {/* Mobile: bottom tab bar */}
+      {/* Mobile: bottom tab bar — primary destinations only. */}
       <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-canvas md:hidden">
-        {navItems.map(({ href, label, icon: Icon, badge }) => (
+        {mobilePrimary.map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}
             href={href}
