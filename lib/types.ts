@@ -155,6 +155,8 @@ export interface Post {
   channel_id: string | null
   // Set by the updatePost action. null = never edited (drives the "(edited)" tag).
   edited_at: string | null
+  // Set by set_post_pinned (admin). null = not pinned; drives feed order + badge (0031).
+  pinned_at: string | null
 }
 
 export interface PostImage {

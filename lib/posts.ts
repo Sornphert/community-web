@@ -45,6 +45,7 @@ type FeedRow = {
   body: string
   created_at: string
   edited_at: string | null
+  pinned_at: string | null
   channel_id: string | null
   is_public: boolean
   hidden_from_public: boolean
@@ -65,6 +66,7 @@ type PostRow = {
   body: string
   created_at: string
   edited_at: string | null
+  pinned_at: string | null
   channel_id: string | null
   is_public: boolean
   hidden_from_public: boolean
@@ -194,6 +196,8 @@ export async function getPostsForChannel(
       '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id)',
     )
     .eq('channel_id', channelId)
+    // Pinned posts float to the top (newest pin first), then newest.
+    .order('pinned_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .order('position', { referencedTable: 'post_images', ascending: true })
     .order('position', { referencedTable: 'post_attachments', ascending: true })
@@ -216,6 +220,7 @@ export async function getPostsForChannel(
         body: row.body,
         created_at: row.created_at,
         edited_at: row.edited_at,
+        pinned_at: row.pinned_at,
         channel_id: row.channel_id,
         author: row.author,
         images: row.images ?? [],
@@ -283,6 +288,7 @@ export async function getSavedPosts(
         body: row.body,
         created_at: row.created_at,
         edited_at: row.edited_at,
+        pinned_at: row.pinned_at,
         channel_id: row.channel_id,
         author: row.author,
         images: row.images ?? [],
@@ -444,6 +450,7 @@ export async function getPost(
     body: row.body,
     created_at: row.created_at,
     edited_at: row.edited_at,
+    pinned_at: row.pinned_at,
     channel_id: row.channel_id,
     channel: row.channel,
     author: row.author,

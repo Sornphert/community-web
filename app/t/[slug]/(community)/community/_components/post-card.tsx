@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { MessageSquare, Paperclip } from 'lucide-react'
+import { MessageSquare, Paperclip, Pin } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { formatRelativeTime } from '@/lib/format'
@@ -34,6 +34,12 @@ export function PostCard({
       href={`${basePath}/${channelSlug}/${post.id}`}
       className="block rounded-lg border border-line bg-surface p-4"
     >
+      {post.pinned_at && (
+        <div className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-muted">
+          <Pin className="h-3 w-3 fill-current" />
+          Pinned
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <Avatar
           url={post.author.avatar_url}
@@ -62,6 +68,7 @@ export function PostCard({
                 isPublic={post.is_public}
                 hiddenFromPublic={post.hidden_from_public}
                 featured={post.featured}
+                pinned={post.pinned_at !== null}
               />
             )}
             {post.can_edit && (

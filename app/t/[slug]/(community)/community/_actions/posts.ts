@@ -365,3 +365,32 @@ export async function setPostFeatured({
   revalidatePath('/', 'layout')
   return { data: { featured } }
 }
+
+// Pin/unpin a post to the top of its channel (0031). Admin-gated in the RPC.
+export async function setPostPinned({
+  postId,
+  pinned,
+}: {
+  postId: string
+  pinned: boolean
+}): Promise<{ data: { pinned: boolean } } | { error: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Not signed in.' }
+  }
+
+  const { data, error } = await supabase.rpc('set_post_pinned', {
+    p_post_id: postId,
+    p_value: pinned,
+  })
+  const payload = data as { success?: boolean; error?: string } | null
+  if (error || payload?.success === false) {
+    return { error: 'Failed to update pin state.' }
+  }
+
+  revalidatePath('/', 'layout')
+  return { data: { pinned } }
+}

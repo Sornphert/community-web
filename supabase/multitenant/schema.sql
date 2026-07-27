@@ -252,6 +252,9 @@ create table public.posts (
     channel_id  uuid,
     edited_at   timestamptz,
     created_at  timestamptz default now(),
+    -- Pinned to the top of its channel by an admin (0031). null = not pinned.
+    -- Written ONLY via set_post_pinned (admin-gated); excluded from the write grants.
+    pinned_at   timestamptz,
     -- Public visibility (0011). Private default: every row starts members-only.
     -- is_public = author consent; hidden_from_public = admin kill switch;
     -- featured = admin prominence. Written ONLY via the set_post_* RPCs (the
@@ -267,6 +270,7 @@ create table public.posts (
 );
 create index posts_created_at_idx on public.posts (teacher_id, created_at desc);
 create index posts_channel_id_idx on public.posts (channel_id);
+create index posts_channel_pinned_idx on public.posts (channel_id, pinned_at desc nulls last, created_at desc);
 create index posts_author_id_idx  on public.posts (author_id);
 -- Public feed (0011): partial index matching public_posts_feed()'s hard WHERE.
 create index posts_public_feed_idx on public.posts (teacher_id, created_at desc)
@@ -1855,6 +1859,25 @@ begin
   return jsonb_build_object('success', true, 'featured', p_value);
 end;
 $$;
+
+-- set_post_pinned (0031) — ADMIN pins a post to the top of its channel. Admin-gated
+-- by is_teacher_admin of the post's teacher (so the owner-or-admin UPDATE grant can't
+-- be used by an author to self-pin). pinned_at doubles as flag + sort key.
+create or replace function public.set_post_pinned(p_post_id uuid, p_value boolean)
+returns jsonb language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  v_teacher uuid;
+begin
+  select teacher_id into v_teacher from public.posts where id = p_post_id;
+  if v_teacher is null or not public.is_teacher_admin(v_teacher) then
+    return jsonb_build_object('success', false, 'error', 'not_authorized');
+  end if;
+  update public.posts set pinned_at = case when p_value then now() else null end where id = p_post_id;
+  return jsonb_build_object('success', true, 'pinned', p_value);
+end;
+$$;
+grant execute on function public.set_post_pinned(uuid, boolean) to authenticated;
 
 -- public_posts_feed — the ONLY anon read path INTO posts. SECURITY DEFINER (bypasses
 -- posts/profiles/post_likes RLS), but the hard WHERE + fixed return columns cap

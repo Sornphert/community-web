@@ -74,6 +74,7 @@ export function PostDetail({
                   isPublic={post.is_public}
                   hiddenFromPublic={post.hidden_from_public}
                   featured={post.featured}
+                  pinned={post.pinned_at !== null}
                 />
               )}
               {post.can_edit && (

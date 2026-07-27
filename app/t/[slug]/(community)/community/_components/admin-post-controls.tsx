@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Eye, EyeOff, Star } from 'lucide-react'
-import { setPostFeatured, setPostHidden } from '../_actions/posts'
+import { Eye, EyeOff, Pin, Star } from 'lucide-react'
+import { setPostFeatured, setPostHidden, setPostPinned } from '../_actions/posts'
 
 // [Surface 3] Admin-only moderation controls, gated at the call site on post.viewerIsAdmin
 // (per-viewer-per-teacher, from lib/posts.ts). Renders beside PostActions on both the feed
@@ -20,14 +20,17 @@ export function AdminPostControls({
   isPublic,
   hiddenFromPublic,
   featured,
+  pinned,
 }: {
   postId: string
   isPublic: boolean
   hiddenFromPublic: boolean
   featured: boolean
+  pinned: boolean
 }) {
   const [hidden, setHidden] = useState(hiddenFromPublic)
   const [feat, setFeat] = useState(featured)
+  const [pin, setPin] = useState(pinned)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -43,6 +46,11 @@ export function AdminPostControls({
   if (featured !== prevFeatured) {
     setPrevFeatured(featured)
     setFeat(featured)
+  }
+  const [prevPinned, setPrevPinned] = useState(pinned)
+  if (pinned !== prevPinned) {
+    setPrevPinned(pinned)
+    setPin(pinned)
   }
 
   // Card root is a <Link>; stop the click from navigating to the post.
@@ -90,11 +98,38 @@ export function AdminPostControls({
     })
   }
 
+  function handlePin(e: React.MouseEvent) {
+    stop(e)
+    if (isPending) return
+    const next = !pin
+    setPin(next) // optimistic
+    setError(null)
+    startTransition(async () => {
+      const result = await setPostPinned({ postId, pinned: next })
+      if ('error' in result) {
+        setPin(!next)
+        setError('Couldn’t update — try again')
+      }
+    })
+  }
+
   // Unfeature (feat === true) is always enabled; featuring is gated on canFeature.
   const featureDisabled = isPending || (!feat && !canFeature)
 
   return (
     <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        onClick={handlePin}
+        disabled={isPending}
+        aria-pressed={pin}
+        aria-label={pin ? 'Unpin post' : 'Pin post to top'}
+        className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-fg-muted transition-colors hover:bg-muted disabled:opacity-50"
+      >
+        <Pin className={pin ? 'h-3 w-3 fill-current' : 'h-3 w-3'} />
+        {pin ? 'Unpin' : 'Pin'}
+      </button>
+
       <button
         type="button"
         onClick={handleHide}
