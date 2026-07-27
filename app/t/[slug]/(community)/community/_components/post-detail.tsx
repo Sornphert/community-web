@@ -10,6 +10,7 @@ import type { PostWithFullRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { CommentForm } from './comment-form'
 import { CommentItem } from './comment-item'
+import { CopyLinkButton } from './copy-link-button'
 import { LikeButton } from './like-button'
 import { PollView } from './poll-view'
 import { ReactionBar } from './reaction-bar'
@@ -169,6 +170,9 @@ export function PostDetail({
             initialLikesCount={post.likes_count}
             initialLikedByCurrentUser={post.liked_by_current_user}
           />
+          <div className="ml-4">
+            <CopyLinkButton />
+          </div>
           <div className="ml-auto">
             <SaveButton
               postId={post.id}

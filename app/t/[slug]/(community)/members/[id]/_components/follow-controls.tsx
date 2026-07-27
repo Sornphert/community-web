@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { UserPlus, UserCheck, X } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 import type { FollowUser } from '@/lib/types'
 
 // Follow/unfollow button + follower/following counts (each opens a list modal), for
@@ -35,6 +36,7 @@ export function FollowControls({
   followingList: FollowUser[]
 }) {
   const router = useRouter()
+  const { showToast } = useToast()
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followers, setFollowers] = useState(initialFollowers)
   const [pending, setPending] = useState(false)
@@ -70,10 +72,12 @@ export function FollowControls({
       }
       // Resync the lists (and true counts) from the server.
       router.refresh()
+      showToast(next ? 'Following' : 'Unfollowed', 'success')
     } catch {
       // Revert on failure.
       setIsFollowing(!next)
       setFollowers((n) => Math.max(0, n + (next ? -1 : 1)))
+      showToast('Something went wrong. Please try again.', 'error')
     } finally {
       setPending(false)
     }

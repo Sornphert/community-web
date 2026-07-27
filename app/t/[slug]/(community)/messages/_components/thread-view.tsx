@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 import { formatRelativeTime } from '@/lib/format'
 import type { DmMessage } from '@/lib/dm'
 
@@ -20,6 +21,7 @@ export function ThreadView({
   initialMessages: DmMessage[]
 }) {
   const router = useRouter()
+  const { showToast } = useToast()
   const [messages, setMessages] = useState<DmMessage[]>(initialMessages)
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -87,6 +89,7 @@ export function ThreadView({
       setBody('')
     } catch {
       setError('Could not send. Please try again.')
+      showToast('Could not send message', 'error')
     } finally {
       setSending(false)
     }

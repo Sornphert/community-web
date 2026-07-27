@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImagePlus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/app/_components/toast'
 import { convertToJpg } from '@/lib/image'
 import {
   MentionTextarea,
@@ -24,6 +25,7 @@ export function CommentForm({
   canMentionAll: boolean
 }) {
   const router = useRouter()
+  const { showToast } = useToast()
   const [body, setBody] = useState('')
   const [images, setImages] = useState<PickedImage[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,6 +112,7 @@ export function CommentForm({
       setBody('')
       setImages([])
       router.refresh()
+      showToast('Comment posted', 'success')
     } catch (err) {
       console.error('Failed to post comment:', err)
       setError(
