@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, ChevronRight, Users } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
 import { SHOW_THEME_TOGGLE } from '@/lib/config'
 import type { SocialLinks } from '@/lib/types'
@@ -29,17 +29,6 @@ export function ProfileScreen({ profile, email }: ProfileScreenProps) {
       <h1 className="mb-4 text-xl font-semibold text-fg">Edit profile</h1>
 
       <ProfileForm profile={profile} email={email} />
-
-      <Link
-        href="/following"
-        className="mt-6 flex items-center justify-between rounded-lg border border-line bg-surface p-4 transition-colors hover:bg-hover-subtle"
-      >
-        <span className="flex items-center gap-2 text-sm font-medium text-fg">
-          <Users className="h-4 w-4 shrink-0 text-fg-muted" />
-          Following feed
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
-      </Link>
 
       {SHOW_THEME_TOGGLE && (
         <div className="mt-6 flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">

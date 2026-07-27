@@ -14,6 +14,7 @@ import {
   Mail,
   Menu,
   X,
+  UserCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
@@ -84,6 +85,9 @@ export function Sidebar({
         ]
       : []),
     { href: `${base}/saved`, label: 'Saved', icon: Bookmark },
+    // Following is a GLOBAL cross-teacher feed (route lives outside the teacher shell),
+    // so its href is not prefixed. Lands in the mobile hamburger overflow.
+    { href: '/following', label: 'Following', icon: UserCheck },
     // [MT] Members is a member-visible directory (gated by membership in the layout),
     // so it shows for everyone. Admin stays admin-only.
     { href: `${base}/members`, label: 'Members', icon: Users },
