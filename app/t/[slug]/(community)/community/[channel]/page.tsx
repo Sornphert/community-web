@@ -11,10 +11,12 @@ import {
   CHANNEL_PAGE_SIZE,
 } from '@/lib/posts'
 import { getTeacherBySlug } from '@/lib/teachers'
+import { getUnreadChannelIds } from '@/lib/reads'
 import { isTeacherAdmin } from '@/lib/auth'
 import { PostCard } from '../_components/post-card'
 import { PostDetail } from '../_components/post-detail'
 import { ChannelTabs } from '../_components/channel-tabs'
+import { MarkChannelRead } from '../_components/mark-channel-read'
 import { SearchBox } from '../_components/search-box'
 import { HERO_URL, SHOW_HERO } from '@/lib/config'
 
@@ -81,9 +83,10 @@ export default async function ChannelPage({
     CHANNEL_PAGE_SIZE,
     Math.min(500, Number(limitParam) || CHANNEL_PAGE_SIZE),
   )
-  const [channels, page] = await Promise.all([
+  const [channels, page, unreadChannelIds] = await Promise.all([
     getChannels(teacher.id),
     getPostsForChannel(channel.id, teacher.id, { limit: limit + 1 }),
+    getUnreadChannelIds(teacher.id),
   ])
   const hasMore = page.length > limit
   const posts = hasMore ? page.slice(0, limit) : page
@@ -92,7 +95,13 @@ export default async function ChannelPage({
 
   return (
     <>
-      <ChannelTabs channels={channels} basePath={basePath} />
+      {/* Mark this channel read (clears its unread dot) on view. */}
+      <MarkChannelRead channelId={channel.id} />
+      <ChannelTabs
+        channels={channels}
+        basePath={basePath}
+        unread={unreadChannelIds.filter((id) => id !== channel.id)}
+      />
 
       {/* [0021] Per-teacher banner. HERO_URL is a single GLOBAL env var, so before
           this every MT tenant rendered the same image. teacher.hero_url wins; the env

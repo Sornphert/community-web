@@ -41,12 +41,15 @@ export function Sidebar({
   brandName,
   brandLogoUrl,
   dmUnread = 0,
+  unreadChannelIds = [],
 }: {
   userEmail: string
   isAdmin: boolean
   channels: Channel[]
   // [MT] Unread direct-message count for this teacher; drives the Messages badge.
   dmUnread?: number
+  // [MT] Channel ids with unread posts — render a dot in the channel list (0036).
+  unreadChannelIds?: string[]
   // [MT] The teacher whose shell this is. Present in /t/[slug]; drives the
   // notification bell (scopes its query + realtime to this teacher). Absent in
   // the legacy single-tenant (app) shell — the bell is then not rendered.
@@ -118,6 +121,7 @@ export function Sidebar({
   )
   const mobilePrimary = navItems.filter((i) => primaryHrefs.has(i.href))
   const mobileOverflow = navItems.filter((i) => !primaryHrefs.has(i.href))
+  const unreadChannelSet = new Set(unreadChannelIds)
 
   return (
     <>
@@ -169,13 +173,20 @@ export function Sidebar({
                         <Link
                           key={channel.id}
                           href={channelHref}
-                          className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                          className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                             isActive(channelHref)
                               ? 'bg-muted font-medium text-fg'
                               : 'text-fg-soft hover:bg-muted'
                           }`}
                         >
-                          {channel.name}
+                          <span className="flex-1 truncate">{channel.name}</span>
+                          {!isActive(channelHref) &&
+                            unreadChannelSet.has(channel.id) && (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full bg-inverse"
+                                aria-label="Unread"
+                              />
+                            )}
                         </Link>
                       )
                     })}

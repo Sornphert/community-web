@@ -424,6 +424,17 @@ create table public.post_reactions (
 );
 create index post_reactions_post_idx on public.post_reactions (post_id);
 
+-- channel_reads (0036) — per-user, per-channel "last read" mark; drives the unread
+-- dot on channels. Own-only RLS; upserted client-side when a channel is opened.
+create table public.channel_reads (
+    user_id      uuid not null,
+    channel_id   uuid not null,
+    last_read_at timestamptz not null default now(),
+    constraint channel_reads_pkey primary key (user_id, channel_id),
+    constraint channel_reads_user_fkey    foreign key (user_id)    references public.profiles(id) on delete cascade,
+    constraint channel_reads_channel_fkey foreign key (channel_id) references public.channels(id) on delete cascade
+);
+
 -- polls (0033) — a poll attached to exactly one post (post_id UNIQUE). Options are
 -- ordered rows; a vote is one (option_id, user_id) row. Single- vs multi-choice is
 -- a flag; single-choice is enforced in the app. All three tables are membership-
@@ -839,6 +850,7 @@ alter table public.comment_images                   enable row level security;
 alter table public.event_rsvps                      enable row level security;
 alter table public.saved_posts                      enable row level security;
 alter table public.post_reactions                   enable row level security;
+alter table public.channel_reads                    enable row level security;
 alter table public.polls                            enable row level security;
 alter table public.poll_options                     enable row level security;
 alter table public.poll_votes                       enable row level security;
@@ -987,6 +999,10 @@ revoke all on public.dm_messages from anon;
 -- gets nothing (reactions are an in-app, members-only surface).
 grant select, insert, delete on public.post_reactions to authenticated, service_role;
 revoke all on public.post_reactions from anon;
+
+-- channel_reads (0036) — own-only read marks; anon nothing.
+grant select, insert, update, delete on public.channel_reads to authenticated, service_role;
+revoke all on public.channel_reads from anon;
 
 -- polls (0033) — poll + options are author-created and read-only thereafter; votes
 -- are own insert/delete. anon has nothing (polls are an in-app, members-only surface).
@@ -1228,6 +1244,16 @@ create policy post_reactions_select on public.post_reactions for select to authe
 create policy post_reactions_insert_own on public.post_reactions for insert to authenticated
   with check (user_id = auth.uid() and has_membership((select p.teacher_id from public.posts p where p.id = post_reactions.post_id)));
 create policy post_reactions_delete_own on public.post_reactions for delete to authenticated
+  using (user_id = auth.uid());
+
+-- channel_reads (0036) — strictly own-only.
+create policy channel_reads_select_own on public.channel_reads for select to authenticated
+  using (user_id = auth.uid());
+create policy channel_reads_insert_own on public.channel_reads for insert to authenticated
+  with check (user_id = auth.uid());
+create policy channel_reads_update_own on public.channel_reads for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy channel_reads_delete_own on public.channel_reads for delete to authenticated
   using (user_id = auth.uid());
 
 -- polls (0033) — read for members of the post's teacher; only the post author creates.
