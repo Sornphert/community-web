@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { Settings } from 'lucide-react'
+import { ArrowLeft, Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { getMemberProfile } from '@/lib/posts'
@@ -42,7 +42,13 @@ export default async function TeacherProfilePage({
   return (
     <div className="mx-auto w-full max-w-2xl">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-fg-muted">Your profile</span>
+        <Link
+          href={`/t/${slug}/community`}
+          className="inline-flex items-center gap-1 text-sm text-fg-muted transition-colors hover:text-fg"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to community
+        </Link>
         <Link
           href={`/t/${slug}/profile/edit`}
           aria-label="Edit profile and settings"

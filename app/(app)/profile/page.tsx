@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Settings } from 'lucide-react'
+import { ArrowLeft, Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getPostsByAuthor } from '@/lib/posts'
 import { getFollowState } from '@/lib/follows'
@@ -39,7 +39,13 @@ export default async function ProfilePage() {
   return (
     <div className="mx-auto w-full max-w-2xl">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-fg-muted">Your profile</span>
+        <Link
+          href="/home"
+          className="inline-flex items-center gap-1 text-sm text-fg-muted transition-colors hover:text-fg"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Communities
+        </Link>
         <Link
           href="/profile/edit"
           aria-label="Edit profile and settings"
