@@ -10,6 +10,7 @@ import { AdminPostControls } from './admin-post-controls'
 import { CommentForm } from './comment-form'
 import { CommentItem } from './comment-item'
 import { LikeButton } from './like-button'
+import { ReactionBar } from './reaction-bar'
 import { SaveButton } from './save-button'
 import { PostActions } from './post-actions'
 import { PublicToggle } from './public-toggle'
@@ -172,6 +173,10 @@ export function PostDetail({
               initialSaved={post.saved_by_current_user}
             />
           </div>
+        </div>
+
+        <div className="mt-3">
+          <ReactionBar postId={post.id} initial={post.reactions} />
         </div>
       </article>
 

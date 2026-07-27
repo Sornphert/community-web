@@ -409,6 +409,21 @@ create table public.saved_posts (
 );
 create index saved_posts_user_idx on public.saved_posts (user_id, created_at desc);
 
+-- post_reactions (0032) — emoji reactions on a post. Composite PK (post_id, user_id,
+-- emoji) allows one row per emoji per user; presence means "reacted." SELECT is
+-- membership-gated via the post's teacher; insert/delete are own-only.
+create table public.post_reactions (
+    post_id    uuid not null,
+    user_id    uuid not null,
+    emoji      text not null,
+    created_at timestamptz default now(),
+    constraint post_reactions_pkey primary key (post_id, user_id, emoji),
+    constraint post_reactions_emoji_check check (char_length(emoji) between 1 and 16),
+    constraint post_reactions_post_fkey foreign key (post_id) references public.posts(id)    on delete cascade,
+    constraint post_reactions_user_fkey foreign key (user_id) references public.profiles(id) on delete cascade
+);
+create index post_reactions_post_idx on public.post_reactions (post_id);
+
 -- join_tokens (0030) — per-teacher random invite token. Own table so `select *`
 -- on teachers stays token-free; NO client read (resolved via SECURITY DEFINER RPCs
 -- in SECTION 15) so a member can't harvest other communities' invite links.
@@ -749,6 +764,7 @@ alter table public.comments                         enable row level security;
 alter table public.comment_images                   enable row level security;
 alter table public.event_rsvps                      enable row level security;
 alter table public.saved_posts                      enable row level security;
+alter table public.post_reactions                   enable row level security;
 alter table public.join_tokens                      enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
@@ -879,6 +895,12 @@ revoke all on public.push_subscriptions from anon;
 -- (the follow UI is in-app, behind auth).
 grant select, insert, delete on public.follows to authenticated;
 revoke all on public.follows from anon;
+
+-- post_reactions (0032) — authenticated may react (INSERT) and un-react (DELETE);
+-- RLS scopes writes to your own user_id and a post you can see. No UPDATE. anon
+-- gets nothing (reactions are an in-app, members-only surface).
+grant select, insert, delete on public.post_reactions to authenticated, service_role;
+revoke all on public.post_reactions from anon;
 
 -- comment_images (0026) — authenticated CRUD (RLS gates writes to the owning comment);
 -- anon has nothing (members-only surface).
@@ -1103,6 +1125,14 @@ create policy saved_posts_select_own on public.saved_posts for select to authent
 create policy saved_posts_insert_own on public.saved_posts for insert to authenticated
   with check (user_id = auth.uid());
 create policy saved_posts_delete_own on public.saved_posts for delete to authenticated
+  using (user_id = auth.uid());
+
+-- post_reactions (0032) — read for members of the post's teacher; write own only.
+create policy post_reactions_select on public.post_reactions for select to authenticated
+  using (has_membership((select p.teacher_id from public.posts p where p.id = post_reactions.post_id)));
+create policy post_reactions_insert_own on public.post_reactions for insert to authenticated
+  with check (user_id = auth.uid() and has_membership((select p.teacher_id from public.posts p where p.id = post_reactions.post_id)));
+create policy post_reactions_delete_own on public.post_reactions for delete to authenticated
   using (user_id = auth.uid());
 
 -- post_images (own the post)

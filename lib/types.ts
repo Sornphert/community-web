@@ -159,6 +159,14 @@ export interface Post {
   pinned_at: string | null
 }
 
+// Aggregated emoji reaction on a post (0032): one entry per distinct emoji with its
+// count and whether the current viewer reacted with it.
+export type ReactionSummary = {
+  emoji: string
+  count: number
+  reacted_by_current_user: boolean
+}
+
 export interface PostImage {
   id: string
   post_id: string
@@ -215,6 +223,8 @@ export type PostWithRelations = Post & {
   liked_by_current_user: boolean
   // True when the current viewer has bookmarked this post (0029).
   saved_by_current_user: boolean
+  // Aggregated emoji reactions (0032).
+  reactions: ReactionSummary[]
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Public-visibility flags (0011) + the UNCONFLATED viewer signals that
@@ -261,6 +271,8 @@ export type PostWithFullRelations = Post & {
   liked_by_current_user: boolean
   // True when the current viewer has bookmarked this post (0029).
   saved_by_current_user: boolean
+  // Aggregated emoji reactions (0032).
+  reactions: ReactionSummary[]
   // True when the current viewer is the author or an admin — drives edit/delete UI.
   can_edit: boolean
   // [MT] Same visibility + viewer signals as PostWithRelations, kept symmetric so

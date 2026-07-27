@@ -9,6 +9,7 @@ import type { PostWithRelations } from '@/lib/types'
 import { AdminPostControls } from './admin-post-controls'
 import { LikeButton } from './like-button'
 import { PostActions } from './post-actions'
+import { ReactionBar } from './reaction-bar'
 import { SaveButton } from './save-button'
 import { PublicToggle } from './public-toggle'
 import { PostVideoPlayer } from './post-video-player'
@@ -138,6 +139,10 @@ export function PostCard({
             initialSaved={post.saved_by_current_user}
           />
         </div>
+      </div>
+
+      <div className="mt-2">
+        <ReactionBar postId={post.id} initial={post.reactions} />
       </div>
     </Link>
   )

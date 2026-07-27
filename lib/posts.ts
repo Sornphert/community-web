@@ -11,6 +11,7 @@ import type {
   Comment,
   CommentImage,
   Liker,
+  ReactionSummary,
   PostAttachment,
   PostImage,
   PostVideo,
@@ -38,6 +39,34 @@ function firstVideo(v: VideoEmbed | undefined): PostVideo | null {
   return Array.isArray(v) ? (v[0] ?? null) : v
 }
 
+// Preferred display order for the common reaction emojis; unknown emojis sort after.
+const REACTION_ORDER = ['👍', '❤️', '😂', '🎉', '🔥']
+
+// Collapse raw post_reactions rows into per-emoji counts + whether the viewer reacted.
+function summarizeReactions(
+  rows: { user_id: string; emoji: string }[] | null,
+  uid: string | null,
+): ReactionSummary[] {
+  const map = new Map<string, { count: number; reacted: boolean }>()
+  for (const r of rows ?? []) {
+    const e = map.get(r.emoji) ?? { count: 0, reacted: false }
+    e.count += 1
+    if (uid && r.user_id === uid) e.reacted = true
+    map.set(r.emoji, e)
+  }
+  return [...map.entries()]
+    .map(([emoji, v]) => ({
+      emoji,
+      count: v.count,
+      reacted_by_current_user: v.reacted,
+    }))
+    .sort((a, b) => {
+      const ai = REACTION_ORDER.indexOf(a.emoji)
+      const bi = REACTION_ORDER.indexOf(b.emoji)
+      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi) || b.count - a.count
+    })
+}
+
 type FeedRow = {
   id: string
   author_id: string
@@ -57,6 +86,7 @@ type FeedRow = {
   comments: { count: number }[] | null
   likes: LikeRow[] | null
   saved: LikeRow[] | null
+  reactions: { user_id: string; emoji: string }[] | null
 }
 
 type PostRow = {
@@ -85,6 +115,7 @@ type PostRow = {
   channel: { slug: string; section: 'community' | 'weekly' } | null
   likes: LikeRow[] | null
   saved: LikeRow[] | null
+  reactions: { user_id: string; emoji: string }[] | null
 }
 
 // Embedded shape returned by the likers queries below.
@@ -193,7 +224,7 @@ export async function getPostsForChannel(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
     )
     .eq('channel_id', channelId)
     // Pinned posts float to the top (newest pin first), then newest.
@@ -230,6 +261,7 @@ export async function getPostsForChannel(
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
         saved_by_current_user: (row.saved ?? []).length > 0,
+        reactions: summarizeReactions(row.reactions, uid),
         can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
         is_public: row.is_public,
         hidden_from_public: row.hidden_from_public,
@@ -267,7 +299,7 @@ export async function getSavedPosts(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(count), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
     )
     .in('id', ids)
     .eq('teacher_id', teacherId)
@@ -298,6 +330,7 @@ export async function getSavedPosts(
         likes_count: likes.length,
         liked_by_current_user: !!uid && likes.some((l) => l.user_id === uid),
         saved_by_current_user: true,
+        reactions: summarizeReactions(row.reactions, uid),
         can_edit: viewerIsAdmin || row.author_id === uid,
         is_public: row.is_public,
         hidden_from_public: row.hidden_from_public,
@@ -407,7 +440,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id)',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji)',
     )
     .eq('id', id)
     // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
@@ -460,6 +493,7 @@ export async function getPost(
     likes_count: postLikes.length,
     liked_by_current_user: !!uid && postLikes.some((l) => l.user_id === uid),
     saved_by_current_user: (row.saved ?? []).length > 0,
+    reactions: summarizeReactions(row.reactions, uid),
     can_edit: viewerIsAdmin || (!!uid && row.author_id === uid),
     is_public: row.is_public,
     hidden_from_public: row.hidden_from_public,
