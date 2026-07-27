@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { hasMembership, isTeacherAdmin } from '@/lib/auth'
 import { getChannels } from '@/lib/posts'
+import { getDmUnreadCount } from '@/lib/dm'
 import { PLATFORM_LOGO_URL } from '@/lib/config'
 import { Sidebar } from '@/app/(app)/_components/sidebar'
 
@@ -52,6 +53,7 @@ export default async function TeacherCommunityLayout({
   // uses the same RPC as the RLS, so the UI cannot surface more than the DB permits.
   const isAdmin = await isTeacherAdmin(teacher.id)
   const channels = await getChannels(teacher.id)
+  const dmUnread = await getDmUnreadCount(teacher.id)
 
   return (
     <div className="flex flex-1 flex-col md:flex-row">
@@ -61,6 +63,7 @@ export default async function TeacherCommunityLayout({
         userEmail={user.email ?? ''}
         isAdmin={isAdmin}
         channels={channels}
+        dmUnread={dmUnread}
         brandName={teacher.name}
         // A logo-less teacher must NOT inherit the shared BRAND_LOGO_URL fallback
         // (teacher #1's /brand.jpg) — that would leak one teacher's logo into another's

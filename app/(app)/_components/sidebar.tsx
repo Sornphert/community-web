@@ -10,6 +10,7 @@ import {
   Shield,
   UserCircle,
   Bookmark,
+  Mail,
   type LucideIcon,
 } from 'lucide-react'
 import { signOut } from '@/app/login/actions'
@@ -22,6 +23,8 @@ type NavItem = {
   href: string
   label: string
   icon: LucideIcon
+  // Unread count badge (currently DMs only). Omitted/0 → no badge.
+  badge?: number
 }
 
 export function Sidebar({
@@ -32,10 +35,13 @@ export function Sidebar({
   teacherId,
   brandName,
   brandLogoUrl,
+  dmUnread = 0,
 }: {
   userEmail: string
   isAdmin: boolean
   channels: Channel[]
+  // [MT] Unread direct-message count for this teacher; drives the Messages badge.
+  dmUnread?: number
   // [MT] The teacher whose shell this is. Present in /t/[slug]; drives the
   // notification bell (scopes its query + realtime to this teacher). Absent in
   // the legacy single-tenant (app) shell — the bell is then not rendered.
@@ -62,6 +68,17 @@ export function Sidebar({
     { href: `${base}/community`, label: 'Community', icon: MessageSquare },
     { href: `${base}/classroom`, label: 'Classroom', icon: GraduationCap },
     { href: `${base}/events`, label: 'Events', icon: CalendarDays },
+    // [MT] Direct messages — teacher shell only (same-community 1:1 DMs).
+    ...(slug
+      ? [
+          {
+            href: `${base}/messages`,
+            label: 'Messages',
+            icon: Mail,
+            badge: dmUnread,
+          },
+        ]
+      : []),
     { href: `${base}/saved`, label: 'Saved', icon: Bookmark },
     // [MT] Members is a member-visible directory (gated by membership in the layout),
     // so it shows for everyone. Admin stays admin-only.
@@ -104,7 +121,7 @@ export function Sidebar({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon, badge }) => {
             if (href === `${base}/community`) {
               return (
                 <div key={href} className="flex flex-col gap-1">
@@ -153,6 +170,11 @@ export function Sidebar({
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 {label}
+                {!!badge && badge > 0 && (
+                  <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-inverse px-1.5 text-xs font-medium text-inverse-fg">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -200,17 +222,24 @@ export function Sidebar({
 
       {/* Mobile: bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-canvas md:hidden">
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {navItems.map(({ href, label, icon: Icon, badge }) => (
           <Link
             key={href}
             href={href}
-            className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors ${
+            className={`relative flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors ${
               isActive(href)
                 ? 'font-medium text-fg'
                 : 'text-fg-soft hover:bg-muted'
             }`}
           >
-            <Icon className="h-5 w-5" />
+            <span className="relative">
+              <Icon className="h-5 w-5" />
+              {!!badge && badge > 0 && (
+                <span className="absolute -right-2 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-inverse px-1 text-[10px] font-medium text-inverse-fg">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </span>
             {label}
           </Link>
         ))}

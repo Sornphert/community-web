@@ -6,6 +6,7 @@ import { getMemberProfile } from '@/lib/posts'
 import { getFollowState } from '@/lib/follows'
 import { createClient } from '@/lib/supabase/server'
 import { MemberProfileView } from '../../_components/member-profile-view'
+import { MessageMemberButton } from '../../messages/_components/message-member-button'
 
 export default async function MemberProfilePage({
   params,
@@ -36,13 +37,22 @@ export default async function MemberProfilePage({
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <Link
-        href={`/t/${slug}/members`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to members
-      </Link>
+      <div className="mb-6 flex items-center justify-between gap-2">
+        <Link
+          href={`/t/${slug}/members`}
+          className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to members
+        </Link>
+        {user && user.id !== member.id && (
+          <MessageMemberButton
+            slug={slug}
+            teacherId={teacher.id}
+            otherId={member.id}
+          />
+        )}
+      </div>
 
       <MemberProfileView
         targetId={member.id}

@@ -734,6 +734,40 @@ create table public.follows (
 create index follows_follower_idx  on public.follows (follower_id, created_at desc);
 create index follows_following_idx on public.follows (following_id, created_at desc);
 
+-- dm_threads / dm_messages (0034) — 1:1 direct messages, SAME-COMMUNITY only. A
+-- thread is teacher-scoped and canonicalized (user_a < user_b) with UNIQUE(teacher,
+-- pair). Read state is two per-thread "last read" timestamps. Clients get SELECT
+-- only; all writes go through the SECURITY DEFINER RPCs in SECTION 16, which enforce
+-- co-membership. See 0034_direct_messages.sql.
+create table public.dm_threads (
+    id                  uuid primary key default gen_random_uuid(),
+    teacher_id          uuid not null,
+    user_a              uuid not null,
+    user_b              uuid not null,
+    user_a_last_read_at timestamptz,
+    user_b_last_read_at timestamptz,
+    last_message_at     timestamptz default now(),
+    created_at          timestamptz default now(),
+    constraint dm_threads_pair_order check (user_a < user_b),
+    constraint dm_threads_unique unique (teacher_id, user_a, user_b),
+    constraint dm_threads_teacher_fkey foreign key (teacher_id) references public.teachers(id) on delete cascade,
+    constraint dm_threads_user_a_fkey  foreign key (user_a)     references public.profiles(id) on delete cascade,
+    constraint dm_threads_user_b_fkey  foreign key (user_b)     references public.profiles(id) on delete cascade
+);
+create index dm_threads_user_a_idx on public.dm_threads (user_a, last_message_at desc);
+create index dm_threads_user_b_idx on public.dm_threads (user_b, last_message_at desc);
+create table public.dm_messages (
+    id         uuid primary key default gen_random_uuid(),
+    thread_id  uuid not null,
+    sender_id  uuid not null,
+    body       text not null,
+    created_at timestamptz default now(),
+    constraint dm_messages_body_check check (char_length(body) between 1 and 4000),
+    constraint dm_messages_thread_fkey foreign key (thread_id) references public.dm_threads(id) on delete cascade,
+    constraint dm_messages_sender_fkey foreign key (sender_id) references public.profiles(id)   on delete cascade
+);
+create index dm_messages_thread_idx on public.dm_messages (thread_id, created_at);
+
 -- can_access_topic (0006; admin bypass added in 0010) — a SECTION 2-style SECURITY DEFINER
 -- authz helper, but DEFINED HERE because a language-sql function validates its body's table
 -- refs at creation, so it must follow topic_tags/member_tags. Returns true when the caller
@@ -816,6 +850,8 @@ alter table public.member_tags                       enable row level security;
 alter table public.notifications                     enable row level security;
 alter table public.push_subscriptions                enable row level security;
 alter table public.follows                           enable row level security;
+alter table public.dm_threads                        enable row level security;
+alter table public.dm_messages                       enable row level security;
 
 
 -- =============================================================================
@@ -932,6 +968,13 @@ revoke all on public.push_subscriptions from anon;
 -- (the follow UI is in-app, behind auth).
 grant select, insert, delete on public.follows to authenticated;
 revoke all on public.follows from anon;
+
+-- dm_threads / dm_messages (0034) — clients get SELECT only (participant-scoped by
+-- RLS); every write goes through the SECURITY DEFINER RPCs in SECTION 16. anon nothing.
+grant select on public.dm_threads  to authenticated, service_role;
+grant select on public.dm_messages to authenticated, service_role;
+revoke all on public.dm_threads  from anon;
+revoke all on public.dm_messages from anon;
 
 -- post_reactions (0032) — authenticated may react (INSERT) and un-react (DELETE);
 -- RLS scopes writes to your own user_id and a post you can see. No UPDATE. anon
@@ -1310,6 +1353,14 @@ create policy follows_insert_own on public.follows for insert to authenticated
   );
 create policy follows_delete_own on public.follows for delete to authenticated
   using (follower_id = auth.uid());
+
+-- dm_threads / dm_messages (0034) — SELECT only for participants. No client INSERT/
+-- UPDATE policies: writes go through the SECURITY DEFINER RPCs in SECTION 16.
+create policy dm_threads_select on public.dm_threads for select to authenticated
+  using (auth.uid() in (user_a, user_b));
+create policy dm_messages_select on public.dm_messages for select to authenticated
+  using (exists (select 1 from public.dm_threads t
+                 where t.id = dm_messages.thread_id and auth.uid() in (t.user_a, t.user_b)));
 
 
 -- =============================================================================
@@ -2538,6 +2589,84 @@ end $$;
 drop trigger if exists teachers_create_join_token on public.teachers;
 create trigger teachers_create_join_token after insert on public.teachers
   for each row execute function public.create_join_token();
+
+
+-- =============================================================================
+-- SECTION 16 — direct messages RPCs (0034; all SECURITY DEFINER, own-scoped)
+-- =============================================================================
+-- All DM writes flow through these; the tables grant SELECT only. Each enforces
+-- its own authz (co-membership for thread creation, participant for send/read).
+
+-- Open or create the caller↔p_other thread within teacher p_teacher (co-members only).
+create or replace function public.get_or_create_dm_thread(p_other uuid, p_teacher uuid)
+returns uuid language plpgsql security definer set search_path to 'public'
+as $$
+declare v_a uuid; v_b uuid; v_id uuid;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if p_other = auth.uid() then raise exception 'cannot_dm_self'; end if;
+  if not exists (select 1 from public.memberships m
+                 where m.profile_id = auth.uid() and m.teacher_id = p_teacher and m.status = 'active')
+     or not exists (select 1 from public.memberships m
+                    where m.profile_id = p_other and m.teacher_id = p_teacher and m.status = 'active')
+  then raise exception 'not_comembers'; end if;
+  if auth.uid() < p_other then v_a := auth.uid(); v_b := p_other;
+  else v_a := p_other; v_b := auth.uid(); end if;
+  insert into public.dm_threads (teacher_id, user_a, user_b) values (p_teacher, v_a, v_b)
+  on conflict (teacher_id, user_a, user_b) do update set teacher_id = excluded.teacher_id
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- Send a message in a thread the caller participates in; bumps last_message_at.
+create or replace function public.send_dm(p_thread uuid, p_body text)
+returns public.dm_messages language plpgsql security definer set search_path to 'public'
+as $$
+declare v_msg public.dm_messages;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if not exists (select 1 from public.dm_threads t
+                 where t.id = p_thread and auth.uid() in (t.user_a, t.user_b)) then
+    raise exception 'not_participant';
+  end if;
+  if char_length(coalesce(trim(p_body), '')) = 0 then raise exception 'empty_body'; end if;
+  insert into public.dm_messages (thread_id, sender_id, body)
+  values (p_thread, auth.uid(), trim(p_body)) returning * into v_msg;
+  update public.dm_threads set last_message_at = now() where id = p_thread;
+  return v_msg;
+end;
+$$;
+
+-- Mark a thread read up to now for the calling participant.
+create or replace function public.mark_dm_read(p_thread uuid)
+returns void language plpgsql security definer set search_path to 'public'
+as $$
+begin
+  update public.dm_threads set user_a_last_read_at = now() where id = p_thread and user_a = auth.uid();
+  update public.dm_threads set user_b_last_read_at = now() where id = p_thread and user_b = auth.uid();
+end;
+$$;
+
+-- Total unread DM messages for the caller within one teacher (nav badge).
+create or replace function public.dm_unread_count(p_teacher uuid)
+returns integer language sql stable security definer set search_path to 'public'
+as $$
+  select count(*)::int
+  from public.dm_messages msg
+  join public.dm_threads t on t.id = msg.thread_id
+  where t.teacher_id = p_teacher
+    and auth.uid() in (t.user_a, t.user_b)
+    and msg.sender_id <> auth.uid()
+    and msg.created_at > coalesce(
+      case when t.user_a = auth.uid() then t.user_a_last_read_at else t.user_b_last_read_at end,
+      '-infinity'::timestamptz);
+$$;
+
+grant execute on function public.get_or_create_dm_thread(uuid, uuid) to authenticated;
+grant execute on function public.send_dm(uuid, text)                 to authenticated;
+grant execute on function public.mark_dm_read(uuid)                  to authenticated;
+grant execute on function public.dm_unread_count(uuid)               to authenticated;
 
 
 -- =============================================================================
