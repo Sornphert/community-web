@@ -32,6 +32,31 @@ export const getTeacherBySlug = cache(
   },
 )
 
+// The minimal community identity behind an invite token (0030). Resolved via the
+// teacher_by_join_token SECURITY DEFINER RPC — the token table itself is unreadable
+// to clients. Returns null for an unknown/expired token.
+export type JoinTokenTeacher = {
+  id: string
+  slug: string
+  name: string
+  logo_url: string | null
+  description: string | null
+}
+
+export async function getTeacherByJoinToken(
+  token: string,
+): Promise<JoinTokenTeacher | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('teacher_by_join_token', {
+    p_token: token,
+  })
+  if (error) {
+    throw new Error(`Failed to resolve invite link: ${error.message}`)
+  }
+  const row = (data ?? [])[0] as JoinTokenTeacher | undefined
+  return row ?? null
+}
+
 // The current user's ACTIVE memberships, joined to their teacher, for the
 // "Your communities" section of the /home shell. Each result carries the user's
 // role in that teacher. Returns [] when signed out (the layout already gates auth).

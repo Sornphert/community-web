@@ -405,6 +405,16 @@ create table public.saved_posts (
 );
 create index saved_posts_user_idx on public.saved_posts (user_id, created_at desc);
 
+-- join_tokens (0030) — per-teacher random invite token. Own table so `select *`
+-- on teachers stays token-free; NO client read (resolved via SECURITY DEFINER RPCs
+-- in SECTION 15) so a member can't harvest other communities' invite links.
+create table public.join_tokens (
+    teacher_id uuid primary key references public.teachers(id) on delete cascade,
+    token      text not null unique
+                 default substr(md5(random()::text || clock_timestamp()::text), 1, 12),
+    created_at timestamptz default now()
+);
+
 -- newsletter_items (migration 0005) — a running, newest-first feed of curated links,
 -- grouped by category on the public /home homepage. teacher_id + category_id are derived
 -- server-side from the authoring admin's teacher (never client-chosen); category_id is
@@ -735,6 +745,7 @@ alter table public.comments                         enable row level security;
 alter table public.comment_images                   enable row level security;
 alter table public.event_rsvps                      enable row level security;
 alter table public.saved_posts                      enable row level security;
+alter table public.join_tokens                      enable row level security;
 alter table public.post_images                      enable row level security;
 alter table public.post_attachments                 enable row level security;
 alter table public.post_videos                      enable row level security;
@@ -878,6 +889,12 @@ revoke all on public.event_rsvps from anon;
 -- saved_posts (0029) — own-only bookmarks; anon nothing.
 grant select, insert, delete on public.saved_posts to authenticated;
 revoke all on public.saved_posts from anon;
+
+-- join_tokens (0030) — clients get NOTHING (tokens are read only via definer RPCs);
+-- service_role for admin tooling. RLS is on with no policy, so even the grant-less
+-- state is belt-and-suspenders.
+revoke all on public.join_tokens from anon, authenticated;
+grant all on public.join_tokens to service_role;
 
 -- RPC EXECUTE — required for client rpc() calls
 grant execute on function public.has_membership(uuid), public.is_teacher_admin(uuid)
@@ -2356,6 +2373,38 @@ begin
   end if;
   perform cron.schedule('event-reminders', '*/10 * * * *', $cron$select public.send_event_reminders()$cron$);
 end $$;
+
+
+-- =============================================================================
+-- SECTION 15 — invite join tokens (0030)
+-- =============================================================================
+-- teacher_by_join_token: resolve a community from an opaque invite token (join page).
+create or replace function public.teacher_by_join_token(p_token text)
+returns table (id uuid, slug text, name text, logo_url text, description text)
+language sql security definer set search_path = public stable as $$
+  select t.id, t.slug, t.name, t.logo_url, t.description
+  from public.join_tokens jt join public.teachers t on t.id = jt.teacher_id
+  where jt.token = p_token;
+$$;
+grant execute on function public.teacher_by_join_token(text) to anon, authenticated;
+
+-- join_token_matches: gate requestToJoin — TRUE only if the token matches the teacher.
+create or replace function public.join_token_matches(p_teacher_id uuid, p_token text)
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (select 1 from public.join_tokens where teacher_id = p_teacher_id and token = p_token);
+$$;
+grant execute on function public.join_token_matches(uuid, text) to authenticated;
+
+-- Every new teacher auto-gets a token.
+create or replace function public.create_join_token()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.join_tokens (teacher_id) values (new.id) on conflict (teacher_id) do nothing;
+  return new;
+end $$;
+drop trigger if exists teachers_create_join_token on public.teachers;
+create trigger teachers_create_join_token after insert on public.teachers
+  for each row execute function public.create_join_token();
 
 
 -- =============================================================================

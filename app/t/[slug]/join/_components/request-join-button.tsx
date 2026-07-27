@@ -12,10 +12,12 @@ export function RequestJoinButton({
   slug,
   teacherId,
   teacherName,
+  token,
 }: {
   slug: string
   teacherId: string
   teacherName: string
+  token: string
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +26,7 @@ export function RequestJoinButton({
   function handleClick() {
     setError(null)
     startTransition(async () => {
-      const result = await requestToJoin({ slug, teacherId })
+      const result = await requestToJoin({ slug, teacherId, token })
       if (result?.error) {
         setError(result.error)
         return

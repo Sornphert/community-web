@@ -2,7 +2,6 @@ import Image from 'next/image'
 import { notFound, redirect } from 'next/navigation'
 import { getMyMembershipStatus, getTeacherBySlug } from '@/lib/teachers'
 import { PLATFORM_LOGO_URL } from '@/lib/config'
-import { RequestJoinButton } from './_components/request-join-button'
 
 // Non-member join surface. Sits OUTSIDE the (community) route group, so it inherits auth +
 // teacher resolution from the outer /t/[slug] layout but NOT the membership gate or member
@@ -61,22 +60,17 @@ export default async function JoinPage({
               Your request is awaiting approval
             </p>
             <p className="text-sm text-fg-muted">
-              An admin of {teacher.name} will review your request. You&rsquo;ll get
-              access once it&rsquo;s approved.
+              {`An admin of ${teacher.name} will review your request. You'll get access once it's approved.`}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
-            {teacher.description && (
-              <p className="text-center text-sm text-fg-muted">
-                {teacher.description}
-              </p>
-            )}
-            <RequestJoinButton
-              slug={slug}
-              teacherId={teacher.id}
-              teacherName={teacher.name}
-            />
+          // Non-member: this URL is guessable, so it is NOT a request surface.
+          // Requesting access requires a real invite link (/join/{token}).
+          <div className="flex flex-col gap-2 text-center">
+            <p className="text-sm font-medium text-fg">Invite only</p>
+            <p className="text-sm text-fg-muted">
+              {`${teacher.name} is invite only. Ask an admin for an invite link to request access.`}
+            </p>
           </div>
         )}
       </div>

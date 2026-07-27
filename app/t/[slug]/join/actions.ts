@@ -28,9 +28,13 @@ function mapRequestError(code: string | undefined): string {
 export async function requestToJoin(input: {
   slug: string
   teacherId: string
+  // The invite token from the /join/[token] link. Verified server-side so a member
+  // can't request access to a community by guessing its slug — only a valid invite
+  // link works.
+  token: string
 }): Promise<{ error?: string; success?: true }> {
-  if (!input.teacherId) {
-    return { error: 'Something went wrong — please refresh and try again.' }
+  if (!input.teacherId || !input.token) {
+    return { error: 'This invite link is invalid.' }
   }
 
   const supabase = await createClient()
@@ -39,6 +43,16 @@ export async function requestToJoin(input: {
   } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'You must be signed in.' }
+  }
+
+  // Gate on the invite token (SECURITY DEFINER check; the token table is unreadable
+  // to clients). Mismatch → this wasn't a real invite link for this community.
+  const { data: tokenOk, error: tokenErr } = await supabase.rpc(
+    'join_token_matches',
+    { p_teacher_id: input.teacherId, p_token: input.token },
+  )
+  if (tokenErr || tokenOk !== true) {
+    return { error: 'This invite link is invalid or has expired.' }
   }
 
   const { data, error } = await supabase.rpc('request_membership', {
@@ -57,8 +71,7 @@ export async function requestToJoin(input: {
     return { error: mapRequestError(result?.error) }
   }
 
-  // Flip the join page to its pending state. Concrete path (we have the slug) so only THIS
-  // teacher's join page is invalidated; the button also router.refresh()es to re-render.
-  revalidatePath(`/t/${input.slug}/join`, 'page')
+  // Flip the join page to its pending state. The button also router.refresh()es.
+  revalidatePath(`/join/${input.token}`, 'page')
   return { success: true }
 }
