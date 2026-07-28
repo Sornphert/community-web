@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GripVertical, Lock, Plus, Trash2, Film } from 'lucide-react'
+import { GripVertical, Lock, Plus, Trash2 } from 'lucide-react'
 import { createTopic } from '../documents/actions'
 import { deleteTopic, reorderTopics } from '../actions'
 import { useToast } from '@/app/_components/toast'
@@ -136,9 +136,6 @@ export function ClassroomAdminGrid({
               <p className="line-clamp-2 min-w-0 flex-1 font-medium text-fg">
                 {topic.name}
               </p>
-              {topic.is_recordings && (
-                <Film className="h-4 w-4 shrink-0 text-fg-muted" />
-              )}
               {topic.is_locked && (
                 <Lock className="h-4 w-4 shrink-0 text-fg-faint" />
               )}

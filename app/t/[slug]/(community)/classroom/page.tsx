@@ -4,14 +4,11 @@ import { Settings } from 'lucide-react'
 import { getInaccessibleTopicIds, getTopics } from '@/lib/classroom'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
-import { SHOW_RECORDINGS } from '@/lib/config'
 import { TopicCard } from './_components/topic-card'
 
-// The "Recordings" topic row is special-cased: instead of opening the generic
-// topic view it links to the Classroom Recordings folder tree, and renders
-// unlocked regardless of its is_locked flag. Every other topic keeps its default
-// behavior. [MT] The single-tenant hardcoded UUID is gone — the recordings topic
-// is now identified per-teacher by topic.is_recordings.
+// Every topic behaves the same now (0037/0038 unified recordings into video
+// lessons): each opens the generic topic view. Lifecycle (is_locked) and tag-gating
+// still apply per topic.
 export default async function ClassroomPage({
   params,
 }: {
@@ -28,15 +25,13 @@ export default async function ClassroomPage({
     getTopics(teacher.id),
     isTeacherAdmin(teacher.id),
   ])
-  const visibleTopics = SHOW_RECORDINGS
-    ? topics
-    : topics.filter((t) => !t.is_recordings)
+  const visibleTopics = topics
 
   // Which topics is THIS member tag-locked out of? Sourced from can_access_topic (the
   // same fn the content_items RLS gate calls), so the lock label can't drift from the
-  // wall. Recordings render open regardless, so they're excluded from the check.
+  // wall.
   const tagLockedIds = await getInaccessibleTopicIds(
-    visibleTopics.filter((t) => !t.is_recordings).map((t) => t.id),
+    visibleTopics.map((t) => t.id),
   )
 
   return (
@@ -61,13 +56,6 @@ export default async function ClassroomPage({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleTopics.map((topic) => {
-            if (topic.is_recordings) {
-              return (
-                <Link key={topic.id} href={`${basePath}/recordings`}>
-                  <TopicCard topic={{ ...topic, is_locked: false }} />
-                </Link>
-              )
-            }
             // is_locked (lifecycle "coming soon") wins if both apply.
             if (topic.is_locked) {
               return (

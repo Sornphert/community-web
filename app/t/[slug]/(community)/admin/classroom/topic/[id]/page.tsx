@@ -4,18 +4,16 @@ import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTopic, getContentItems } from '@/lib/classroom'
 import { getTeacherTags, getTopicTagIds } from '@/lib/tags'
-import { getFolders, getRecordings, buildFolderTree } from '@/lib/recordings'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
 import { TopicCoverRow } from '../../topics/_components/topic-cover-row'
 import { TopicTagsEditor } from '../../topics/_components/topic-tags-editor'
-import { AdminRecordingsTree } from '../../recordings/_components/admin-recordings-tree'
 import { TopicNameEditor } from './_components/topic-name-editor'
 import { ContentList } from './_components/content-list'
 import { AddLesson } from './_components/add-lesson'
 
-// One topic's management page: rename, cover, access (tags), and lessons — or the
-// recordings tree for the auto-managed recordings topic.
+// One topic's management page — identical for every topic: rename, cover, access
+// (tags), and lessons (documents + Bunny video uploads).
 export default async function AdminTopicDetailPage({
   params,
 }: {
@@ -55,35 +53,14 @@ export default async function AdminTopicDetailPage({
         />
       </div>
 
-      {topic.is_recordings ? (
-        <RecordingsSection teacherId={teacher.id} />
-      ) : (
-        <TopicContentSection
-          slug={slug}
-          teacherId={teacher.id}
-          uid={user.id}
-          topicId={topic.id}
-          topic={topic}
-        />
-      )}
+      <TopicContentSection
+        slug={slug}
+        teacherId={teacher.id}
+        uid={user.id}
+        topicId={topic.id}
+        topic={topic}
+      />
     </div>
-  )
-}
-
-async function RecordingsSection({ teacherId }: { teacherId: string }) {
-  const [folders, recordings] = await Promise.all([
-    getFolders(teacherId),
-    getRecordings(teacherId),
-  ])
-  const tree = buildFolderTree(folders, recordings)
-  return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold text-fg">Recordings</h2>
-      <p className="mb-4 text-sm text-fg-muted">
-        Create folders and upload recordings for this topic.
-      </p>
-      <AdminRecordingsTree tree={tree} teacherId={teacherId} />
-    </section>
   )
 }
 
