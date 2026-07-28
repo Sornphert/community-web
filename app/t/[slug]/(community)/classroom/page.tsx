@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Settings } from 'lucide-react'
 import { getInaccessibleTopicIds, getTopics } from '@/lib/classroom'
 import { getTeacherBySlug } from '@/lib/teachers'
+import { isTeacherAdmin } from '@/lib/auth'
 import { SHOW_RECORDINGS } from '@/lib/config'
 import { TopicCard } from './_components/topic-card'
 
@@ -22,7 +24,10 @@ export default async function ClassroomPage({
   }
   const basePath = `/t/${slug}/classroom`
 
-  const topics = await getTopics(teacher.id)
+  const [topics, isAdmin] = await Promise.all([
+    getTopics(teacher.id),
+    isTeacherAdmin(teacher.id),
+  ])
   const visibleTopics = SHOW_RECORDINGS
     ? topics
     : topics.filter((t) => !t.is_recordings)
@@ -36,7 +41,18 @@ export default async function ClassroomPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <h1 className="mb-4 text-xl font-semibold text-fg">Classroom</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-fg">Classroom</h1>
+        {isAdmin && (
+          <Link
+            href={`/t/${slug}/admin/classroom`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition-colors hover:bg-muted"
+          >
+            <Settings className="h-4 w-4" />
+            Classroom settings
+          </Link>
+        )}
+      </div>
 
       {visibleTopics.length === 0 ? (
         <div className="flex flex-1 items-center justify-center py-20">

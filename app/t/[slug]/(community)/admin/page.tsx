@@ -1,9 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import {
-  Film,
-  FileText,
-  Image as ImageIcon,
+  GraduationCap,
   Users,
   CalendarDays,
   Palette,
@@ -27,22 +25,11 @@ type AdminCard = {
 
 const cards: AdminCard[] = [
   {
-    to: '/admin/classroom/recordings',
-    label: 'Classroom Recordings',
-    description: 'Create and manage recording folders and videos.',
-    icon: Film,
-  },
-  {
-    to: '/admin/classroom/documents',
-    label: 'Classroom Documents',
-    description: 'Upload PDF and image lessons into topics.',
-    icon: FileText,
-  },
-  {
-    to: '/admin/classroom/topics',
-    label: 'Topics',
-    description: 'Set topic cover images and gate topics with tags.',
-    icon: ImageIcon,
+    to: '/admin/classroom',
+    label: 'Classroom settings',
+    description:
+      'Add topics and manage covers, access, lessons, and recordings.',
+    icon: GraduationCap,
   },
   {
     to: '/admin/tags',
