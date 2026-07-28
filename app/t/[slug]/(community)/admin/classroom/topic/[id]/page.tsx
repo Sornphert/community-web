@@ -9,10 +9,10 @@ import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
 import { TopicCoverRow } from '../../topics/_components/topic-cover-row'
 import { TopicTagsEditor } from '../../topics/_components/topic-tags-editor'
-import { DocumentLessonForm } from '../../documents/_components/document-lesson-form'
 import { AdminRecordingsTree } from '../../recordings/_components/admin-recordings-tree'
 import { TopicNameEditor } from './_components/topic-name-editor'
 import { ContentList } from './_components/content-list'
+import { AddLesson } from './_components/add-lesson'
 
 // One topic's management page: rename, cover, access (tags), and lessons — or the
 // recordings tree for the auto-managed recordings topic.
@@ -135,7 +135,7 @@ async function TopicContentSection({
             items={items.map((i) => ({ id: i.id, title: i.title, type: i.type }))}
           />
         </div>
-        <DocumentLessonForm topics={[topic]} teacherId={teacherId} uid={uid} />
+        <AddLesson teacherId={teacherId} uid={uid} topic={topic} />
       </section>
     </div>
   )

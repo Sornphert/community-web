@@ -306,18 +306,26 @@ create table public.content_items (
     document_storage_path  text,
     thumbnail_url          text,
     thumbnail_storage_path text,
+    -- 0037: Bunny-uploaded video lessons (mirror classroom_recordings video_* cols).
+    video_provider         text,
+    video_id               text,
+    video_status           text,
+    video_duration_seconds integer,
+    video_thumbnail_url    text,
     "position"             smallint not null default 0,
     created_at             timestamptz default now(),
     constraint content_items_pkey primary key (id),
     constraint content_items_type_check check (type = any (array['video','document'])),
+    -- 0037: a video item is valid with EITHER an external video_url OR a Bunny video_id.
     constraint content_items_payload_check check (
-      ((type = 'video') and (video_url is not null)) or
+      ((type = 'video') and ((video_url is not null) or (video_id is not null))) or
       ((type = 'document') and (document_url is not null))),
     constraint content_items_teacher_id_fkey foreign key (teacher_id) references public.teachers(id),
     constraint content_items_topic_same_teacher_fkey
       foreign key (topic_id, teacher_id) references public.topics (id, teacher_id) on delete cascade
 );
 create index content_items_topic_id_idx on public.content_items (topic_id);
+create index content_items_video_id_idx on public.content_items (video_id);
 
 create table public.classroom_folders (
     id               uuid not null default gen_random_uuid(),

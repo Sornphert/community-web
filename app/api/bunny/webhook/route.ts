@@ -39,8 +39,9 @@ export async function POST(request: NextRequest) {
     .eq('video_id', videoGuid)
     .maybeSingle()
 
-  let target: { table: 'classroom_recordings' | 'post_videos'; id: string } | null =
-    recording ? { table: 'classroom_recordings', id: recording.id } : null
+  let target:
+    | { table: 'classroom_recordings' | 'post_videos' | 'content_items'; id: string }
+    | null = recording ? { table: 'classroom_recordings', id: recording.id } : null
 
   if (!target) {
     const { data: postVideo } = await supabase
@@ -50,6 +51,19 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
     if (postVideo) {
       target = { table: 'post_videos', id: postVideo.id }
+    }
+  }
+
+  // Video lessons (0037) carry the same video_* columns, so the shared update below
+  // applies unchanged.
+  if (!target) {
+    const { data: contentItem } = await supabase
+      .from('content_items')
+      .select('id')
+      .eq('video_id', videoGuid)
+      .maybeSingle()
+    if (contentItem) {
+      target = { table: 'content_items', id: contentItem.id }
     }
   }
 

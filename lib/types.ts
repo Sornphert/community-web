@@ -516,6 +516,13 @@ export type ContentItem = {
   thumbnail_storage_path: string | null
   position: number
   created_at: string | null
+  // Bunny-uploaded video lessons (0037). video_id present → an uploaded video;
+  // otherwise a type='video' item falls back to video_url (external, e.g. Vimeo).
+  video_provider: string | null
+  video_id: string | null
+  video_status: string | null // 'pending' | 'processing' | 'ready' | 'failed'
+  video_duration_seconds: number | null
+  video_thumbnail_url: string | null
 }
 
 // Classroom tier tags (migration 0006). Per-teacher labels that gate Topics: a member

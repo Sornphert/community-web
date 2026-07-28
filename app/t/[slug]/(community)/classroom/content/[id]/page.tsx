@@ -4,7 +4,9 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getContentItem, isContentCompleted } from '@/lib/classroom'
 import { getTeacherBySlug } from '@/lib/teachers'
+import { getPlayerUrl, getThumbnailUrl } from '@/lib/bunny'
 import { parseVimeoUrl } from '@/lib/vimeo'
+import { PostVideoPlayer } from '../../../community/_components/post-video-player'
 import { CompleteToggle } from './_components/complete-toggle'
 
 export default async function ContentPage({
@@ -35,7 +37,12 @@ export default async function ContentPage({
 
   const initiallyCompleted = await isContentCompleted(user.id, item.id)
 
-  const parsed = item.type === 'video' ? parseVimeoUrl(item.video_url ?? '') : null
+  // A video lesson is either a Bunny upload (video_id) or an external URL (Vimeo).
+  const isBunny = item.type === 'video' && !!item.video_id
+  const parsed =
+    item.type === 'video' && !item.video_id
+      ? parseVimeoUrl(item.video_url ?? '')
+      : null
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -49,7 +56,13 @@ export default async function ContentPage({
 
       <div className="mt-4">
         {item.type === 'video' ? (
-          parsed ? (
+          isBunny ? (
+            <PostVideoPlayer
+              playerUrl={getPlayerUrl(item.video_id!)}
+              posterUrl={item.video_thumbnail_url ?? getThumbnailUrl(item.video_id!)}
+              status={item.video_status}
+            />
+          ) : parsed ? (
             <div className="aspect-video w-full overflow-hidden rounded-lg border border-line bg-black">
               <iframe
                 src={parsed.embedUrl}

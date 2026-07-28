@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import * as bunny from '@/lib/bunny'
+import type { TusUploadCredentials } from '@/lib/bunny'
 import { CONTENT_FILES_BUCKET } from '@/lib/content-files'
 import { TOPIC_COVERS_BUCKET } from '@/lib/topic-covers'
+import type { ContentItem } from '@/lib/types'
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -135,10 +138,19 @@ export async function deleteContentItem(input: {
 
   const { data: item } = await auth.supabase
     .from('content_items')
-    .select('document_storage_path')
+    .select('document_storage_path, video_id')
     .eq('id', input.itemId)
     .eq('teacher_id', input.teacherId)
     .maybeSingle()
+
+  // Best-effort Bunny cleanup before the row goes (a flaky call must not block).
+  if (item?.video_id) {
+    try {
+      await bunny.deleteVideo(item.video_id)
+    } catch (e) {
+      console.error(`Bunny deleteVideo failed for ${item.video_id}.`, e)
+    }
+  }
 
   const { error } = await auth.supabase
     .from('content_items')
@@ -152,6 +164,139 @@ export async function deleteContentItem(input: {
       .from(CONTENT_FILES_BUCKET)
       .remove([item.document_storage_path])
   }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+// Create a video lesson (Bunny upload). Provisions a Bunny video first so the row
+// satisfies the payload check (type='video' needs video_id), appends it at the
+// bottom, and returns it so the client can start the TUS upload. Mirrors the
+// recordings createRecording flow.
+export async function createVideoLesson(input: {
+  teacherId: string
+  topicId: string
+  title: string
+  description: string
+}): Promise<{ error?: string; item?: ContentItem }> {
+  const title = input.title.trim()
+  if (!title) return { error: 'Title is required.' }
+  if (!input.topicId) return { error: 'Missing topic.' }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { count } = await auth.supabase
+    .from('content_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('topic_id', input.topicId)
+    .eq('teacher_id', input.teacherId)
+
+  let videoId: string
+  try {
+    ;({ videoId } = await bunny.createVideo(title))
+  } catch (e) {
+    return {
+      error: `Bunny video setup failed: ${
+        e instanceof Error ? e.message : 'unknown error'
+      }`,
+    }
+  }
+
+  const { data, error } = await auth.supabase
+    .from('content_items')
+    .insert({
+      teacher_id: input.teacherId,
+      topic_id: input.topicId,
+      type: 'video',
+      title,
+      description: input.description.trim() || null,
+      video_id: videoId,
+      video_provider: 'bunny',
+      video_status: 'pending',
+      position: count ?? 0,
+    })
+    .select('*')
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return { item: data as ContentItem }
+}
+
+// Mint presigned TUS credentials so the browser uploads the video directly to Bunny
+// (API key never reaches the client); flips the item to 'processing'.
+export async function getLessonVideoUploadCredentials(
+  teacherId: string,
+  itemId: string,
+): Promise<{ error?: string; credentials?: TusUploadCredentials }> {
+  const auth = await requireTeacherAdmin(teacherId)
+  if ('error' in auth) return auth
+
+  const { data: item } = await auth.supabase
+    .from('content_items')
+    .select('video_id')
+    .eq('id', itemId)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+  if (!item?.video_id) return { error: 'This lesson has no Bunny video yet.' }
+
+  let credentials: TusUploadCredentials
+  try {
+    credentials = bunny.getTusUploadCredentials(item.video_id)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to sign upload.' }
+  }
+
+  await auth.supabase
+    .from('content_items')
+    .update({ video_status: 'processing' })
+    .eq('id', itemId)
+    .eq('teacher_id', teacherId)
+
+  revalidatePath('/', 'layout')
+  return { credentials }
+}
+
+// Manual fallback when the webhook misses an event: re-read status from Bunny.
+export async function refreshLessonVideoStatus(
+  teacherId: string,
+  itemId: string,
+): Promise<{ error?: string; success?: true }> {
+  const auth = await requireTeacherAdmin(teacherId)
+  if ('error' in auth) return auth
+
+  const { data: item } = await auth.supabase
+    .from('content_items')
+    .select('video_id')
+    .eq('id', itemId)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+  if (!item?.video_id) return { error: 'This lesson has no Bunny video yet.' }
+
+  let info: Awaited<ReturnType<typeof bunny.getVideo>>
+  let next: ReturnType<typeof bunny.mapBunnyStatusToVideoStatus>
+  try {
+    info = await bunny.getVideo(item.video_id)
+    next = bunny.mapBunnyStatusToVideoStatus(info.status)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to read status.' }
+  }
+  if (!next) return { success: true }
+
+  const update: Record<string, unknown> = { video_status: next }
+  if (next === 'ready') {
+    update.video_duration_seconds = info.length
+    update.video_thumbnail_url = bunny.getThumbnailUrl(item.video_id)
+  }
+
+  const { error } = await auth.supabase
+    .from('content_items')
+    .update(update)
+    .eq('id', itemId)
+    .eq('teacher_id', teacherId)
+  if (error) return { error: error.message }
 
   revalidatePath('/', 'layout')
   return { success: true }
