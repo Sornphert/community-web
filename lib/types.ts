@@ -523,6 +523,19 @@ export type ContentItem = {
   video_status: string | null // 'pending' | 'processing' | 'ready' | 'failed'
   video_duration_seconds: number | null
   video_thumbnail_url: string | null
+  // Nested lesson folder (0039). null = at the topic root.
+  folder_id: string | null
+}
+
+// A folder within a topic, nesting up to 3 levels via parent_folder_id (0039).
+export type LessonFolder = {
+  id: string
+  teacher_id: string
+  topic_id: string
+  parent_folder_id: string | null
+  name: string
+  position: number
+  created_at: string | null
 }
 
 // Classroom tier tags (migration 0006). Per-teacher labels that gate Topics: a member

@@ -312,6 +312,8 @@ create table public.content_items (
     video_status           text,
     video_duration_seconds integer,
     video_thumbnail_url    text,
+    -- 0039: nested lesson folder (FK added after lesson_folders is defined below).
+    folder_id              uuid,
     "position"             smallint not null default 0,
     created_at             timestamptz default now(),
     constraint content_items_pkey primary key (id),
@@ -326,6 +328,30 @@ create table public.content_items (
 );
 create index content_items_topic_id_idx on public.content_items (topic_id);
 create index content_items_video_id_idx on public.content_items (video_id);
+
+-- lesson_folders (0039) — nested folders (≤3 deep, app-enforced) for a topic's
+-- lessons. content_items.folder_id (FK below) places a lesson in a folder; null =
+-- topic root. Deleting a folder cascades sub-folders; its lessons fall back to root.
+create table public.lesson_folders (
+    id               uuid primary key default gen_random_uuid(),
+    teacher_id       uuid not null,
+    topic_id         uuid not null,
+    parent_folder_id uuid,
+    name             text not null,
+    position         integer not null default 0,
+    created_at       timestamptz default now(),
+    constraint lesson_folders_teacher_fkey foreign key (teacher_id) references public.teachers(id),
+    constraint lesson_folders_topic_same_teacher_fkey
+      foreign key (topic_id, teacher_id) references public.topics (id, teacher_id) on delete cascade,
+    constraint lesson_folders_parent_fkey
+      foreign key (parent_folder_id) references public.lesson_folders(id) on delete cascade
+);
+create index lesson_folders_topic_idx  on public.lesson_folders (topic_id);
+create index lesson_folders_parent_idx on public.lesson_folders (parent_folder_id);
+-- 0039: content_items.folder_id FK, added here because lesson_folders is defined
+-- after content_items. On folder delete, the lesson moves to the topic root.
+alter table public.content_items add constraint content_items_folder_fkey
+  foreign key (folder_id) references public.lesson_folders(id) on delete set null;
 
 create table public.classroom_folders (
     id               uuid not null default gen_random_uuid(),
@@ -849,6 +875,7 @@ alter table public.channels                        enable row level security;
 alter table public.posts                            enable row level security;
 alter table public.topics                           enable row level security;
 alter table public.content_items                    enable row level security;
+alter table public.lesson_folders                   enable row level security;
 alter table public.classroom_folders                enable row level security;
 alter table public.classroom_recordings             enable row level security;
 alter table public.events                           enable row level security;
@@ -900,9 +927,9 @@ grant select, insert, update, delete, truncate, references, trigger on
   public.channels, public.classroom_folders, public.classroom_recording_progress,
   public.classroom_recordings, public.comment_likes, public.comments,
   public.content_items, public.content_progress, public.events,
-  public.newsletter_items, public.post_attachments, public.post_images,
-  public.post_likes, public.post_videos, public.posts, public.teachers,
-  public.topics, public.week_groups
+  public.lesson_folders, public.newsletter_items, public.post_attachments,
+  public.post_images, public.post_likes, public.post_videos, public.posts,
+  public.teachers, public.topics, public.week_groups
   to authenticated;
 
 -- authenticated — memberships: write-LESS (no INSERT/UPDATE/DELETE). The explicit
@@ -1145,6 +1172,13 @@ create policy content_items_select        on public.content_items for select to 
 create policy content_items_insert_admin  on public.content_items for insert to authenticated with check (is_teacher_admin(teacher_id));
 create policy content_items_update_admin  on public.content_items for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
 create policy content_items_delete_admin  on public.content_items for delete to authenticated using (is_teacher_admin(teacher_id));
+
+-- lesson_folders (0039) — member read gated by topic access (same as content_items);
+-- admin-only writes.
+create policy lesson_folders_select        on public.lesson_folders for select to authenticated using (has_membership(teacher_id) and can_access_topic(topic_id));
+create policy lesson_folders_insert_admin  on public.lesson_folders for insert to authenticated with check (is_teacher_admin(teacher_id));
+create policy lesson_folders_update_admin  on public.lesson_folders for update to authenticated using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
+create policy lesson_folders_delete_admin  on public.lesson_folders for delete to authenticated using (is_teacher_admin(teacher_id));
 
 -- classroom TIER TAGS (0006) — member-read, admin-write (is_teacher_admin). The
 -- content_items gate (can_access_topic) is SECURITY DEFINER and does NOT depend on

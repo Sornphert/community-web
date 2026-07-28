@@ -12,10 +12,13 @@ export function AddLesson({
   teacherId,
   uid,
   topic,
+  folderId = null,
 }: {
   teacherId: string
   uid: string
   topic: Topic
+  // Place created lessons in this folder (null = topic root).
+  folderId?: string | null
 }) {
   const [tab, setTab] = useState<'document' | 'video'>('document')
 
@@ -49,9 +52,19 @@ export function AddLesson({
       </div>
 
       {tab === 'document' ? (
-        <DocumentLessonForm topics={[topic]} teacherId={teacherId} uid={uid} />
+        <DocumentLessonForm
+          topics={[topic]}
+          teacherId={teacherId}
+          uid={uid}
+          fixedTopicId={topic.id}
+          folderId={folderId}
+        />
       ) : (
-        <VideoLessonForm teacherId={teacherId} topicId={topic.id} />
+        <VideoLessonForm
+          teacherId={teacherId}
+          topicId={topic.id}
+          folderId={folderId}
+        />
       )}
     </div>
   )

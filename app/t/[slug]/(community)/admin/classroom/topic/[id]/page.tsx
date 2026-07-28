@@ -3,14 +3,14 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTopic, getContentItems } from '@/lib/classroom'
+import { getLessonFolders, buildLessonTree } from '@/lib/lessons'
 import { getTeacherTags, getTopicTagIds } from '@/lib/tags'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
 import { TopicCoverRow } from '../../topics/_components/topic-cover-row'
 import { TopicTagsEditor } from '../../topics/_components/topic-tags-editor'
 import { TopicNameEditor } from './_components/topic-name-editor'
-import { ContentList } from './_components/content-list'
-import { AddLesson } from './_components/add-lesson'
+import { LessonManager } from './_components/lesson-manager'
 
 // One topic's management page — identical for every topic: rename, cover, access
 // (tags), and lessons (documents + Bunny video uploads).
@@ -78,11 +78,13 @@ async function TopicContentSection({
   topic: Awaited<ReturnType<typeof getTopic>>
 }) {
   if (!topic) return null
-  const [items, tags, attachedTagIds] = await Promise.all([
+  const [items, folders, tags, attachedTagIds] = await Promise.all([
     getContentItems(topicId, teacherId),
+    getLessonFolders(topicId, teacherId),
     getTeacherTags(teacherId),
     getTopicTagIds(topicId, teacherId),
   ])
+  const tree = buildLessonTree(folders, items)
 
   return (
     <div className="flex flex-col gap-8">
@@ -105,14 +107,11 @@ async function TopicContentSection({
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">Lessons</h2>
-        <div className="mb-4">
-          <ContentList
-            teacherId={teacherId}
-            items={items.map((i) => ({ id: i.id, title: i.title, type: i.type }))}
-          />
-        </div>
-        <AddLesson teacherId={teacherId} uid={uid} topic={topic} />
+        <h2 className="mb-1 text-sm font-semibold text-fg">Lessons</h2>
+        <p className="mb-3 text-xs text-fg-muted">
+          Organize lessons into folders (up to 3 levels).
+        </p>
+        <LessonManager teacherId={teacherId} uid={uid} topic={topic} tree={tree} />
       </section>
     </div>
   )

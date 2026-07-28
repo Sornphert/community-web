@@ -169,6 +169,112 @@ export async function deleteContentItem(input: {
   return { success: true }
 }
 
+// ── Lesson folders (0039) — nested up to 3 levels within a topic. ──────────────
+
+// Create a folder. parentFolderId nests it; depth is capped at 3. Appends among
+// siblings. Enforced in-app (RLS handles the admin gate).
+export async function createLessonFolder(input: {
+  teacherId: string
+  topicId: string
+  parentFolderId: string | null
+  name: string
+}): Promise<{ error?: string; success?: true }> {
+  const name = input.name.trim()
+  if (!name) return { error: 'Folder name is required.' }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  // Depth cap: a folder may sit at level 1, 2, or 3. Reject a 4th level.
+  if (input.parentFolderId) {
+    const { data: parent } = await auth.supabase
+      .from('lesson_folders')
+      .select('parent_folder_id')
+      .eq('id', input.parentFolderId)
+      .eq('teacher_id', input.teacherId)
+      .maybeSingle()
+    if (parent?.parent_folder_id) {
+      const { data: grandparent } = await auth.supabase
+        .from('lesson_folders')
+        .select('parent_folder_id')
+        .eq('id', parent.parent_folder_id)
+        .eq('teacher_id', input.teacherId)
+        .maybeSingle()
+      if (grandparent?.parent_folder_id) {
+        return { error: 'Folders can only go 3 levels deep.' }
+      }
+    }
+  }
+
+  let siblingQuery = auth.supabase
+    .from('lesson_folders')
+    .select('position')
+    .eq('topic_id', input.topicId)
+    .eq('teacher_id', input.teacherId)
+  siblingQuery = input.parentFolderId
+    ? siblingQuery.eq('parent_folder_id', input.parentFolderId)
+    : siblingQuery.is('parent_folder_id', null)
+  const { data: last } = await siblingQuery
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const position = (last?.position ?? -1) + 1
+
+  const { error } = await auth.supabase.from('lesson_folders').insert({
+    teacher_id: input.teacherId,
+    topic_id: input.topicId,
+    parent_folder_id: input.parentFolderId,
+    name,
+    position,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+export async function renameLessonFolder(input: {
+  teacherId: string
+  folderId: string
+  name: string
+}): Promise<{ error?: string; success?: true }> {
+  const name = input.name.trim()
+  if (!name) return { error: 'Folder name is required.' }
+
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { error } = await auth.supabase
+    .from('lesson_folders')
+    .update({ name })
+    .eq('id', input.folderId)
+    .eq('teacher_id', input.teacherId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+// Delete a folder. Sub-folders cascade; lessons inside fall back to the topic root
+// (folder_id → null) so nothing is lost.
+export async function deleteLessonFolder(input: {
+  teacherId: string
+  folderId: string
+}): Promise<{ error?: string; success?: true }> {
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  const { error } = await auth.supabase
+    .from('lesson_folders')
+    .delete()
+    .eq('id', input.folderId)
+    .eq('teacher_id', input.teacherId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
 // Create a video lesson (Bunny upload). Provisions a Bunny video first so the row
 // satisfies the payload check (type='video' needs video_id), appends it at the
 // bottom, and returns it so the client can start the TUS upload. Mirrors the
@@ -178,6 +284,7 @@ export async function createVideoLesson(input: {
   topicId: string
   title: string
   description: string
+  folderId?: string | null
 }): Promise<{ error?: string; item?: ContentItem }> {
   const title = input.title.trim()
   if (!title) return { error: 'Title is required.' }
@@ -214,6 +321,7 @@ export async function createVideoLesson(input: {
       video_id: videoId,
       video_provider: 'bunny',
       video_status: 'pending',
+      folder_id: input.folderId ?? null,
       position: count ?? 0,
     })
     .select('*')

@@ -9,8 +9,9 @@ import {
   getTopicRequiredTagNames,
   getUserProgress,
 } from '@/lib/classroom'
+import { getLessonFolders, buildLessonTree } from '@/lib/lessons'
 import { getTeacherBySlug } from '@/lib/teachers'
-import { ContentRow } from './_components/content-row'
+import { MemberLessonTree } from './_components/member-lesson-tree'
 
 export default async function TopicPage({
   params,
@@ -96,7 +97,10 @@ async function TopicLessons({
   userId: string
   basePath: string
 }) {
-  const items = await getContentItems(topicId, teacherId)
+  const [items, folders] = await Promise.all([
+    getContentItems(topicId, teacherId),
+    getLessonFolders(topicId, teacherId),
+  ])
   const completedIds =
     items.length > 0
       ? await getUserProgress(
@@ -104,21 +108,20 @@ async function TopicLessons({
           items.map((item) => item.id),
         )
       : new Set<string>()
+  const tree = buildLessonTree(folders, items)
 
   return (
     <>
       <h2 className="mb-2 text-sm text-fg-muted">Lessons</h2>
 
-      {items.length === 0 ? (
+      {items.length === 0 && folders.length === 0 ? (
         <p className="mt-4 text-fg-muted">No content yet</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {items.map((item) => (
-            <Link key={item.id} href={`${basePath}/content/${item.id}`}>
-              <ContentRow item={item} completed={completedIds.has(item.id)} />
-            </Link>
-          ))}
-        </div>
+        <MemberLessonTree
+          tree={tree}
+          basePath={basePath}
+          completedIds={[...completedIds]}
+        />
       )}
     </>
   )

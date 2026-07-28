@@ -89,6 +89,7 @@ export async function createDocumentLesson(input: {
   documentUrl: string
   documentStoragePath: string
   thumbnailUrl: string | null
+  folderId?: string | null
 }): Promise<{ error?: string; item?: ContentItem }> {
   const title = input.title.trim()
   if (!title) {
@@ -127,6 +128,7 @@ export async function createDocumentLesson(input: {
       document_url: input.documentUrl,
       document_storage_path: input.documentStoragePath,
       thumbnail_url: input.thumbnailUrl,
+      folder_id: input.folderId ?? null,
       position: count ?? 0,
     })
     .select('*')

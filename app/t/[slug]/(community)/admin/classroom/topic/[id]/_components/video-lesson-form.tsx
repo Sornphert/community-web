@@ -16,9 +16,11 @@ const inputClass =
 export function VideoLessonForm({
   teacherId,
   topicId,
+  folderId = null,
 }: {
   teacherId: string
   topicId: string
+  folderId?: string | null
 }) {
   const router = useRouter()
   const { showToast } = useToast()
@@ -36,6 +38,7 @@ export function VideoLessonForm({
       topicId,
       title,
       description,
+      folderId,
     })
     setCreating(false)
     if (result.error || !result.item) {

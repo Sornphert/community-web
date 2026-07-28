@@ -26,10 +26,17 @@ export function DocumentLessonForm({
   topics,
   teacherId,
   uid,
+  fixedTopicId,
+  folderId = null,
 }: {
   topics: Topic[]
   teacherId: string
   uid: string
+  // When set, the form uploads into THIS topic and hides the topic selector +
+  // new-topic option (used on the topic management page — topics are created only
+  // from Classroom settings). folderId places the lesson inside a folder.
+  fixedTopicId?: string
+  folderId?: string | null
 }) {
   const router = useRouter()
   const [topicMode, setTopicMode] = useState<string>(topics[0]?.id ?? NEW_TOPIC)
@@ -93,9 +100,9 @@ export function DocumentLessonForm({
     try {
       const supabase = createClient()
 
-      // Resolve the parent topic — create it first if in new-topic mode.
-      let topicId = topicMode
-      if (topicMode === NEW_TOPIC) {
+      // Resolve the parent topic. A fixed topic skips the selector + new-topic path.
+      let topicId = fixedTopicId ?? topicMode
+      if (!fixedTopicId && topicMode === NEW_TOPIC) {
         if (!newTopicName.trim()) {
           setError('Please enter a name for the new topic.')
           setIsSubmitting(false)
@@ -163,6 +170,7 @@ export function DocumentLessonForm({
         // For images, reuse the file reference as the thumbnail so it previews
         // inline (also re-signed on read).
         thumbnailUrl: upload.isImage ? url : null,
+        folderId,
       })
       if (result.error) {
         throw new Error(result.error)
@@ -194,23 +202,25 @@ export function DocumentLessonForm({
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4"
     >
-      <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
-        Topic
-        <select
-          value={topicMode}
-          onChange={(e) => setTopicMode(e.target.value)}
-          className={inputClass}
-        >
-          {topics.map((topic) => (
-            <option key={topic.id} value={topic.id}>
-              {topic.name}
-            </option>
-          ))}
-          <option value={NEW_TOPIC}>+ New topic…</option>
-        </select>
-      </label>
+      {!fixedTopicId && (
+        <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
+          Topic
+          <select
+            value={topicMode}
+            onChange={(e) => setTopicMode(e.target.value)}
+            className={inputClass}
+          >
+            {topics.map((topic) => (
+              <option key={topic.id} value={topic.id}>
+                {topic.name}
+              </option>
+            ))}
+            <option value={NEW_TOPIC}>+ New topic…</option>
+          </select>
+        </label>
+      )}
 
-      {topicMode === NEW_TOPIC && (
+      {!fixedTopicId && topicMode === NEW_TOPIC && (
         <>
           <label className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
             New topic name
