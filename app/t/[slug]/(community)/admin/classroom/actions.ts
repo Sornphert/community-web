@@ -59,14 +59,10 @@ export async function deleteTopic(input: {
 
   const { data: topic } = await auth.supabase
     .from('topics')
-    .select('cover_storage_path, is_recordings')
+    .select('cover_storage_path')
     .eq('id', input.topicId)
     .eq('teacher_id', input.teacherId)
     .maybeSingle()
-
-  if (topic?.is_recordings) {
-    return { error: 'The Recordings topic can’t be deleted.' }
-  }
 
   const { error } = await auth.supabase
     .from('topics')
@@ -80,6 +76,49 @@ export async function deleteTopic(input: {
     await auth.supabase.storage
       .from(TOPIC_COVERS_BUCKET)
       .remove([topic.cover_storage_path])
+  }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+// Persist a new topic order. orderedIds is the full list in the desired order;
+// each topic's position is set to its index. Scoped by teacher_id.
+export async function reorderTopics(input: {
+  teacherId: string
+  orderedIds: string[]
+}): Promise<{ error?: string; success?: true }> {
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  for (let i = 0; i < input.orderedIds.length; i++) {
+    const { error } = await auth.supabase
+      .from('topics')
+      .update({ position: i })
+      .eq('id', input.orderedIds[i])
+      .eq('teacher_id', input.teacherId)
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+// Persist a new lesson order within a topic.
+export async function reorderContentItems(input: {
+  teacherId: string
+  orderedIds: string[]
+}): Promise<{ error?: string; success?: true }> {
+  const auth = await requireTeacherAdmin(input.teacherId)
+  if ('error' in auth) return auth
+
+  for (let i = 0; i < input.orderedIds.length; i++) {
+    const { error } = await auth.supabase
+      .from('content_items')
+      .update({ position: i })
+      .eq('id', input.orderedIds[i])
+      .eq('teacher_id', input.teacherId)
+    if (error) return { error: error.message }
   }
 
   revalidatePath('/', 'layout')

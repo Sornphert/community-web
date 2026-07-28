@@ -123,7 +123,6 @@ function FolderModal({
   onClose: () => void
 }) {
   const [name, setName] = useState(initialName)
-  const [position, setPosition] = useState(String(initialPosition))
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -131,10 +130,8 @@ function FolderModal({
     e.preventDefault()
     setIsPending(true)
     setError(null)
-    const result = await onSubmit({
-      name,
-      position: parseInt(position, 10) || 0,
-    })
+    // Position is auto-assigned (append / keep existing); reorder by dragging.
+    const result = await onSubmit({ name, position: initialPosition })
     if (result.error) {
       setError(result.error)
       setIsPending(false)
@@ -155,16 +152,6 @@ function FolderModal({
             disabled={isPending}
             autoFocus
             required
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Position</label>
-          <input
-            type="number"
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            disabled={isPending}
             className={inputClass}
           />
         </div>
@@ -201,6 +188,7 @@ function FolderModal({
 function RecordingModal({
   title,
   recording,
+  initialPosition,
   teacherId,
   submitLabel,
   onSubmit,
@@ -209,6 +197,8 @@ function RecordingModal({
   title: string
   // Present in edit mode; absent in create mode (set once created below).
   recording?: ClassroomRecording
+  // Auto-assigned position (append on create; existing on edit). No manual field.
+  initialPosition: number
   teacherId: string
   submitLabel: string
   onSubmit: (values: {
@@ -220,7 +210,6 @@ function RecordingModal({
 }) {
   const [titleValue, setTitleValue] = useState(recording?.title ?? '')
   const [description, setDescription] = useState(recording?.description ?? '')
-  const [position, setPosition] = useState(String(recording?.position ?? 0))
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // In create mode, the row just created — switches the footer to the upload step.
@@ -238,7 +227,7 @@ function RecordingModal({
     const result = await onSubmit({
       title: titleValue,
       description,
-      position: parseInt(position, 10) || 0,
+      position: recording?.position ?? initialPosition,
     })
     if (result.error) {
       setError(result.error)
@@ -280,17 +269,6 @@ function RecordingModal({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>Position</label>
-          <input
-            type="number"
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            disabled={isPending || justCreated}
-            className={inputClass}
-          />
-        </div>
-
         {error && (
           <p className="rounded-md bg-danger-subtle px-3 py-2 text-sm text-danger-text">
             {error}
@@ -749,6 +727,7 @@ export function AdminRecordingsTree({
         <RecordingModal
           title="Add Recording"
           teacherId={teacherId}
+          initialPosition={modal.position}
           submitLabel="Create"
           onClose={closeModal}
           onSubmit={({ title, description, position }) =>
@@ -767,6 +746,7 @@ export function AdminRecordingsTree({
         <RecordingModal
           title="Edit Recording"
           recording={modal.recording}
+          initialPosition={modal.recording.position}
           teacherId={teacherId}
           submitLabel="Save"
           onClose={closeModal}

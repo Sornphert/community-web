@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Lock, Plus, Trash2, Film } from 'lucide-react'
+import { GripVertical, Lock, Plus, Trash2, Film } from 'lucide-react'
 import { createTopic } from '../documents/actions'
-import { deleteTopic } from '../actions'
+import { deleteTopic, reorderTopics } from '../actions'
 import { useToast } from '@/app/_components/toast'
 
 type AdminTopic = {
@@ -17,7 +17,7 @@ type AdminTopic = {
 }
 
 // Admin classroom hub grid: the same topic cards members see, plus an "Add topic"
-// tile and a per-topic delete. Each card links to the topic's management page.
+// tile, per-topic delete, and drag-to-reorder (order persists via reorderTopics).
 export function ClassroomAdminGrid({
   slug,
   teacherId,
@@ -29,10 +29,19 @@ export function ClassroomAdminGrid({
 }) {
   const router = useRouter()
   const { showToast } = useToast()
+  const [order, setOrder] = useState<AdminTopic[]>(topics)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  const dragIndex = useRef<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
   const base = `/t/${slug}/admin/classroom`
+
+  // Re-sync when the server sends a new set (create/delete/refresh).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrder(topics)
+  }, [topics])
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
@@ -51,12 +60,10 @@ export function ClassroomAdminGrid({
   }
 
   async function remove(topic: AdminTopic) {
-    if (
-      !window.confirm(
-        `Delete “${topic.name}”? Its lessons will be removed. This can’t be undone.`,
-      )
-    )
-      return
+    const warning = topic.is_recordings
+      ? `Delete “${topic.name}”? This removes members’ access to its recordings. This can’t be undone.`
+      : `Delete “${topic.name}”? Its lessons will be removed. This can’t be undone.`
+    if (!window.confirm(warning)) return
     const result = await deleteTopic({ teacherId, topicId: topic.id })
     if (result.error) {
       showToast(result.error, 'error')
@@ -66,13 +73,50 @@ export function ClassroomAdminGrid({
     router.refresh()
   }
 
+  function onDrop(toIndex: number) {
+    const from = dragIndex.current
+    dragIndex.current = null
+    setDragOver(null)
+    if (from === null || from === toIndex) return
+    const next = [...order]
+    const [moved] = next.splice(from, 1)
+    next.splice(toIndex, 0, moved)
+    setOrder(next)
+    reorderTopics({ teacherId, orderedIds: next.map((t) => t.id) }).then((r) => {
+      if (r.error) {
+        showToast('Could not save order', 'error')
+        router.refresh()
+      }
+    })
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {topics.map((topic) => (
+      {order.map((topic, index) => (
         <div
           key={topic.id}
-          className="group relative overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md"
+          draggable
+          onDragStart={() => {
+            dragIndex.current = index
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(index)
+          }}
+          onDrop={() => onDrop(index)}
+          onDragEnd={() => {
+            dragIndex.current = null
+            setDragOver(null)
+          }}
+          className={`group relative overflow-hidden rounded-lg border bg-surface transition-shadow hover:shadow-md ${
+            dragOver === index ? 'border-inverse' : 'border-line'
+          }`}
         >
+          {/* Drag handle */}
+          <span className="absolute left-2 top-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
+            <GripVertical className="h-4 w-4" />
+          </span>
+
           <Link href={`${base}/topic/${topic.id}`} className="block">
             {topic.cover_image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -101,17 +145,14 @@ export function ClassroomAdminGrid({
             </div>
           </Link>
 
-          {/* Recordings topic is auto-managed → no delete. */}
-          {!topic.is_recordings && (
-            <button
-              type="button"
-              onClick={() => remove(topic)}
-              aria-label={`Delete ${topic.name}`}
-              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-danger group-hover:opacity-100 focus-visible:opacity-100"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => remove(topic)}
+            aria-label={`Delete ${topic.name}`}
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-danger group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ))}
 

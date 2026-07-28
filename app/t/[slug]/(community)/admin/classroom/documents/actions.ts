@@ -47,14 +47,26 @@ export async function createTopic(input: {
   const auth = await requireTeacherAdmin(input.teacherId)
   if ('error' in auth) return auth
 
-  // Only `name` is required — position/is_locked/etc. use DB defaults. The cover
-  // is optional; the client uploads it to topic-covers first and passes the
-  // resulting URL + path (both null when no cover was attached).
+  // Append new topics at the bottom (max position + 1) so the classroom order is
+  // stable and drag-reorder has a sensible starting point.
+  const { data: last } = await auth.supabase
+    .from('topics')
+    .select('position')
+    .eq('teacher_id', input.teacherId)
+    .order('position', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextPosition = (last?.position ?? -1) + 1
+
+  // Only `name` is required — is_locked/etc. use DB defaults. The cover is optional;
+  // the client uploads it to topic-covers first and passes the resulting URL + path
+  // (both null when no cover was attached).
   const { data, error } = await auth.supabase
     .from('topics')
     .insert({
       teacher_id: input.teacherId,
       name,
+      position: nextPosition,
       cover_image_url: input.coverImageUrl ?? null,
       cover_storage_path: input.coverStoragePath ?? null,
     })
