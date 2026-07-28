@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { MessageSquare, Plus } from 'lucide-react'
+import { ScrollToTop } from '@/app/_components/scroll-to-top'
 import {
   getAllMembers,
   getChannelBySlug,
@@ -146,8 +147,23 @@ export default async function ChannelPage({
         </div>
 
         {posts.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-20">
-            <p className="text-fg-muted">No posts yet</p>
+          <div className="mt-6 flex flex-col items-center rounded-lg border border-line bg-surface px-6 py-12 text-center">
+            <MessageSquare className="h-8 w-8 text-fg-muted" />
+            <p className="mt-3 text-sm font-medium text-fg">No posts yet</p>
+            <p className="mt-1 text-sm text-fg-muted">
+              {canPost
+                ? 'Be the first to post in this channel.'
+                : 'Check back soon — new posts will show up here.'}
+            </p>
+            {canPost && (
+              <Link
+                href={`${basePath}/${channel.slug}/new`}
+                className="mt-4 inline-flex items-center gap-1 rounded-md bg-inverse px-3 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover"
+              >
+                <Plus className="h-4 w-4" />
+                Create the first post
+              </Link>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -174,6 +190,9 @@ export default async function ChannelPage({
           </div>
         )}
       </div>
+
+      {/* Lifted above the mobile tab bar; back to bottom-6 on desktop. */}
+      <ScrollToTop bottomClassName="bottom-24 md:bottom-6" />
     </>
   )
 }
