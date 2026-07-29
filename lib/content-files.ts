@@ -33,33 +33,48 @@ export const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 export const XLS_MIME = 'application/vnd.ms-excel'
 
-// Excel detection is MIME-first with an extension fallback: some browsers report
-// an empty or generic (application/octet-stream) type for .xls/.xlsx, so the
-// declared file.type alone is not reliable for spreadsheets.
-export function isExcelFile(file: File): boolean {
-  if (file.type === XLSX_MIME || file.type === XLS_MIME) return true
-  const name = file.name.toLowerCase()
-  return name.endsWith('.xlsx') || name.endsWith('.xls')
+// Allowed NON-image document extensions → the content-type to store them with.
+// Images are handled separately (converted to JPEG). Detection is extension-first
+// (browsers often report empty/generic file.type for Office/CSV files), falling back
+// to the declared file.type when a known extension isn't present.
+const DOC_TYPES: Record<string, string> = {
+  pdf: PDF_MIME,
+  xlsx: XLSX_MIME,
+  xls: XLS_MIME,
+  csv: 'text/csv',
+  txt: 'text/plain',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  rtf: 'application/rtf',
+  key: 'application/octet-stream',
+  pages: 'application/octet-stream',
+  numbers: 'application/octet-stream',
+  zip: 'application/zip',
 }
 
-// A lesson file is an image (uploaded as JPEG), a PDF, or an Excel spreadsheet.
-// MIME is the declared file.type — best-effort, not byte-sniffed (matches post
-// attachments) — with an extension fallback for Excel.
+// The `accept` attribute for the file picker — images plus the common document types.
+export const LESSON_FILE_ACCEPT = `image/*,${Object.keys(DOC_TYPES)
+  .map((e) => `.${e}`)
+  .join(',')}`
+
+function extensionOf(name: string): string {
+  const i = name.lastIndexOf('.')
+  return i >= 0 ? name.slice(i + 1).toLowerCase() : ''
+}
+
+// A lesson file is an image (uploaded as JPEG) or one of the common document types.
 export function isAllowedLessonFile(file: File): boolean {
-  return (
-    file.type.startsWith('image/') ||
-    file.type === PDF_MIME ||
-    isExcelFile(file)
-  )
+  if (file.type.startsWith('image/')) return true
+  return extensionOf(file.name) in DOC_TYPES
 }
 
-// Explicit per-type resolution of the stored extension + content-type. There is
-// deliberately NO "else → PDF" default: an unrecognized type returns null so the
-// caller can reject it instead of silently mis-storing it (e.g. a spreadsheet
-// stamped as .pdf, which then fails to open). `isImage` tells the caller to run
-// the client-side JPEG conversion; PDF and Excel upload as-is.
+// Resolve the stored extension + content-type. Images convert to JPEG (isImage);
+// everything else uploads as-is keyed on its extension. Unknown types return null so
+// the caller rejects them rather than mis-storing them.
 export type LessonUploadKind = {
-  ext: 'jpg' | 'pdf' | 'xlsx' | 'xls'
+  ext: string
   contentType: string
   isImage: boolean
 }
@@ -68,15 +83,14 @@ export function resolveLessonUpload(file: File): LessonUploadKind | null {
   if (file.type.startsWith('image/')) {
     return { ext: 'jpg', contentType: 'image/jpeg', isImage: true }
   }
-  if (file.type === PDF_MIME) {
-    return { ext: 'pdf', contentType: PDF_MIME, isImage: false }
-  }
-  if (isExcelFile(file)) {
-    const isXlsx =
-      file.type === XLSX_MIME || file.name.toLowerCase().endsWith('.xlsx')
-    return isXlsx
-      ? { ext: 'xlsx', contentType: XLSX_MIME, isImage: false }
-      : { ext: 'xls', contentType: XLS_MIME, isImage: false }
+  const ext = extensionOf(file.name)
+  if (ext in DOC_TYPES) {
+    // Prefer the declared file.type when present + specific; else the mapped type.
+    const contentType =
+      file.type && file.type !== 'application/octet-stream'
+        ? file.type
+        : DOC_TYPES[ext]
+    return { ext, contentType, isImage: false }
   }
   return null
 }

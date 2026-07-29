@@ -9,6 +9,7 @@ import { formatFileSize } from '@/lib/format'
 import {
   CONTENT_FILES_BUCKET,
   MAX_CONTENT_FILE_SIZE_BYTES,
+  LESSON_FILE_ACCEPT,
   isAllowedLessonFile,
   resolveLessonUpload,
 } from '@/lib/content-files'
@@ -55,7 +56,7 @@ export function DocumentLessonForm({
     if (!picked) return
 
     if (!isAllowedLessonFile(picked)) {
-      setError('Only images, PDF, and Excel files are allowed.')
+      setError('That file type isn’t supported.')
       return
     }
     if (picked.size > MAX_CONTENT_FILE_SIZE_BYTES) {
@@ -91,7 +92,7 @@ export function DocumentLessonForm({
       return
     }
     if (!file) {
-      setError('Please choose a PDF, image, or Excel file.')
+      setError('Please choose a file.')
       return
     }
 
@@ -289,7 +290,7 @@ export function DocumentLessonForm({
       </label>
 
       <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
-        File (PDF, image, or Excel)
+        File
         {file ? (
           <div className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
             <FileText className="h-4 w-4 shrink-0 text-fg-muted" />
@@ -311,10 +312,10 @@ export function DocumentLessonForm({
         ) : (
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-line-strong bg-surface px-3 py-4 text-sm font-normal text-fg-secondary hover:bg-hover-subtle">
             <UploadIcon className="h-4 w-4" />
-            Choose a PDF, image, or Excel file
+            Choose a file
             <input
               type="file"
-              accept="image/*,application/pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              accept={LESSON_FILE_ACCEPT}
               onChange={handleFilePicked}
               className="hidden"
             />

@@ -34,7 +34,9 @@ export function ClassroomAdminGrid({
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const dragIndex = useRef<number | null>(null)
-  const [dragOver, setDragOver] = useState<number | null>(null)
+  // Insertion point (0..length): where the dragged card will land. Rendered as a
+  // bar in the gap between cards, so reordering feels like dropping BETWEEN topics.
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
   const base = `/t/${slug}/admin/classroom`
 
   // Re-sync when the server sends a new set (create/delete/refresh).
@@ -73,14 +75,26 @@ export function ClassroomAdminGrid({
     router.refresh()
   }
 
-  function onDrop(toIndex: number) {
+  // Cursor's left/right half of a card decides insert-before vs insert-after.
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const after = e.clientX > rect.left + rect.width / 2
+    setDropIndex(after ? index + 1 : index)
+  }
+
+  function commitDrop() {
     const from = dragIndex.current
+    const to = dropIndex
     dragIndex.current = null
-    setDragOver(null)
-    if (from === null || from === toIndex) return
+    setDropIndex(null)
+    if (from === null || to === null) return
+    // Removing `from` shifts later indices left by one.
+    const target = from < to ? to - 1 : to
+    if (target === from) return
     const next = [...order]
     const [moved] = next.splice(from, 1)
-    next.splice(toIndex, 0, moved)
+    next.splice(target, 0, moved)
     setOrder(next)
     reorderTopics({ teacherId, orderedIds: next.map((t) => t.id) }).then((r) => {
       if (r.error) {
@@ -99,19 +113,22 @@ export function ClassroomAdminGrid({
           onDragStart={() => {
             dragIndex.current = index
           }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(index)
-          }}
-          onDrop={() => onDrop(index)}
+          onDragOver={(e) => handleDragOver(e, index)}
+          onDrop={commitDrop}
           onDragEnd={() => {
             dragIndex.current = null
-            setDragOver(null)
+            setDropIndex(null)
           }}
-          className={`group relative overflow-hidden rounded-lg border bg-surface transition-shadow hover:shadow-md ${
-            dragOver === index ? 'border-inverse' : 'border-line'
-          }`}
+          className="group relative overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md"
         >
+          {/* Insertion indicators (sit in the grid gap) */}
+          {dropIndex === index && (
+            <span className="pointer-events-none absolute inset-y-0 -left-2 z-20 w-1 rounded-full bg-inverse" />
+          )}
+          {dropIndex === order.length && index === order.length - 1 && (
+            <span className="pointer-events-none absolute inset-y-0 -right-2 z-20 w-1 rounded-full bg-inverse" />
+          )}
+
           {/* Drag handle */}
           <span className="absolute left-2 top-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
             <GripVertical className="h-4 w-4" />
