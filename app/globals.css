@@ -22,10 +22,10 @@
   --line-strong: #d4d4d8;
   --ring: #71717a;
 
-  /* Inverse (primary buttons / active pills) — dark grey, not pure black */
-  --inverse: #3f3f46;
+  /* Inverse (primary buttons / active pills) — clearly grey, not black */
+  --inverse: #52525b;
   --inverse-fg: #ffffff;
-  --inverse-hover: #52525b;
+  --inverse-hover: #3f3f46;
 
   /* Danger */
   --danger-text: #b91c1c;

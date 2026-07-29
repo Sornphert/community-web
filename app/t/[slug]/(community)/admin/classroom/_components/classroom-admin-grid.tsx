@@ -37,6 +37,7 @@ export function ClassroomAdminGrid({
   // Insertion point (0..length): where the dragged card will land. Rendered as a
   // bar in the gap between cards, so reordering feels like dropping BETWEEN topics.
   const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const base = `/t/${slug}/admin/classroom`
 
   // Re-sync when the server sends a new set (create/delete/refresh).
@@ -112,21 +113,26 @@ export function ClassroomAdminGrid({
           draggable
           onDragStart={() => {
             dragIndex.current = index
+            setDraggingIndex(index)
           }}
           onDragOver={(e) => handleDragOver(e, index)}
           onDrop={commitDrop}
           onDragEnd={() => {
             dragIndex.current = null
             setDropIndex(null)
+            setDraggingIndex(null)
           }}
-          className="group relative overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md"
+          className={`group relative overflow-hidden rounded-lg border border-line bg-surface transition-shadow hover:shadow-md ${
+            draggingIndex === index ? 'opacity-40' : ''
+          }`}
         >
-          {/* Insertion indicators (sit in the grid gap) */}
+          {/* Insertion indicators — inside the card edge so overflow-hidden can't
+              clip them (a thin bar shows exactly where the topic will land). */}
           {dropIndex === index && (
-            <span className="pointer-events-none absolute inset-y-0 -left-2 z-20 w-1 rounded-full bg-inverse" />
+            <span className="pointer-events-none absolute inset-y-1 left-0 z-30 w-1.5 rounded-full bg-inverse" />
           )}
           {dropIndex === order.length && index === order.length - 1 && (
-            <span className="pointer-events-none absolute inset-y-0 -right-2 z-20 w-1 rounded-full bg-inverse" />
+            <span className="pointer-events-none absolute inset-y-1 right-0 z-30 w-1.5 rounded-full bg-inverse" />
           )}
 
           {/* Drag handle */}

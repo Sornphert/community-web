@@ -86,8 +86,8 @@ export async function createDocumentLesson(input: {
   topicId: string
   title: string
   description: string
-  documentUrl: string
-  documentStoragePath: string
+  documentUrl: string | null
+  documentStoragePath: string | null
   thumbnailUrl: string | null
   folderId?: string | null
 }): Promise<{ error?: string; item?: ContentItem }> {
@@ -97,9 +97,6 @@ export async function createDocumentLesson(input: {
   }
   if (!input.topicId) {
     return { error: 'Please choose a topic.' }
-  }
-  if (!input.documentUrl) {
-    return { error: 'The file upload is missing.' }
   }
 
   const auth = await requireTeacherAdmin(input.teacherId)
@@ -125,8 +122,8 @@ export async function createDocumentLesson(input: {
       type: 'document',
       title,
       description: input.description.trim() || null,
-      document_url: input.documentUrl,
-      document_storage_path: input.documentStoragePath,
+      document_url: input.documentUrl ?? null,
+      document_storage_path: input.documentStoragePath ?? null,
       thumbnail_url: input.thumbnailUrl,
       folder_id: input.folderId ?? null,
       position: count ?? 0,

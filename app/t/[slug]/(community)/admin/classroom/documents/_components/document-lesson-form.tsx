@@ -91,10 +91,6 @@ export function DocumentLessonForm({
       setError('Please enter a title.')
       return
     }
-    if (!file) {
-      setError('Please choose a file.')
-      return
-    }
 
     setIsSubmitting(true)
 
@@ -129,37 +125,39 @@ export function DocumentLessonForm({
         topicId = result.topic.id
       }
 
-      // Resolve the real extension + content-type per file type. Images are
-      // converted to JPEG (app-wide convention); PDF and Excel upload as-is.
-      // No "else → PDF" default: an unrecognized type is rejected outright so a
-      // spreadsheet is never silently stored as a .pdf.
-      const upload = resolveLessonUpload(file)
-      if (!upload) {
-        throw new Error('Unsupported file type. Use an image, PDF, or Excel file.')
-      }
-      const body: Blob = upload.isImage ? await convertToJpg(file) : file
-      // [MT] content-files RLS checks ONLY segment [1] of the path
-      // (is_teacher_admin(((storage.foldername(name))[1])::uuid)). Segment [1] MUST be
-      // teacherId — load-bearing for the write check. The {uid} segment is COSMETIC
-      // (parity with the Community storage path helper); do NOT build a per-uid
-      // boundary on it — this bucket has no [2]=auth.uid() check.
-      const path = `${teacherId}/${uid}/lessons/${crypto.randomUUID()}.${upload.ext}`
+      // The file is OPTIONAL — a lesson can be title + description only. When a file
+      // IS chosen, resolve its extension/content-type (images convert to JPEG) and
+      // upload it; otherwise the lesson is created with no document.
+      let url: string | null = null
+      let path: string | null = null
+      let thumbnailUrl: string | null = null
 
-      const { error: uploadError } = await supabase.storage
-        .from(CONTENT_FILES_BUCKET)
-        .upload(path, body, { contentType: upload.contentType })
-      if (uploadError) {
-        throw uploadError
-      }
+      if (file) {
+        const upload = resolveLessonUpload(file)
+        if (!upload) {
+          throw new Error('That file type isn’t supported.')
+        }
+        const body: Blob = upload.isImage ? await convertToJpg(file) : file
+        // [MT] content-files RLS checks ONLY segment [1] of the path
+        // (is_teacher_admin(((storage.foldername(name))[1])::uuid)). Segment [1] MUST
+        // be teacherId — load-bearing for the write check. The {uid} segment is
+        // COSMETIC; do NOT build a per-uid boundary on it.
+        path = `${teacherId}/${uid}/lessons/${crypto.randomUUID()}.${upload.ext}`
 
-      // [0019] content-files is PRIVATE — getPublicUrl would mint a dead link. We
-      // still record a canonical /object/public/... url so the row carries a stable,
-      // parseable reference to the object, but it is NEVER served directly: the
-      // classroom fetchers re-derive the path and mint a short-lived signed url.
-      // document_storage_path is the real source of truth.
-      const url = supabase.storage
-        .from(CONTENT_FILES_BUCKET)
-        .getPublicUrl(path).data.publicUrl
+        const { error: uploadError } = await supabase.storage
+          .from(CONTENT_FILES_BUCKET)
+          .upload(path, body, { contentType: upload.contentType })
+        if (uploadError) {
+          throw uploadError
+        }
+
+        // [0019] content-files is PRIVATE — the stored url is re-signed on read;
+        // document_storage_path is the real source of truth.
+        url = supabase.storage.from(CONTENT_FILES_BUCKET).getPublicUrl(path).data
+          .publicUrl
+        // For images, reuse the file reference as the thumbnail (re-signed on read).
+        thumbnailUrl = upload.isImage ? url : null
+      }
 
       const result = await createDocumentLesson({
         teacherId,
@@ -168,9 +166,7 @@ export function DocumentLessonForm({
         description,
         documentUrl: url,
         documentStoragePath: path,
-        // For images, reuse the file reference as the thumbnail so it previews
-        // inline (also re-signed on read).
-        thumbnailUrl: upload.isImage ? url : null,
+        thumbnailUrl,
         folderId,
       })
       if (result.error) {
@@ -186,7 +182,7 @@ export function DocumentLessonForm({
         setNewTopicName('')
         setCoverFile(null)
       }
-      setSuccess('Lesson uploaded.')
+      setSuccess('Lesson added.')
       router.refresh()
     } catch (err) {
       console.error('Failed to create document lesson:', err)
@@ -290,7 +286,7 @@ export function DocumentLessonForm({
       </label>
 
       <div className="flex flex-col gap-1 text-sm font-medium text-fg-secondary">
-        File
+        File (optional)
         {file ? (
           <div className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
             <FileText className="h-4 w-4 shrink-0 text-fg-muted" />

@@ -318,10 +318,11 @@ create table public.content_items (
     created_at             timestamptz default now(),
     constraint content_items_pkey primary key (id),
     constraint content_items_type_check check (type = any (array['video','document'])),
-    -- 0037: a video item is valid with EITHER an external video_url OR a Bunny video_id.
+    -- 0037/0040: a video item needs an external video_url OR a Bunny video_id; a
+    -- document lesson may have no file at all (title + description only).
     constraint content_items_payload_check check (
       ((type = 'video') and ((video_url is not null) or (video_id is not null))) or
-      ((type = 'document') and (document_url is not null))),
+      (type = 'document')),
     constraint content_items_teacher_id_fkey foreign key (teacher_id) references public.teachers(id),
     constraint content_items_topic_same_teacher_fkey
       foreign key (topic_id, teacher_id) references public.topics (id, teacher_id) on delete cascade

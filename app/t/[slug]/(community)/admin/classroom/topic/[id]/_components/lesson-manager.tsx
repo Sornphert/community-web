@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ChevronDown,
@@ -9,6 +9,7 @@ import {
   FileText,
   Film,
   FolderPlus,
+  GripVertical,
   Pencil,
   Trash2,
 } from 'lucide-react'
@@ -19,8 +20,11 @@ import {
   deleteContentItem,
   deleteLessonFolder,
   renameLessonFolder,
+  reorderContentItems,
 } from '../../../actions'
 import { AddLesson } from './add-lesson'
+
+type Lesson = Pick<ContentItem, 'id' | 'title' | 'type'>
 
 // Serializable tree (mirrors lib/lessons LessonTree/LessonTreeNode).
 type Node = {
@@ -59,9 +63,7 @@ export function LessonManager({
         />
       ))}
 
-      {tree.rootLessons.map((lesson) => (
-        <LessonRow key={lesson.id} lesson={lesson} teacherId={teacherId} />
-      ))}
+      <LessonList lessons={tree.rootLessons} teacherId={teacherId} />
 
       <RootActions teacherId={teacherId} uid={uid} topic={topic} />
     </div>
@@ -250,9 +252,7 @@ function FolderNode({
               topic={topic}
             />
           ))}
-          {node.lessons.map((lesson) => (
-            <LessonRow key={lesson.id} lesson={lesson} teacherId={teacherId} />
-          ))}
+          <LessonList lessons={node.lessons} teacherId={teacherId} />
           {node.children.length === 0 && node.lessons.length === 0 && (
             <p className="px-1 text-xs text-fg-muted">Empty folder.</p>
           )}
@@ -279,46 +279,120 @@ function FolderNode({
   )
 }
 
-function LessonRow({
-  lesson,
+// A drag-reorderable list of sibling lessons (root or one folder). Reorder persists
+// via reorderContentItems; a bar shows where the row will land.
+function LessonList({
+  lessons,
   teacherId,
 }: {
-  lesson: Pick<ContentItem, 'id' | 'title' | 'type'>
+  lessons: Lesson[]
   teacherId: string
 }) {
   const router = useRouter()
   const { showToast } = useToast()
-  const [busy, setBusy] = useState(false)
+  const [order, setOrder] = useState<Lesson[]>(lessons)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const dragIndex = useRef<number | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
-  async function del() {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrder(lessons)
+  }, [lessons])
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const after = e.clientY > rect.top + rect.height / 2
+    setDropIndex(after ? index + 1 : index)
+  }
+
+  function commit() {
+    const from = dragIndex.current
+    const to = dropIndex
+    dragIndex.current = null
+    setDropIndex(null)
+    setDraggingId(null)
+    if (from === null || to === null) return
+    const target = from < to ? to - 1 : to
+    if (target === from) return
+    const next = [...order]
+    const [moved] = next.splice(from, 1)
+    next.splice(target, 0, moved)
+    setOrder(next)
+    reorderContentItems({ teacherId, orderedIds: next.map((l) => l.id) }).then(
+      (r) => {
+        if (r.error) {
+          showToast('Could not save order', 'error')
+          router.refresh()
+        }
+      },
+    )
+  }
+
+  async function del(lesson: Lesson) {
     if (!window.confirm(`Delete “${lesson.title}”?`)) return
-    setBusy(true)
+    setBusyId(lesson.id)
     const r = await deleteContentItem({ teacherId, itemId: lesson.id })
-    setBusy(false)
+    setBusyId(null)
     if (r.error) return showToast(r.error, 'error')
     showToast('Lesson deleted', 'success')
     router.refresh()
   }
 
+  if (order.length === 0) return null
+
   return (
-    <div className="flex items-center gap-2 rounded-md border border-line bg-canvas px-3 py-2">
-      {lesson.type === 'video' ? (
-        <Film className="h-4 w-4 shrink-0 text-fg-muted" />
-      ) : (
-        <FileText className="h-4 w-4 shrink-0 text-fg-muted" />
-      )}
-      <span className="min-w-0 flex-1 truncate text-sm text-fg">
-        {lesson.title}
-      </span>
-      <button
-        type="button"
-        onClick={del}
-        disabled={busy}
-        aria-label={`Delete ${lesson.title}`}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-danger disabled:opacity-50"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+    <div className="flex flex-col gap-2">
+      {order.map((lesson, index) => (
+        <div
+          key={lesson.id}
+          draggable
+          onDragStart={() => {
+            dragIndex.current = index
+            setDraggingId(lesson.id)
+          }}
+          onDragOver={(e) => handleDragOver(e, index)}
+          onDrop={commit}
+          onDragEnd={() => {
+            dragIndex.current = null
+            setDropIndex(null)
+            setDraggingId(null)
+          }}
+          className={`relative flex items-center gap-2 rounded-md border border-line bg-canvas px-2 py-2 ${
+            draggingId === lesson.id ? 'opacity-40' : ''
+          }`}
+        >
+          {dropIndex === index && (
+            <span className="pointer-events-none absolute inset-x-2 top-0 z-10 h-1 rounded-full bg-inverse" />
+          )}
+          {dropIndex === order.length && index === order.length - 1 && (
+            <span className="pointer-events-none absolute inset-x-2 bottom-0 z-10 h-1 rounded-full bg-inverse" />
+          )}
+
+          <span className="flex h-6 w-5 shrink-0 cursor-grab items-center justify-center text-fg-muted active:cursor-grabbing">
+            <GripVertical className="h-4 w-4" />
+          </span>
+          {lesson.type === 'video' ? (
+            <Film className="h-4 w-4 shrink-0 text-fg-muted" />
+          ) : (
+            <FileText className="h-4 w-4 shrink-0 text-fg-muted" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-sm text-fg">
+            {lesson.title}
+          </span>
+          <button
+            type="button"
+            onClick={() => del(lesson)}
+            disabled={busyId === lesson.id}
+            aria-label={`Delete ${lesson.title}`}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-muted hover:text-danger disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
     </div>
   )
 }
