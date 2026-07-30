@@ -14,6 +14,9 @@ import { formatRelativeTime } from '@/lib/format'
 import type { CommentWithRelations } from '@/lib/types'
 import { updateComment, deleteComment } from '../_actions/comments'
 import { LikeButton } from './like-button'
+import { ReactionBar } from './reaction-bar'
+import { CommentForm } from './comment-form'
+import { ReportButton } from '../../_components/report-button'
 
 // One comment row (MT). Body or inline editor, images, like button, and — for the
 // author or an admin OF THIS TEACHER (comment.can_edit) — edit + delete. Edit is
@@ -21,20 +24,41 @@ import { LikeButton } from './like-button'
 export function CommentItem({
   comment,
   slug,
+  teacherId,
+  postId,
   members = [],
   canMentionAll = false,
+  isReply = false,
+  threadId,
 }: {
   comment: CommentWithRelations
   slug: string
+  // [MT] Owning teacher — threaded from the post so the Report action can scope its
+  // insert. Optional so other callers of CommentItem don't have to supply it (Report
+  // simply won't render without it).
+  teacherId?: string
+  // Post id — needed so the inline Reply composer can create a comment. Optional so
+  // callers that don't want replies (or Report) can omit it (Reply just won't render).
+  postId?: string
   members?: MentionMember[]
   canMentionAll?: boolean
+  // True when this row is itself a reply — it renders indented, shows no nested list,
+  // and its own Reply targets the thread root (threadId) to keep threads one level deep.
+  isReply?: boolean
+  // The top-level comment id this thread hangs off — the parent_id every reply here uses.
+  threadId?: string
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(comment.body)
   const [confirming, setConfirming] = useState(false)
+  const [replying, setReplying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Replies always attach to the thread ROOT: a reply's root is threadId; a top-level
+  // comment's root is its own id.
+  const replyParentId = isReply ? threadId : comment.id
 
   function saveEdit() {
     if (!draft.trim() || isPending) return
@@ -168,6 +192,27 @@ export function CommentItem({
             </>
           )}
 
+          {/* Report — for other members' comments (author/admin see edit/delete instead). */}
+          {!comment.can_edit && !editing && !confirming && teacherId && (
+            <ReportButton
+              teacherId={teacherId}
+              targetType="comment"
+              targetId={comment.id}
+              compact
+            />
+          )}
+
+          {/* Reply — available on any comment when the composer context is present. */}
+          {postId && replyParentId && !editing && !confirming && (
+            <button
+              type="button"
+              onClick={() => setReplying((r) => !r)}
+              className="text-xs font-medium text-fg-muted transition-colors hover:text-fg"
+            >
+              Reply
+            </button>
+          )}
+
           {confirming && (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-fg-muted">Delete?</span>
@@ -191,7 +236,52 @@ export function CommentItem({
           )}
         </div>
 
+        {!editing && (
+          <div className="mt-2">
+            <ReactionBar
+              targetType="comment"
+              targetId={comment.id}
+              initial={comment.reactions}
+            />
+          </div>
+        )}
+
         {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+
+        {/* Inline reply composer */}
+        {replying && postId && replyParentId && (
+          <div className="mt-3">
+            <CommentForm
+              postId={postId}
+              parentId={replyParentId}
+              members={members}
+              canMentionAll={canMentionAll}
+              onDone={() => setReplying(false)}
+              autoFocus
+              placeholder="Write a reply… use @ to mention"
+              submitLabel="Reply"
+            />
+          </div>
+        )}
+
+        {/* Nested replies (one level). Reply rows target the same thread root. */}
+        {!isReply && comment.replies.length > 0 && (
+          <div className="mt-3 flex flex-col gap-4 border-l border-line pl-3">
+            {comment.replies.map((reply) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                slug={slug}
+                teacherId={teacherId}
+                postId={postId}
+                members={members}
+                canMentionAll={canMentionAll}
+                isReply
+                threadId={comment.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

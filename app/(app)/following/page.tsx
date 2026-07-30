@@ -4,6 +4,7 @@ import { Avatar } from '@/app/(app)/_components/avatar'
 import { formatRelativeTime } from '@/lib/format'
 import { bodyToPlainText } from '@/lib/mentions'
 import { getFollowingFeed } from '@/lib/follows'
+import { getTeacherBySlug } from '@/lib/teachers'
 
 // [Following] The cross-teacher feed of recent posts by people you follow. Lives in
 // the teacher-AGNOSTIC (app) shell because a follow spans communities. Post visibility
@@ -11,17 +12,34 @@ import { getFollowingFeed } from '@/lib/follows'
 // this only shows posts in communities you're actually in.
 export const metadata = { title: 'Following' }
 
-export default async function FollowingPage() {
-  const posts = await getFollowingFeed()
+export default async function FollowingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>
+}) {
+  const [posts, { from }] = await Promise.all([
+    getFollowingFeed(),
+    searchParams,
+  ])
+
+  // Context-aware back link: when the sidebar links here from inside a teacher shell it
+  // passes `?from=<slug>`, so we return to THAT community instead of the app-wide /home
+  // directory. We resolve the slug to a real teacher (guards against a bogus/stale param)
+  // and only then honor it; otherwise fall back to Home.
+  const fromTeacher = from ? await getTeacherBySlug(from) : null
+  const backHref = fromTeacher
+    ? `/t/${fromTeacher.slug}/community`
+    : '/home'
+  const backLabel = fromTeacher ? fromTeacher.name : 'Home'
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href="/home"
+        href={backHref}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted transition-colors hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
-        Home
+        {backLabel}
       </Link>
 
       <h1 className="text-xl font-semibold text-fg">Following</h1>

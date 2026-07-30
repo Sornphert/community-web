@@ -40,6 +40,7 @@ export default async function PostDetailPage({
       post={post}
       channelSlug={channel}
       slug={slug}
+      teacherId={teacher.id}
       members={members.map((m) => ({
         id: m.id,
         display_name: m.display_name,

@@ -1,5 +1,25 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Profile } from '@/lib/types'
+import type { Profile, ReactionSummary } from '@/lib/types'
+
+// Collapse raw reaction rows into per-emoji counts + whether the viewer reacted.
+// (Local mirror of lib/posts.ts summarizeReactions, kept here to avoid coupling.)
+function summarizeDmReactions(
+  rows: { user_id: string; emoji: string }[] | null | undefined,
+  uid: string | null,
+): ReactionSummary[] {
+  const byEmoji = new Map<string, { count: number; mine: boolean }>()
+  for (const r of rows ?? []) {
+    const cur = byEmoji.get(r.emoji) ?? { count: 0, mine: false }
+    cur.count += 1
+    if (uid && r.user_id === uid) cur.mine = true
+    byEmoji.set(r.emoji, cur)
+  }
+  return [...byEmoji.entries()].map(([emoji, v]) => ({
+    emoji,
+    count: v.count,
+    reacted_by_current_user: v.mine,
+  }))
+}
 
 // Direct messages (0034). Threads are 1:1 and teacher-scoped; RLS already limits
 // every query below to threads the caller participates in, so these fetchers add
@@ -18,6 +38,11 @@ export type DmMessage = {
   sender_id: string
   body: string
   created_at: string
+  // Optional image attachment (0046). Public URL + storage path; null for text-only.
+  image_url: string | null
+  image_path: string | null
+  // Per-emoji reaction summary (0045). Empty for messages with no reactions.
+  reactions: ReactionSummary[]
 }
 
 export type DmThreadDetail = {
@@ -135,18 +160,35 @@ export async function getDmThread(
 
   const { data: msgData, error: msgError } = await supabase
     .from('dm_messages')
-    .select('id, sender_id, body, created_at')
+    .select(
+      'id, sender_id, body, created_at, image_url, image_path, reactions:dm_message_reactions(user_id, emoji)',
+    )
     .eq('thread_id', threadId)
     .order('created_at', { ascending: true })
 
   if (msgError)
     throw new Error(`Failed to load conversation: ${msgError.message}`)
 
-  return {
-    id: row.id,
-    other,
-    messages: (msgData ?? []) as DmMessage[],
+  type MsgRow = {
+    id: string
+    sender_id: string
+    body: string
+    created_at: string
+    image_url: string | null
+    image_path: string | null
+    reactions: { user_id: string; emoji: string }[] | null
   }
+  const messages: DmMessage[] = ((msgData ?? []) as MsgRow[]).map((m) => ({
+    id: m.id,
+    sender_id: m.sender_id,
+    body: m.body,
+    created_at: m.created_at,
+    image_url: m.image_url,
+    image_path: m.image_path,
+    reactions: summarizeDmReactions(m.reactions, user.id),
+  }))
+
+  return { id: row.id, other, messages }
 }
 
 // Total unread DM messages for the caller within this teacher (nav badge).

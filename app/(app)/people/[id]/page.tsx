@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getPostsByAuthor } from '@/lib/posts'
 import { getUserCard, getFollowState } from '@/lib/follows'
+import { getTeacherBySlug } from '@/lib/teachers'
 import { MemberProfileView } from '@/app/t/[slug]/(community)/_components/member-profile-view'
 
 // The UNIVERSAL user profile — follow anyone from anywhere, regardless of shared
@@ -12,10 +13,13 @@ import { MemberProfileView } from '@/app/t/[slug]/(community)/_components/member
 // posts in communities you both belong to. Follow-list rows everywhere point here.
 export default async function PersonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ from?: string }>
 }) {
   const { id } = await params
+  const { from } = await searchParams
 
   const supabase = await createClient()
   const {
@@ -30,19 +34,25 @@ export default async function PersonPage({
     notFound()
   }
 
-  const [posts, follow] = await Promise.all([
+  const [posts, follow, fromTeacher] = await Promise.all([
     getPostsByAuthor(id),
     getFollowState(id, user.id),
+    // Context-aware back link: when reached from inside a teacher shell (follow-list
+    // rows pass `?from=<slug>`) return to that community; otherwise fall back to Home.
+    // Resolve the slug to a real teacher to guard against a stale/bogus param.
+    from ? getTeacherBySlug(from) : Promise.resolve(null),
   ])
+  const backHref = fromTeacher ? `/t/${fromTeacher.slug}/community` : '/home'
+  const backLabel = fromTeacher ? fromTeacher.name : 'Home'
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Link
-        href="/home"
+        href={backHref}
         className="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted transition-colors hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
-        Home
+        {backLabel}
       </Link>
 
       <MemberProfileView

@@ -1,16 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import type { Channel } from '@/lib/types'
 import { MAX_CHANNEL_NAME_LEN } from '@/lib/channel-constants'
 import {
@@ -94,6 +86,20 @@ export function ChannelsManager({
   const [reordering, setReordering] = useState(false)
   const [reorderError, setReorderError] = useState<string | null>(null)
 
+  // Drag-to-reorder: a local optimistic copy of the list so the drop feels instant,
+  // re-synced from the server whenever the prop changes (create/rename/delete refresh).
+  const [order, setOrder] = useState<Channel[]>(channels)
+  const dragIndex = useRef<number | null>(null)
+  // Insertion point (0..length): where the dragged row will land, drawn as a bar in
+  // the gap between rows so it feels like dropping BETWEEN channels.
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrder(channels)
+  }, [channels])
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!newName.trim()) {
@@ -169,31 +175,43 @@ export function ChannelsManager({
     }
   }
 
-  // Move a row up/down by rebuilding the id order and rewriting all positions server-side.
-  // On error we refresh to real DB state (always valid — positions have no constraint) and
-  // surface retry copy; we never assume a partial run silently self-heals.
-  async function handleMove(index: number, direction: -1 | 1) {
-    const target = index + direction
-    if (target < 0 || target >= channels.length) return
+  // Cursor's top/bottom half of a row decides insert-before vs insert-after.
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const after = e.clientY > rect.top + rect.height / 2
+    setDropIndex(after ? index + 1 : index)
+  }
 
-    const orderedIds = channels.map((c) => c.id)
-    ;[orderedIds[index], orderedIds[target]] = [
-      orderedIds[target],
-      orderedIds[index],
-    ]
+  // Persist the drop by rebuilding the id order and rewriting all positions server-side.
+  // Optimistic: reorder locally first so it feels instant. On error we refresh to real DB
+  // state (always valid — positions have no constraint) and surface retry copy.
+  function commitDrop() {
+    const from = dragIndex.current
+    const to = dropIndex
+    dragIndex.current = null
+    setDropIndex(null)
+    setDraggingIndex(null)
+    if (from === null || to === null) return
+    // Removing `from` shifts later indices left by one.
+    const target = from < to ? to - 1 : to
+    if (target === from) return
+
+    const next = [...order]
+    const [moved] = next.splice(from, 1)
+    next.splice(target, 0, moved)
+    setOrder(next)
 
     setReorderError(null)
     setReordering(true)
-    try {
-      const result = await reorderChannels({ teacherId, orderedIds })
-      if (result.error) {
-        setReorderError(result.error)
-      }
-      // Refresh on both success (reflect the new order) and failure (show real DB state).
-      router.refresh()
-    } finally {
-      setReordering(false)
-    }
+    reorderChannels({ teacherId, orderedIds: next.map((c) => c.id) })
+      .then((result) => {
+        if (result.error) {
+          setReorderError(result.error)
+          router.refresh()
+        }
+      })
+      .finally(() => setReordering(false))
   }
 
   return (
@@ -245,45 +263,62 @@ export function ChannelsManager({
       )}
 
       {/* List */}
-      {channels.length === 0 ? (
+      {order.length === 0 ? (
         <p className="text-sm text-fg-muted">No channels yet. Add one above.</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {channels.map((channel, index) => {
+          {order.map((channel, index) => {
             const isEditing = editingId === channel.id
             const isConfirming = confirmingId === channel.id
             const isBusy = busyId === channel.id
             const err = rowError?.id === channel.id ? rowError.text : null
             const postCount = postCounts[channel.id] ?? 0
             const hasPosts = postCount > 0
+            // A row being edited or confirming deletion must not be draggable — that
+            // would fight text selection and the confirm dialog. Also frozen while a
+            // previous reorder is still saving, to avoid overlapping writes.
+            const draggable = !isEditing && !isConfirming && !reordering
 
             return (
               <li
                 key={channel.id}
-                className="rounded-lg border border-line bg-surface p-3"
+                draggable={draggable}
+                onDragStart={() => {
+                  if (!draggable) return
+                  dragIndex.current = index
+                  setDraggingIndex(index)
+                }}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={commitDrop}
+                onDragEnd={() => {
+                  dragIndex.current = null
+                  setDropIndex(null)
+                  setDraggingIndex(null)
+                }}
+                className={`relative rounded-lg border border-line bg-surface p-3 transition-shadow ${
+                  draggingIndex === index ? 'opacity-40' : ''
+                }`}
               >
+                {/* Insertion indicators — a thin bar in the gap showing where it lands. */}
+                {dropIndex === index && (
+                  <span className="pointer-events-none absolute inset-x-1 top-0 z-30 h-1.5 -translate-y-1/2 rounded-full bg-inverse" />
+                )}
+                {dropIndex === order.length && index === order.length - 1 && (
+                  <span className="pointer-events-none absolute inset-x-1 bottom-0 z-30 h-1.5 translate-y-1/2 rounded-full bg-inverse" />
+                )}
+
                 <div className="flex items-center gap-3">
-                  {/* Reorder arrows */}
-                  <div className="flex shrink-0 flex-col">
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, -1)}
-                      disabled={reordering || index === 0}
-                      aria-label="Move up"
-                      className="flex h-5 w-6 items-center justify-center rounded text-fg-muted hover:bg-hover-subtle disabled:opacity-30"
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMove(index, 1)}
-                      disabled={reordering || index === channels.length - 1}
-                      aria-label="Move down"
-                      className="flex h-5 w-6 items-center justify-center rounded text-fg-muted hover:bg-hover-subtle disabled:opacity-30"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {/* Drag handle (whole row is draggable; this is the affordance) */}
+                  <span
+                    aria-hidden
+                    className={`flex h-8 w-6 shrink-0 items-center justify-center text-fg-faint ${
+                      draggable
+                        ? 'cursor-grab active:cursor-grabbing'
+                        : 'opacity-30'
+                    }`}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </span>
 
                   {isEditing ? (
                     <div className="flex min-w-0 flex-1 flex-col gap-2">

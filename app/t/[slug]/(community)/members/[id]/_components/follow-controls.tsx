@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { UserPlus, UserCheck, X } from 'lucide-react'
 import { Avatar } from '@/app/(app)/_components/avatar'
@@ -15,9 +15,10 @@ import type { FollowUser } from '@/lib/types'
 // then router.refresh() to resync the lists from the server. The button is hidden on
 // your OWN profile; counts always show.
 //
-// List rows are intentionally NOT links: a follower/followee may not be a member of
-// THIS teacher, so there's no safe in-teacher profile URL for them. Phase 1 shows
-// identity only.
+// List rows link to the UNIVERSAL profile (/people/[id]) — a follower/followee may not
+// be a member of THIS teacher, so the global profile is the only safe destination. When
+// we're inside a teacher shell we pass `?from=<slug>` so that page's back link returns
+// to this community instead of the app-wide /home directory (context-aware back).
 export function FollowControls({
   targetId,
   isOwnProfile,
@@ -37,6 +38,11 @@ export function FollowControls({
 }) {
   const router = useRouter()
   const { showToast } = useToast()
+  // Derive the current teacher slug from the path (`/t/<slug>/...`). Empty on the
+  // global `/people/[id]` page, where rows should link without a `from` param.
+  const pathname = usePathname()
+  const segs = pathname.split('/')
+  const fromSlug = segs[1] === 't' ? segs[2] : ''
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followers, setFollowers] = useState(initialFollowers)
   const [pending, setPending] = useState(false)
@@ -137,6 +143,7 @@ export function FollowControls({
           title={modal === 'followers' ? 'Followers' : 'Following'}
           users={modal === 'followers' ? followersList : followingList}
           onClose={() => setModal(null)}
+          fromSlug={fromSlug}
         />
       )}
     </>
@@ -147,11 +154,18 @@ function FollowListModal({
   title,
   users,
   onClose,
+  fromSlug,
 }: {
   title: string
   users: FollowUser[]
   onClose: () => void
+  // Current teacher slug (empty on the global /people page). When set, row links carry
+  // `?from=<slug>` so the universal profile's back link returns to this community.
+  fromSlug: string
 }) {
+  const peopleHref = (userId: string) =>
+    fromSlug ? `/people/${userId}?from=${fromSlug}` : `/people/${userId}`
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -213,7 +227,7 @@ function FollowListModal({
                 return (
                   <li key={u.user_id}>
                     <Link
-                      href={`/people/${u.user_id}`}
+                      href={peopleHref(u.user_id)}
                       onClick={onClose}
                       className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted"
                     >

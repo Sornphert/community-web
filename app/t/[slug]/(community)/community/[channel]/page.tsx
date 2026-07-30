@@ -58,6 +58,7 @@ export default async function ChannelPage({
         post={post}
         channelSlug="announcements"
         slug={slug}
+        teacherId={teacher.id}
         members={members.map((m) => ({
           id: m.id,
           display_name: m.display_name,

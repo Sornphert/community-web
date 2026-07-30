@@ -18,11 +18,13 @@ import { SaveButton } from './save-button'
 import { PostActions } from './post-actions'
 import { PublicToggle } from './public-toggle'
 import { PostVideoPlayer } from './post-video-player'
+import { ReportButton } from '../../_components/report-button'
 
 export function PostDetail({
   post,
   channelSlug,
   slug,
+  teacherId,
   members,
   canMentionAll,
   basePath = '/community',
@@ -33,6 +35,9 @@ export function PostDetail({
   // [MT] Teacher slug — builds mention member links + threads to the comment
   // composer. Members + canMentionAll drive the @-mention picker.
   slug: string
+  // [MT] Owning teacher id — scopes the Report action on the post + its comments.
+  // (The base Post type has no teacher_id, so it's passed from the page.)
+  teacherId: string
   members: MentionMember[]
   canMentionAll: boolean
   // URL prefix + back-link label. Default to the Community feed.
@@ -173,7 +178,15 @@ export function PostDetail({
           <div className="ml-4">
             <CopyLinkButton />
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            {/* Report is for other people's posts; the author never reports their own. */}
+            {!post.isAuthor && (
+              <ReportButton
+                teacherId={teacherId}
+                targetType="post"
+                targetId={post.id}
+              />
+            )}
             <SaveButton
               postId={post.id}
               initialSaved={post.saved_by_current_user}
@@ -182,12 +195,13 @@ export function PostDetail({
         </div>
 
         <div className="mt-3">
-          <ReactionBar postId={post.id} initial={post.reactions} />
+          <ReactionBar targetType="post" targetId={post.id} initial={post.reactions} />
         </div>
       </article>
 
       <h2 className="mt-8 text-lg font-semibold text-fg">
-        Comments ({post.comments.length})
+        Comments (
+        {post.comments.reduce((n, c) => n + 1 + c.replies.length, 0)})
       </h2>
 
       {post.comments.length === 0 ? (
@@ -199,6 +213,8 @@ export function PostDetail({
               key={comment.id}
               comment={comment}
               slug={slug}
+              teacherId={teacherId}
+              postId={post.id}
               members={members}
               canMentionAll={canMentionAll}
             />

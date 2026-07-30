@@ -89,8 +89,14 @@ export function Sidebar({
       : []),
     { href: `${base}/saved`, label: 'Saved', icon: Bookmark },
     // Following is a GLOBAL cross-teacher feed (route lives outside the teacher shell),
-    // so its href is not prefixed. Lands in the mobile hamburger overflow.
-    { href: '/following', label: 'Following', icon: UserCheck },
+    // so its href is not prefixed. Lands in the mobile hamburger overflow. When entered
+    // from inside a teacher shell we pass `?from=<slug>` so the page's back link returns
+    // to that community instead of the app-wide /home directory (context-aware back).
+    {
+      href: slug ? `/following?from=${slug}` : '/following',
+      label: 'Following',
+      icon: UserCheck,
+    },
     // [MT] Members is a member-visible directory (gated by membership in the layout),
     // so it shows for everyone. Admin stays admin-only.
     { href: `${base}/members`, label: 'Members', icon: Users },
@@ -101,8 +107,12 @@ export function Sidebar({
   ]
 
   const pathname = usePathname()
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + '/')
+  const isActive = (href: string) => {
+    // Strip any query string (e.g. /following?from=slug) so active-highlighting
+    // matches on the path alone.
+    const path = href.split('?')[0]
+    return pathname === path || pathname.startsWith(path + '/')
+  }
 
   // Mobile hamburger dropdown (top-right) holds the overflow nav items.
   const [menuOpen, setMenuOpen] = useState(false)

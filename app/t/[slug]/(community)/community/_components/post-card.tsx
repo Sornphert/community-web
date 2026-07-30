@@ -145,7 +145,7 @@ export function PostCard({
       </div>
 
       <div className="mt-2">
-        <ReactionBar postId={post.id} initial={post.reactions} />
+        <ReactionBar targetType="post" targetId={post.id} initial={post.reactions} />
       </div>
     </Link>
   )

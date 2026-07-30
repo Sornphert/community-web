@@ -549,11 +549,14 @@ create table public.comments (
     body       text not null,
     created_at timestamptz default now(),
     edited_at  timestamptz, -- 0026: set by updateComment; null = never edited
+    parent_id  uuid,        -- 0043: reply threading; null = top-level (points at thread root)
     constraint comments_pkey primary key (id),
     constraint comments_post_id_fkey   foreign key (post_id)   references public.posts(id)    on delete cascade,
-    constraint comments_author_id_fkey foreign key (author_id) references public.profiles(id) on delete cascade
+    constraint comments_author_id_fkey foreign key (author_id) references public.profiles(id) on delete cascade,
+    constraint comments_parent_fkey    foreign key (parent_id) references public.comments(id) on delete cascade
 );
 create index comments_post_id_idx on public.comments (post_id);
+create index comments_parent_idx  on public.comments (parent_id);
 
 -- comment_images (0026) — images attached to a comment; mirrors post_images.
 -- storage_path: {user_id}/{comment_id}/{position}.jpg in the public comment-images bucket.
@@ -719,7 +722,7 @@ create table public.notifications (
     created_at   timestamptz not null default now(),
     constraint notifications_pkey primary key (id),
     constraint notifications_type_check check (
-      type = any (array['mention','mention_all','post_comment','post_like','comment_like','event_reminder','direct_message'])
+      type = any (array['mention','mention_all','post_comment','post_like','comment_like','event_reminder','direct_message','follow','comment_reply'])
     ),
     constraint notifications_teacher_fkey
       foreign key (teacher_id)   references public.teachers(id) on delete cascade,
@@ -808,8 +811,12 @@ create table public.dm_messages (
     thread_id  uuid not null,
     sender_id  uuid not null,
     body       text not null,
+    image_url  text, -- 0046: optional image attachment (public dm-images bucket)
+    image_path text, -- 0046: storage path, for cleanup
     created_at timestamptz default now(),
-    constraint dm_messages_body_check check (char_length(body) between 1 and 4000),
+    -- 0046: body may be empty when an image is present.
+    constraint dm_messages_body_check check (char_length(body) between 0 and 4000),
+    constraint dm_messages_content_check check (body <> '' or image_url is not null),
     constraint dm_messages_thread_fkey foreign key (thread_id) references public.dm_threads(id) on delete cascade,
     constraint dm_messages_sender_fkey foreign key (sender_id) references public.profiles(id)   on delete cascade
 );
@@ -1498,6 +1505,15 @@ create policy post_attachments_obj_insert_own on storage.objects for insert to a
 drop policy if exists post_attachments_obj_delete_own on storage.objects;
 create policy post_attachments_obj_delete_own on storage.objects for delete to authenticated
   using (bucket_id = 'post-attachments' and has_membership(((storage.foldername(name))[1])::uuid) and (storage.foldername(name))[2] = auth.uid()::text);
+
+-- dm-images ({uid}/...) — PUBLIC bucket (getPublicUrl, unguessable uuid paths, same
+-- convention as comment-images); writes are own-folder only. 0046.
+drop policy if exists dm_images_obj_insert_own on storage.objects;
+create policy dm_images_obj_insert_own on storage.objects for insert to authenticated
+  with check (bucket_id = 'dm-images' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists dm_images_obj_delete_own on storage.objects;
+create policy dm_images_obj_delete_own on storage.objects for delete to authenticated
+  using (bucket_id = 'dm-images' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- topic-covers ({teacher_id}/...) — admin write, member read
 drop policy if exists topic_covers_select on storage.objects;
@@ -2419,8 +2435,9 @@ security definer
 set search_path = public
 as $$
 declare
-  v_teacher     uuid;
-  v_post_author uuid;
+  v_teacher       uuid;
+  v_post_author   uuid;
+  v_parent_author uuid; -- 0044: reply target
 begin
   select p.teacher_id, p.author_id
     into v_teacher, v_post_author
@@ -2456,6 +2473,33 @@ begin
     values (v_teacher, v_post_author, new.author_id, 'post_comment', new.post_id, new.id);
   end if;
 
+  -- Reply (0043/0044): notify the PARENT comment's author — unless they wrote the reply,
+  -- they're the post author (already pinged above), they're not an active member, or a
+  -- mention for this same comment already covered them.
+  if new.parent_id is not null then
+    select author_id into v_parent_author from public.comments where id = new.parent_id;
+    if v_parent_author is not null
+       and v_parent_author <> new.author_id
+       and (v_post_author is null or v_parent_author <> v_post_author)
+       and exists (
+         select 1 from public.memberships mem
+         join public.profiles pr on pr.id = mem.profile_id
+         where mem.teacher_id = v_teacher
+           and mem.profile_id = v_parent_author
+           and mem.status = 'active'
+           and pr.deleted_at is null
+       )
+       and not exists (
+         select 1 from public.notifications
+         where comment_id = new.id and recipient_id = v_parent_author
+       )
+    then
+      insert into public.notifications
+        (teacher_id, recipient_id, actor_id, type, post_id, comment_id)
+      values (v_teacher, v_parent_author, new.author_id, 'comment_reply', new.post_id, new.id);
+    end if;
+  end if;
+
   return new;
 end;
 $$;
@@ -2464,6 +2508,40 @@ drop trigger if exists notify_on_comment_insert on public.comments;
 create trigger notify_on_comment_insert
   after insert on public.comments
   for each row execute function public.notify_on_comment();
+
+-- (4b) Trigger — new follow (0044): notify the followee. Follows are global but
+-- notifications are teacher-scoped, so stamp ONE teacher both users actively share.
+create or replace function public.notify_on_follow()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher uuid;
+begin
+  select m1.teacher_id into v_teacher
+  from public.memberships m1
+  join public.memberships m2 on m2.teacher_id = m1.teacher_id
+  where m1.profile_id = new.following_id and m1.status = 'active'
+    and m2.profile_id = new.follower_id  and m2.status = 'active'
+  limit 1;
+
+  if v_teacher is null then
+    return new;
+  end if;
+
+  insert into public.notifications (teacher_id, recipient_id, actor_id, type)
+  values (v_teacher, new.following_id, new.follower_id, 'follow');
+
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_on_follow_insert on public.follows;
+create trigger notify_on_follow_insert
+  after insert on public.follows
+  for each row execute function public.notify_on_follow();
 
 -- (5) Trigger — like on a post: notify the post author. Deduped on
 --     (recipient, actor, post, type) so like/unlike/like churn doesn't re-notify.
@@ -2705,28 +2783,30 @@ begin
 end;
 $$;
 
--- Send a message in a thread the caller participates in; bumps last_message_at.
-create or replace function public.send_dm(p_thread uuid, p_body text)
+-- Send a message in a thread the caller participates in; bumps last_message_at. 0046:
+-- optional image (empty body allowed when an image is present).
+create or replace function public.send_dm(
+  p_thread uuid, p_body text, p_image_url text default null, p_image_path text default null
+)
 returns public.dm_messages language plpgsql security definer set search_path to 'public'
 as $$
-declare v_msg public.dm_messages;
+declare v_msg public.dm_messages; v_other uuid; v_body text;
 begin
   if auth.uid() is null then raise exception 'not_authenticated'; end if;
-  if not exists (select 1 from public.dm_threads t
-                 where t.id = p_thread and auth.uid() in (t.user_a, t.user_b)) then
-    raise exception 'not_participant';
-  end if;
-  if char_length(coalesce(trim(p_body), '')) = 0 then raise exception 'empty_body'; end if;
-  insert into public.dm_messages (thread_id, sender_id, body)
-  values (p_thread, auth.uid(), trim(p_body)) returning * into v_msg;
+  select case when t.user_a = auth.uid() then t.user_b else t.user_a end
+    into v_other
+  from public.dm_threads t
+  where t.id = p_thread and auth.uid() in (t.user_a, t.user_b);
+  if v_other is null then raise exception 'not_participant'; end if;
+  v_body := coalesce(trim(p_body), '');
+  if char_length(v_body) = 0 and p_image_url is null then raise exception 'empty_body'; end if;
+  insert into public.dm_messages (thread_id, sender_id, body, image_url, image_path)
+  values (p_thread, auth.uid(), v_body, p_image_url, p_image_path) returning * into v_msg;
   update public.dm_threads set last_message_at = now() where id = p_thread;
   -- 0035: notify the OTHER participant (bell + realtime + web push via the webhook).
   insert into public.notifications (teacher_id, recipient_id, actor_id, type, thread_id)
-  select t.teacher_id,
-         case when t.user_a = auth.uid() then t.user_b else t.user_a end,
-         auth.uid(), 'direct_message', t.id
-  from public.dm_threads t
-  where t.id = p_thread;
+  select t.teacher_id, v_other, auth.uid(), 'direct_message', t.id
+  from public.dm_threads t where t.id = p_thread;
   return v_msg;
 end;
 $$;
@@ -2757,9 +2837,119 @@ as $$
 $$;
 
 grant execute on function public.get_or_create_dm_thread(uuid, uuid) to authenticated;
-grant execute on function public.send_dm(uuid, text)                 to authenticated;
+grant execute on function public.send_dm(uuid, text, text, text)     to authenticated;
 grant execute on function public.mark_dm_read(uuid)                  to authenticated;
 grant execute on function public.dm_unread_count(uuid)               to authenticated;
+
+
+-- =============================================================================
+-- content_reports (0041) — member-submitted reports of a post/comment/user, reviewed
+-- by the teacher's admins. POLYMORPHIC target (target_id has NO FK) so it can't create a
+-- PostgREST junction between posts/comments and profiles (the PGRST201 trap). Self-
+-- contained block (table + index + RLS + grants) — references teachers/profiles defined
+-- above; safe to run here.
+-- =============================================================================
+create table public.content_reports (
+    id           uuid primary key default gen_random_uuid(),
+    teacher_id   uuid not null,
+    reporter_id  uuid not null,
+    target_type  text not null,
+    target_id    uuid not null,
+    reason       text,
+    status       text not null default 'open',
+    resolved_by  uuid,
+    resolved_at  timestamptz,
+    created_at   timestamptz not null default now(),
+    constraint content_reports_teacher_fkey  foreign key (teacher_id)  references public.teachers(id) on delete cascade,
+    constraint content_reports_reporter_fkey foreign key (reporter_id) references public.profiles(id) on delete cascade,
+    constraint content_reports_resolver_fkey foreign key (resolved_by) references public.profiles(id) on delete set null,
+    constraint content_reports_target_type_check check (target_type = any (array['post','comment','user'])),
+    constraint content_reports_status_check      check (status = any (array['open','actioned','dismissed'])),
+    constraint content_reports_reason_check      check (reason is null or char_length(reason) <= 1000)
+);
+create index content_reports_teacher_status_idx on public.content_reports (teacher_id, status);
+create unique index content_reports_unique_open on public.content_reports (reporter_id, target_type, target_id) where status = 'open';
+
+alter table public.content_reports enable row level security;
+
+create policy content_reports_select on public.content_reports for select to authenticated
+  using (is_teacher_admin(teacher_id) or reporter_id = auth.uid());
+create policy content_reports_insert_own on public.content_reports for insert to authenticated
+  with check (reporter_id = auth.uid() and has_membership(teacher_id));
+create policy content_reports_update_admin on public.content_reports for update to authenticated
+  using (is_teacher_admin(teacher_id)) with check (is_teacher_admin(teacher_id));
+
+grant select, insert, update on public.content_reports to authenticated, service_role;
+revoke all on public.content_reports from anon;
+
+
+-- =============================================================================
+-- comment_reactions (0042) — emoji reactions on a comment; direct mirror of
+-- post_reactions. Read for members of the comment's post's teacher; write own only.
+-- =============================================================================
+create table public.comment_reactions (
+    comment_id uuid not null,
+    user_id    uuid not null,
+    emoji      text not null,
+    created_at timestamptz default now(),
+    constraint comment_reactions_pkey primary key (comment_id, user_id, emoji),
+    constraint comment_reactions_emoji_check check (char_length(emoji) between 1 and 16),
+    constraint comment_reactions_comment_fkey foreign key (comment_id) references public.comments(id) on delete cascade,
+    constraint comment_reactions_user_fkey    foreign key (user_id)    references public.profiles(id) on delete cascade
+);
+create index comment_reactions_comment_idx on public.comment_reactions (comment_id);
+
+alter table public.comment_reactions enable row level security;
+
+create policy comment_reactions_select on public.comment_reactions for select to authenticated
+  using (has_membership((select p.teacher_id from public.posts p join public.comments c on c.post_id = p.id where c.id = comment_reactions.comment_id)));
+create policy comment_reactions_insert_own on public.comment_reactions for insert to authenticated
+  with check (user_id = auth.uid() and has_membership((select p.teacher_id from public.posts p join public.comments c on c.post_id = p.id where c.id = comment_reactions.comment_id)));
+create policy comment_reactions_delete_own on public.comment_reactions for delete to authenticated
+  using (user_id = auth.uid());
+
+grant select, insert, delete on public.comment_reactions to authenticated, service_role;
+revoke all on public.comment_reactions from anon;
+
+
+-- =============================================================================
+-- dm_message_reactions (0045) — emoji reactions on direct messages. Reads/writes gated
+-- by participation in the message's thread; writes own only. In the realtime publication
+-- so the open thread reflects the other participant's reactions live.
+-- =============================================================================
+create table public.dm_message_reactions (
+    message_id uuid not null,
+    user_id    uuid not null,
+    emoji      text not null,
+    created_at timestamptz default now(),
+    constraint dm_message_reactions_pkey primary key (message_id, user_id, emoji),
+    constraint dm_message_reactions_emoji_check check (char_length(emoji) between 1 and 16),
+    constraint dm_message_reactions_msg_fkey  foreign key (message_id) references public.dm_messages(id) on delete cascade,
+    constraint dm_message_reactions_user_fkey foreign key (user_id)    references public.profiles(id)    on delete cascade
+);
+create index dm_message_reactions_msg_idx on public.dm_message_reactions (message_id);
+
+alter table public.dm_message_reactions enable row level security;
+
+create policy dm_message_reactions_select on public.dm_message_reactions for select to authenticated
+  using (exists (select 1 from public.dm_messages m join public.dm_threads t on t.id = m.thread_id
+                 where m.id = dm_message_reactions.message_id and auth.uid() in (t.user_a, t.user_b)));
+create policy dm_message_reactions_insert_own on public.dm_message_reactions for insert to authenticated
+  with check (user_id = auth.uid() and exists (select 1 from public.dm_messages m join public.dm_threads t on t.id = m.thread_id
+              where m.id = dm_message_reactions.message_id and auth.uid() in (t.user_a, t.user_b)));
+create policy dm_message_reactions_delete_own on public.dm_message_reactions for delete to authenticated
+  using (user_id = auth.uid());
+
+grant select, insert, delete on public.dm_message_reactions to authenticated, service_role;
+revoke all on public.dm_message_reactions from anon;
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime'
+                 and schemaname='public' and tablename='dm_message_reactions') then
+    alter publication supabase_realtime add table public.dm_message_reactions;
+  end if;
+end $$;
 
 
 -- =============================================================================

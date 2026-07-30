@@ -232,6 +232,9 @@ export interface Comment {
   created_at: string
   // Set by the updateComment action. null = never edited (drives the "(edited)" tag).
   edited_at: string | null
+  // Reply threading (migration 0043). null = top-level comment; otherwise points at the
+  // top-level comment this reply belongs to (the UI keeps threads one level deep).
+  parent_id: string | null
 }
 
 export type PostWithRelations = Post & {
@@ -265,9 +268,14 @@ export type CommentWithRelations = Comment & {
   images: CommentImage[]
   likes_count: number
   liked_by_current_user: boolean
+  // Per-emoji reaction summary for this comment (migration 0042), same shape posts use.
+  reactions: ReactionSummary[]
   // True when the current viewer is the comment author or an admin OF THIS TEACHER —
   // drives the edit/delete UI (edit is author-only; delete is author-or-admin).
   can_edit: boolean
+  // One-level threaded replies (migration 0043). Present only on top-level comments;
+  // reply items carry an empty array. Ordered oldest-first.
+  replies: CommentWithRelations[]
 }
 
 // An image attached to a comment (MT). storage_path:
@@ -460,6 +468,11 @@ export type NotificationType =
   | 'event_reminder'
   // A direct message from another member (0035). Carries thread_id + actor.
   | 'direct_message'
+  // Someone followed you (0044). Actor = the follower; teacher_id = a community you
+  // share (follows are global, notifications are teacher-scoped).
+  | 'follow'
+  // Someone replied to your comment (0043/0044). Actor + post_id + comment_id (the reply).
+  | 'comment_reply'
 
 // A notification row decorated for display: the actor's identity plus enough of
 // the target (post title, channel slug) to build a deep link. Rows are created
@@ -621,4 +634,32 @@ export type CommunityEvent = {
   series_id: string | null
   created_by: string | null
   created_at: string | null
+}
+
+// Moderation — member-submitted reports (migration 0041). target_id is polymorphic
+// (keyed by target_type), intentionally NOT a FK — see the migration header for why.
+export type ReportTargetType = 'post' | 'comment' | 'user'
+export type ReportStatus = 'open' | 'actioned' | 'dismissed'
+
+export interface ContentReport {
+  id: string
+  teacher_id: string
+  reporter_id: string
+  target_type: ReportTargetType
+  target_id: string
+  reason: string | null
+  status: ReportStatus
+  resolved_by: string | null
+  resolved_at: string | null
+  created_at: string
+}
+
+// A report enriched for the admin queue: the reporter's identity plus a best-effort
+// text preview of the reported target (resolved by follow-up queries, since target_id
+// has no FK to embed). `targetHref` deep-links to the content when resolvable.
+export interface ContentReportWithContext extends ContentReport {
+  reporter: Pick<Profile, 'id' | 'display_name' | 'avatar_url'>
+  targetPreview: string | null
+  targetHref: string | null
+  targetMissing: boolean
 }

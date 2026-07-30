@@ -10,6 +10,7 @@ import type {
   Channel,
   Comment,
   CommentImage,
+  CommentWithRelations,
   Liker,
   ReactionSummary,
   PollSummary,
@@ -161,6 +162,7 @@ type PostRow = {
         author: Profile | null
         images: CommentImage[] | null
         likes: LikeRow[] | null
+        reactions: { user_id: string; emoji: string }[] | null
       })[]
     | null
   channel: { slug: string; section: 'community' | 'weekly' } | null
@@ -494,7 +496,7 @@ export async function getPost(
   const { data, error } = await supabase
     .from('posts')
     .select(
-      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji), poll:polls(id, allow_multiple, closes_at, options:poll_options(id, text, position), votes:poll_votes(option_id, user_id))',
+      '*, author:profiles!author_id(*), images:post_images(*), attachments:post_attachments(*), video:post_videos(*), comments(*, author:profiles!author_id(*), images:comment_images(*), likes:comment_likes(user_id), reactions:comment_reactions(user_id, emoji)), channel:channels(slug, section), likes:post_likes(user_id), saved:saved_posts(user_id), reactions:post_reactions(user_id, emoji), poll:polls(id, allow_multiple, closes_at, options:poll_options(id, text, position), votes:poll_votes(option_id, user_id))',
     )
     .eq('id', id)
     // [MT] Tenant guard: a post is only reachable under its OWN teacher's shell. Without
@@ -530,6 +532,65 @@ export async function getPost(
   // so the storage SELECT policy (active member of the owning teacher) enforces.
   const attachments = await signAttachments(supabase, row.attachments ?? [])
 
+  // Comments → one-level threads (0043). Map each row, then attach every reply to its
+  // top-level ROOT (parent_id chain resolved to the root so the tree never exceeds two
+  // levels, matching the reply UI). Chronological order is preserved from the query's
+  // `created_at asc` ordering, for both top-level comments and each replies[] list.
+  const mappedComments = (row.comments ?? [])
+    .filter(
+      (
+        comment,
+      ): comment is Comment & {
+        author: Profile
+        images: CommentImage[] | null
+        likes: LikeRow[] | null
+        reactions: { user_id: string; emoji: string }[] | null
+      } => comment.author !== null,
+    )
+    .map((comment): CommentWithRelations => {
+      const commentLikes = comment.likes ?? []
+      return {
+        id: comment.id,
+        post_id: comment.post_id,
+        author_id: comment.author_id,
+        body: comment.body,
+        created_at: comment.created_at,
+        edited_at: comment.edited_at,
+        parent_id: comment.parent_id ?? null,
+        author: comment.author,
+        images: [...(comment.images ?? [])].sort(
+          (a, b) => a.position - b.position,
+        ),
+        likes_count: commentLikes.length,
+        liked_by_current_user:
+          !!uid && commentLikes.some((l) => l.user_id === uid),
+        reactions: summarizeReactions(comment.reactions, uid),
+        can_edit: viewerIsAdmin || (!!uid && comment.author_id === uid),
+        replies: [],
+      }
+    })
+
+  const commentById = new Map(mappedComments.map((c) => [c.id, c]))
+  const commentRootId = (c: CommentWithRelations): string => {
+    let cur = c
+    const seen = new Set<string>()
+    while (cur.parent_id && commentById.has(cur.parent_id) && !seen.has(cur.id)) {
+      seen.add(cur.id)
+      cur = commentById.get(cur.parent_id)!
+    }
+    return cur.id
+  }
+  const topLevelComments: CommentWithRelations[] = []
+  for (const c of mappedComments) {
+    if (!c.parent_id) {
+      topLevelComments.push(c)
+      continue
+    }
+    const root = commentById.get(commentRootId(c))
+    if (root && root.id !== c.id) root.replies.push(c)
+    else topLevelComments.push(c)
+  }
+
   return {
     id: row.id,
     author_id: row.author_id,
@@ -555,35 +616,7 @@ export async function getPost(
     featured: row.featured,
     viewerIsAdmin: viewerIsAdmin,
     isAuthor: !!uid && row.author_id === uid,
-    comments: (row.comments ?? [])
-      .filter(
-        (
-          comment,
-        ): comment is Comment & {
-          author: Profile
-          images: CommentImage[] | null
-          likes: LikeRow[] | null
-        } => comment.author !== null,
-      )
-      .map((comment) => {
-        const commentLikes = comment.likes ?? []
-        return {
-          id: comment.id,
-          post_id: comment.post_id,
-          author_id: comment.author_id,
-          body: comment.body,
-          created_at: comment.created_at,
-          edited_at: comment.edited_at,
-          author: comment.author,
-          images: [...(comment.images ?? [])].sort(
-            (a, b) => a.position - b.position,
-          ),
-          likes_count: commentLikes.length,
-          liked_by_current_user:
-            !!uid && commentLikes.some((l) => l.user_id === uid),
-          can_edit: viewerIsAdmin || (!!uid && comment.author_id === uid),
-        }
-      }),
+    comments: topLevelComments,
   }
 }
 

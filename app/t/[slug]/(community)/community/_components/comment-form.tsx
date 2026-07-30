@@ -19,10 +19,22 @@ export function CommentForm({
   postId,
   members,
   canMentionAll,
+  parentId,
+  onDone,
+  autoFocus = false,
+  placeholder = 'Write a comment… use @ to mention',
+  submitLabel = 'Post comment',
 }: {
   postId: string
   members: MentionMember[]
   canMentionAll: boolean
+  // When set, this comment is a reply attached to the given (top-level) comment.
+  parentId?: string
+  // Called after a successful post — reply boxes use it to close themselves.
+  onDone?: () => void
+  autoFocus?: boolean
+  placeholder?: string
+  submitLabel?: string
 }) {
   const router = useRouter()
   const { showToast } = useToast()
@@ -98,6 +110,7 @@ export function CommentForm({
         post_id: postId,
         author_id: user.id,
         body: body.trim(),
+        parent_id: parentId ?? null,
       })
       if (insertError) throw insertError
 
@@ -112,7 +125,8 @@ export function CommentForm({
       setBody('')
       setImages([])
       router.refresh()
-      showToast('Comment posted', 'success')
+      showToast(parentId ? 'Reply posted' : 'Comment posted', 'success')
+      onDone?.()
     } catch (err) {
       console.error('Failed to post comment:', err)
       setError(
@@ -134,7 +148,8 @@ export function CommentForm({
         members={members}
         canMentionAll={canMentionAll}
         rows={3}
-        placeholder="Write a comment… use @ to mention"
+        autoFocus={autoFocus}
+        placeholder={placeholder}
         className="w-full rounded-md border border-line-strong px-3 py-2 text-sm text-fg outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
 
@@ -189,7 +204,7 @@ export function CommentForm({
           disabled={isSubmitting || (!body.trim() && images.length === 0)}
           className="rounded-md bg-inverse px-4 py-2 text-sm font-medium text-inverse-fg transition-colors hover:bg-inverse-hover disabled:opacity-50"
         >
-          {isSubmitting ? 'Posting…' : 'Post comment'}
+          {isSubmitting ? 'Posting…' : submitLabel}
         </button>
       </div>
     </form>

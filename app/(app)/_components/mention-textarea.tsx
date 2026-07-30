@@ -27,6 +27,7 @@ export function MentionTextarea({
   rows = 3,
   required,
   disabled,
+  autoFocus,
   className,
 }: {
   value: string
@@ -37,6 +38,7 @@ export function MentionTextarea({
   rows?: number
   required?: boolean
   disabled?: boolean
+  autoFocus?: boolean
   className?: string
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -149,6 +151,7 @@ export function MentionTextarea({
         }}
         required={required}
         disabled={disabled}
+        autoFocus={autoFocus}
         rows={rows}
         placeholder={placeholder}
         className={className}

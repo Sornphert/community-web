@@ -9,16 +9,21 @@ import type { ReactionSummary } from '@/lib/types'
 // The emoji palette members can react with.
 const EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥']
 
-// Emoji reactions on a post (0032). Shows a chip per emoji with a count (highlighted
-// if you reacted); the "+" opens a small palette. Optimistic; own-only via RLS. Sits
-// inside the feed card's <Link>, so every handler stops propagation.
+// Emoji reactions on a post (0032) or comment (0042). Shows a chip per emoji with a
+// count (highlighted if you reacted); the "+" opens a small palette. Optimistic;
+// own-only via RLS. Sits inside the feed card's <Link>, so every handler stops
+// propagation. `targetType` selects the backing table + id column.
 export function ReactionBar({
-  postId,
+  targetType = 'post',
+  targetId,
   initial,
 }: {
-  postId: string
+  targetType?: 'post' | 'comment'
+  targetId: string
   initial: ReactionSummary[]
 }) {
+  const table = targetType === 'comment' ? 'comment_reactions' : 'post_reactions'
+  const idColumn = targetType === 'comment' ? 'comment_id' : 'post_id'
   const { showToast } = useToast()
   const [reactions, setReactions] = useState<ReactionSummary[]>(initial)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -61,16 +66,16 @@ export function ReactionBar({
       if (!user) throw new Error('Not signed in')
       if (wasReacted) {
         const { error } = await supabase
-          .from('post_reactions')
+          .from(table)
           .delete()
-          .eq('post_id', postId)
+          .eq(idColumn, targetId)
           .eq('user_id', user.id)
           .eq('emoji', emoji)
         if (error) throw error
       } else {
         const { error } = await supabase
-          .from('post_reactions')
-          .insert({ post_id: postId, user_id: user.id, emoji })
+          .from(table)
+          .insert({ [idColumn]: targetId, user_id: user.id, emoji })
         if (error && error.code !== '23505') throw error
       }
     } catch {

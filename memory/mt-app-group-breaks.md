@@ -3,56 +3,65 @@
 Tracks the (app) → /t/[slug] multi-tenant conversion: known breakages and
 states that look like bugs but are intentional, with when each resolves.
 
+> **2026-07-30 refresh.** Most of this doc was written mid-port (2026-06) and had gone
+> stale — it was actively misleading a codebase review. Corrections applied inline below;
+> the big ones: all verticals except Weekly are now ported; content-files + post-attachments
+> are now PRIVATE (0019/0020), so only topic-covers remains a public-read gap; and the
+> in-app promote/demote flow now EXISTS (`set_membership_role`), which closes the sole-admin
+> escape-hatch limitation. Historical "verified green" records (reproducibility,
+> delete_my_account) are left intact — they're still accurate.
+
 ## Status
 - Foundation (/t/[slug] layout, gate, auth helpers): committed.
 - Community vertical: ported, isolation-verified, committed (2e95d52).
-- Remaining verticals (un-ported): classroom, events, weekly, members, admin.
+- Classroom, events, members, admin verticals: **PORTED** (see CLAUDE.md phase-2
+  additions — full classroom admin, video lessons, folders, etc.).
+- **Weekly is the only un-ported vertical** (404s everywhere under /t/[slug] — deliberate;
+  see the Weekly section below).
 
-## Expected states during Community port (verified 2026-06)
+## Expected states during Community port (verified 2026-06; mostly resolved by 2026-07)
 
 - **old (app)/weekly deleted** during the Community port (it reused community's
   components). Weekly is now fully un-routed (404 everywhere) until ported as its
-  own vertical.
-- **Per-teacher logo + hero image** still come from lib/config.ts defaults
-  (Johnson's branding) on all teachers — the teachers table has no branding/logo
-  column yet. Deferred to the branding parameterization pass. Teacher *name* is
-  correctly scoped (proves the port); only the images aren't.
-- **Un-ported verticals** (classroom, events, members, admin) 404 on /t/[slug]/...
-  and their sidebar nav links still point at old single-tenant routes. Resolves as
-  each vertical is ported. Not a bug.
+  own vertical. STILL TRUE as of 2026-07-30.
+- ~~Per-teacher logo + hero image come from lib/config.ts defaults~~ — **RESOLVED.**
+  The teachers table now carries `logo_url` (0002), `cover_url` (0002), and `hero_url`
+  (0021); see lib/types.ts `Teacher`. Per-teacher branding is live.
+- ~~Un-ported verticals (classroom, events, members, admin) 404~~ — **RESOLVED.** All
+  ported; sidebar nav is teacher-prefixed. Only Weekly still 404s.
 
-## Known landmine for remaining verticals
-- (app) routes read profiles.is_admin (removed under MT — role is memberships.role,
-  resolved via the is_teacher_admin RPC). Every un-ported vertical still has this and
-  must swap it during its port.
+## Known landmine (historical — verticals now ported)
+- ~~(app) routes read profiles.is_admin~~ — the ported verticals swapped this for
+  `memberships.role` via the `is_teacher_admin` RPC during their ports. The remaining
+  (app) routes (following, people, profile) are GLOBAL and the (app) layout deliberately
+  reads NEITHER is_admin nor channels (there's a comment saying so). No landmine left here.
 - Un-scoped spine reads under MT RLS do NOT error — they silently return cross-tenant
   rows. "It builds" proves nothing. Two-teacher persona isolation test is the only gate.
+  (Kept as a permanent reminder for any future MT work.)
 
-## Deferred / out-of-scope isolation gaps (log, don't solve)
-- **Storage-content READ isolation (content-files + topic-covers).** Both buckets are
-  public-read: `content_files_select` / `topic_covers_select` gate on `bucket_id` only with
-  NO auth predicate. So a lesson PDF or topic cover is readable cross-tenant by anyone who
-  has the direct CDN URL — the DB row (`content_items` / `topics`) is RLS-isolated, but the
-  *file* is not. WRITE isolation IS intact: `*_insert_admin` gate on
-  `is_teacher_admin(((storage.foldername(name))[1])::uuid)`, and the ported upload code writes
-  `{teacher_id}/{uid}/...` (segment [1] = teacher_id is load-bearing; the uid segment is
-  cosmetic — these buckets enforce only segment [1], no [2]=auth.uid() check).
-- **Shared Bunny library (classroom recordings).** One `BUNNY_STREAM_LIBRARY_ID` per
-  deployment → all teachers' videos live in one library. DB rows (`classroom_recordings`) are
-  RLS-isolated by teacher_id, but a leaked `video_id`/player URL plays cross-tenant straight
-  from Bunny. Same class of gap as the storage-read one above.
-- Both are read-side content-isolation gaps with write-side isolation intact; explicitly out
-  of scope for the Phase 2 route port (revisit alongside the branding/parameterization pass).
+## Isolation gaps — mostly closed (2026-07-30 recheck)
+- ~~content-files public-read~~ — **CLOSED (0019).** Bucket flipped PRIVATE; `content_files_select`
+  now gates on `has_membership(((storage.foldername(name))[1])::uuid)`; files served via
+  short-lived `createSignedUrls` (lib/classroom.ts `withSignedContentUrls`). post-attachments
+  got the same treatment in **0020** (private + signed URLs, lib/posts.ts).
+- **topic-covers STILL public-read** — `topic_covers_select` gates on `bucket_id` only, no auth
+  predicate; served via getPublicUrl. A topic cover is readable cross-tenant by anyone with the
+  CDN URL. LOW sensitivity (decorative classroom thumbnails). teacher-covers / teacher-logos are
+  also public-read but INTENTIONALLY so (they render on the anon-readable /home directory).
+  Write isolation intact everywhere (`*_insert_admin` gate on segment [1] = teacher_id).
+- **Shared Bunny library** — one `BUNNY_STREAM_LIBRARY_ID` per deployment. This is a real gap
+  ONLY on the shared MT dev app (community-mt-dev). In PRODUCTION every teacher is a separate
+  single-tenant deployment with its own Bunny library + referrer protection (see the runbook in
+  CLAUDE.md), so there's one teacher per library and nothing to leak across. Effectively moot in prod.
 
-## Classroom port — sub-system split (in progress 2026-06)
-- Classroom = TWO sub-systems. **A) content/topics** (topics, content_items, content_progress;
-  /classroom, /topic/[id], /content/[id]; documents + topic-covers admin) and **B) recordings**
-  (classroom_folders, classroom_recordings, recording_progress; Bunny + webhook; recordings
-  admin CRUD). Ported A first, then B — each cut over atomically.
-- The hardcoded single-tenant `RECORDINGS_TOPIC_ID` UUID is GONE — the recordings entry topic
-  is now per-teacher via `topics.is_recordings` (one per teacher, partial-unique-indexed).
-- During the A→B gap, the ported classroom landing's Recordings card links to
-  `/t/[slug]/classroom/recordings` (a B route) — dangles until B ships in the same session.
+## Classroom port — DONE (completed 2026-07; superseded the 2026-06 sub-system split)
+- Classroom fully ported and then extended well past the original A/B split. Migrations
+  0037–0040 added Bunny video-upload lessons in any topic, the recordings→lessons cutover
+  (`is_recordings` no longer special-cased), nested lesson folders (3 levels), and optional
+  lesson files. Unified admin hub at `/t/[slug]/admin/classroom`. See CLAUDE.md "Classroom
+  admin (phase-2)" for the current shape.
+- The hardcoded single-tenant `RECORDINGS_TOPIC_ID` UUID is GONE — recordings entry topic
+  is per-teacher via `topics.is_recordings` (partial-unique-indexed). (Still true.)
 
 ## Weekly — intentionally skipped (revisit with parameterization pass)
 - old (app)/weekly was deleted during the Community port; /t/[slug]/weekly NOT built.
@@ -109,11 +118,12 @@ the web caller is `app/(app)/profile/actions.ts` + `_components/delete-account-b
   cross-teacher non-interference, B sole-admin block naming the teacher (nothing destroyed), C orphan
   prevention + negative control proving "last admin" not "any admin".
 
-**INTERIM LIMITATION (sole-admin escape hatch).** The `'last_admin'` block is only actionable
-out-of-band: there is NO in-app "assign another admin" flow yet (admin role is set directly in Supabase /
-`memberships.role`). So a teacher's sole admin cannot self-serve their way to deletable — they must have
-someone promote a co-admin in Supabase first. Acceptable for now (admins are few, hands-on); revisit if
-in-app admin management lands.
+**~~INTERIM LIMITATION (sole-admin escape hatch)~~ — RESOLVED (2026-07).** There is now an
+in-app promote/demote flow: the `set_membership_role` SECURITY DEFINER RPC (schema.sql Section 11,
+migration 0007-roles) with a last-active-admin guard, wired to `role-toggle.tsx` on
+`/t/[slug]/admin/members/[id]` via `admin/members/actions.ts`. So a sole admin CAN now get to
+deletable in-app: promote a co-admin, then delete. The old "must edit memberships.role in Supabase
+first" workaround is no longer required.
 
 ### CORRECTION — SEVEN dev personas, not six
 Live has `bmember@dev.test` (a B-only member, the B-side analogue of `member@` for A) beyond the

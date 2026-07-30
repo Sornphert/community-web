@@ -62,6 +62,10 @@ function verbFor(type: NotificationType): string {
       return 'starts soon'
     case 'direct_message':
       return 'sent you a message'
+    case 'follow':
+      return 'started following you'
+    case 'comment_reply':
+      return 'replied to your comment'
   }
 }
 
@@ -183,6 +187,9 @@ export function NotificationBell({
     if (n.type === 'event_reminder') return `/t/${slug}/events`
     if (n.type === 'direct_message')
       return n.thread_id ? `/t/${slug}/messages/${n.thread_id}` : null
+    // A follow links to the follower's member profile in this (shared) teacher.
+    if (n.type === 'follow')
+      return n.actor ? `/t/${slug}/members/${n.actor.id}` : null
     if (!n.post_id || !n.channel_slug) return null
     return `/t/${slug}/community/${n.channel_slug}/${n.post_id}`
   }

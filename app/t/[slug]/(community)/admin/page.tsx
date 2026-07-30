@@ -8,11 +8,13 @@ import {
   Tags,
   Hash,
   UserCog,
+  Flag,
   type LucideIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTeacherBySlug } from '@/lib/teachers'
 import { isTeacherAdmin } from '@/lib/auth'
+import { getOpenReportCount } from '@/lib/moderation'
 
 type AdminCard = {
   // Path relative to /t/[slug] — prefixed per-request below. All targets are
@@ -67,6 +69,12 @@ const cards: AdminCard[] = [
     description: 'Set the cover, logo, and description for your community card.',
     icon: Palette,
   },
+  {
+    to: '/admin/reports',
+    label: 'Reports',
+    description: 'Review posts, comments, and members your community flagged.',
+    icon: Flag,
+  },
 ]
 
 export default async function AdminPage({
@@ -89,6 +97,10 @@ export default async function AdminPage({
   if (!teacher) notFound()
   if (!(await isTeacherAdmin(teacher.id))) redirect(`/t/${slug}/community`)
 
+  // Open-report count drives the badge on the Reports card (draws attention when there's
+  // a moderation backlog). Cheap head count; 0 → no badge.
+  const openReports = await getOpenReportCount(teacher.id)
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <h1 className="mb-1 text-xl font-semibold text-fg">Admin</h1>
@@ -97,21 +109,32 @@ export default async function AdminPage({
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {cards.map(({ to, label, description, icon: Icon }) => (
-          <Link
-            key={to}
-            href={`/t/${slug}${to}`}
-            className="flex items-start gap-3 rounded-lg border border-line bg-surface p-4 hover:bg-hover-subtle"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-fg-secondary">
-              <Icon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="font-medium text-fg">{label}</div>
-              <p className="text-sm text-fg-muted">{description}</p>
-            </div>
-          </Link>
-        ))}
+        {cards.map(({ to, label, description, icon: Icon }) => {
+          const badge =
+            to === '/admin/reports' && openReports > 0 ? openReports : null
+          return (
+            <Link
+              key={to}
+              href={`/t/${slug}${to}`}
+              className="flex items-start gap-3 rounded-lg border border-line bg-surface p-4 hover:bg-hover-subtle"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-fg-secondary">
+                <Icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-fg">{label}</span>
+                  {badge !== null && (
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-fg-muted">{description}</p>
+              </div>
+            </Link>
+          )
+        })}
       </div>
     </div>
   )

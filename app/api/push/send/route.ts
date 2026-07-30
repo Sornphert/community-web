@@ -44,6 +44,10 @@ function verbFor(type: NotificationType): string {
       return 'liked your comment'
     case 'direct_message':
       return 'sent you a message'
+    case 'follow':
+      return 'started following you'
+    case 'comment_reply':
+      return 'replied to your comment'
     default:
       return 'sent you a notification'
   }
