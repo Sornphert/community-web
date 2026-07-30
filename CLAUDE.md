@@ -195,7 +195,7 @@ Required for App Store / Play submission. The backend is **shared** between web 
 2. `(app)/layout.tsx` fetches `is_admin` and passes it down.
 3. `/members` and `/members/[id]` each guard themselves (`if (!profile?.is_admin) redirect('/community')`).
 
-- **Classroom admin write features are NOT YET BUILT.** Admins manage `topics` and `content_items` directly in the Supabase Table Editor.
+- **Classroom admin is fully built** on `phase-2-multitenant` (see [Classroom admin](#classroom-admin-phase-2)). The old note ("manage in the Supabase Table Editor") is obsolete for that branch.
 - **Topic locking:** `topics.is_locked = true` → card renders with a lock icon and no `<Link>`; direct navigation to a locked topic URL redirects to `/classroom`.
 
 ## Conventions & Patterns
@@ -247,18 +247,52 @@ Supabase auth emails are sent through **Resend** via SMTP.
 - The existing `support@theprophetsystem.com` mailbox (managed elsewhere) is untouched, since Resend uses the `send.` subdomain.
 - Resend exists because Supabase's built-in SMTP is rate-limited (~3–4 emails/hour) — too low to onboard 30 users.
 
+## Phase-2 (multitenant) — features added
+
+Branch **`phase-2-multitenant`** (deploys to `app.thetreewisdom.com`) converts the app to multi-tenant: `teachers` + `memberships` tables, `teacher_id` on every spine table, `/t/[slug]/…` routes, and the SECURITY DEFINER RPCs `has_membership(teacher_id)` / `is_teacher_admin(teacher_id)` that mirror RLS. Standalone hand-run migrations live in `supabase/multitenant/` (numbered) and are reconciled ZERO-DELTA into `supabase/multitenant/schema.sql`. On top of the MT base, these features were added (each = a numbered migration applied to `community-mt-dev` + reconciled into `schema.sql`):
+
+- **Pinned posts** (`0031`) — `posts.pinned_at` + `set_post_pinned` RPC; admin pin/unpin, pinned-first ordering + badge.
+- **Emoji reactions** (`0032`) — `post_reactions` (PK post_id,user_id,emoji); optimistic reaction bar on card + detail.
+- **Polls** (`0033`) — `polls` / `poll_options` / `poll_votes`; optional poll composer in the post form, single/multi-choice with live % bars.
+- **Direct messages** (`0034`, same-community only) — `dm_threads` (canonical `user_a<user_b`, teacher-scoped) + `dm_messages`; SECURITY DEFINER RPCs `get_or_create_dm_thread` / `send_dm` / `mark_dm_read` / `dm_unread_count`. `/t/[slug]/messages` list + thread view; "Message" button on member profiles.
+- **DM notifications** (`0035`) — `notifications.type` gains `direct_message` + `thread_id`; `send_dm` inserts a notification (reuses the bell + realtime + web-push webhook).
+- **Per-channel unread dots** (`0036`) — `channel_reads`; dot in the sidebar channel list + mobile tabs, cleared on view.
+- **Realtime DMs** — the open thread subscribes to `dm_messages` inserts; `dm_messages` added to the `supabase_realtime` publication.
+- **QoL** — global **toasts** (`app/_components/toast.tsx`), **image lightbox** (post/comment images), **PWA install** (`app/manifest.ts` + `ServiceWorkerRegister` + apple-web-app metadata), auto-linkified URLs in `MentionText`, copy-link on post detail, member-directory search, and a decluttered mobile nav (primary bottom bar + top-right hamburger overflow; theme toggle available in-shell; "Following" moved into the nav).
+- Primary/`inverse` color softened from near-black to grey in `app/globals.css`.
+
+## Classroom admin (phase-2)
+
+Unified admin hub at **`/t/[slug]/admin/classroom`** ("Classroom settings"; gear entry on the Classroom tab + one card on the Admin dashboard). Every topic uses the **same** editor at `/admin/classroom/topic/[id]`: rename, cover image, access (tier tags), and lessons.
+
+- **Video-upload lessons in any topic** (`0037`) — `content_items` gains Bunny `video_*` columns + `folder_id`; payload check allows a video item with `video_url` OR `video_id`. Lesson form has a Document/Video toggle; video reuses the Bunny TUS upload + the shared webhook (`/api/bunny/webhook` now also updates `content_items`). Member viewer plays Bunny (`PostVideoPlayer`) with a Vimeo `video_url` fallback.
+- **Recordings cutover** (`0038`, data) — the old folder-based `classroom_recordings` system is retired in the admin/member UI; existing recordings flatten into `content_items` video lessons under the recordings topic (non-destructive, idempotent). `is_recordings` no longer special-cased.
+- **Nested lesson folders** (`0039`) — `lesson_folders` (topic-scoped, self-nesting up to **3 levels**, app-enforced); `content_items.folder_id` places a lesson in a folder (folder delete → lessons fall back to root). Admin `LessonManager` tree (add folder/sub-folder/lesson, rename, delete); member `MemberLessonTree` renders the collapsible tree.
+- **Optional lesson file** (`0040`) — a document lesson can be title + description only (payload check relaxed).
+- **Topics + lessons** drag-to-reorder (auto-append at bottom; `reorderTopics` / `reorderContentItems`); topic create/rename/delete via `admin/classroom/actions.ts`. Broadened lesson file types (PDF, image, Excel, CSV, Word, PPT, txt, etc.) live in `lib/content-files.ts`.
+
+## Launching a new teacher (production = per-teacher single-tenant)
+
+**Live teachers each run as their own isolated single-tenant instance** — separate Supabase project + separate Vercel project (both from the **`main`** branch) + own domain — parameterized entirely by env vars. (The MT app on `app.thetreewisdom.com` is phase-2/dev; production teachers do NOT use it.) Existing Vercel projects: `community-web` (Johnson → theprophetsystem.com), `jane`, `bootcamp-community`, `jacky`. All Supabase projects live in one org (`rrrdizbmnsojcslvwrtw`); free-tier caps mean projects are often created on a second account then **transferred** into that org.
+
+Runbook (`supabase/NEW_PROJECT_SETUP.md`) plus hard-won corrections:
+
+1. New Supabase project → run **`main`'s** `bootstrap/schema.sql` then `seed.sql`. ⚠️ The working tree may be on `phase-2-multitenant` whose bootstrap is stale — always use the `main` versions.
+2. ⚠️ **`main`'s bootstrap snapshot is missing three later migrations** — after bootstrap+seed also run `migrations_archive/` **`0015_notifications.sql`**, **`0016_push_subscriptions.sql`**, and **`0017_post_videos_multi.sql`**. Without 0015/0016 the notification bell + push tables are absent; without 0017 (`post_videos.position`) the community feed throws "Couldn't load this channel". Then `notify pgrst, 'reload schema';` (or restart the project) so PostgREST picks up the FK relationships used by feed embeds.
+3. New Vercel project from the repo (branch `main`); copy an existing teacher's env vars and swap the teacher-specific ones: the 3 Supabase keys, 4 `BUNNY_STREAM_*`, and branding (`NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_DESCRIPTION`, `NEXT_PUBLIC_BRAND_LOGO_URL`, `NEXT_PUBLIC_HERO_URL`/`NEXT_PUBLIC_SHOW_HERO`, `NEXT_PUBLIC_FAVICON_URL`, `NEXT_PUBLIC_APP_DOMAIN`, `NEXT_PUBLIC_ICS_PRODID`, `NEXT_PUBLIC_SHOW_*`). `NEXT_PUBLIC_*` bake in at build time → **redeploy after changing them**. Missing branding vars fall back to Johnson's defaults.
+4. Brand assets (logo/hero/favicon): `next.config.ts` derives the allowed image host from `NEXT_PUBLIC_SUPABASE_URL`, so host them in the **teacher's own Supabase Storage** (convention: a public `brand` bucket) and use the `…/storage/v1/object/public/brand/…` URLs — do NOT commit per-teacher assets to `public/`.
+5. Domain → Namecheap CNAME to the project's Vercel target; Supabase Auth → Site URL + Redirect URLs = the domain. Email confirmation is a per-teacher toggle (OFF until Resend SMTP is set for that domain).
+6. Promote the teacher: `update public.profiles set is_admin = true where id = '<uid>'` after they sign up.
+7. Recreate dashboard-only config per teacher: Bunny library + referrer protection + video webhook, and (if used) the Supabase Database Webhook on `notifications` → `/api/push/send`.
+
 ## Deferred / Not Yet Built
 
-- Email confirmation on signup (Supabase setting currently OFF)
-- Password reset / forgot password
-- Change email / change password from profile
-- Admin write features for Classroom (create/edit topics + content)
-- Edit / delete existing posts
-- Notifications
-- Search / filter on members
-- Pagination on feeds (currently fetches all rows)
-- Real-time updates (Supabase Realtime is not used)
-- Toast notification library (currently inline error/success messages)
+Most of the original deferred list is now **built** (see [Phase-2 additions](#phase-2-multitenant--features-added) — notifications, web push, feed pagination, member search, toasts, realtime DMs, post edit/delete, comment edit/delete + images, and full Classroom admin all exist). Still open:
+
+- Change email from profile (change **password** exists; change email does not).
+- Cross-folder drag of lessons in the classroom tree (reorder currently works only within the same folder/root).
+- Auto-generated thumbnails for non-image document lessons (PDF/PPT show a generic icon; only image uploads self-thumbnail).
+- Full recurring events (only "N consecutive days" materialized occurrences exist).
 
 ## Common Tasks
 
